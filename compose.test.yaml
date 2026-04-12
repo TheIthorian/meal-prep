@@ -10,7 +10,6 @@ services:
       DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
     depends_on:
       - db
-      - redis
       - minio
       - minio-init
     networks:

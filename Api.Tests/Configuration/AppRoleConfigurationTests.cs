@@ -11,18 +11,15 @@ public class AppRoleConfigurationTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(
                 new Dictionary<string, string?> {
-                    [
-                            "APP_ROLES"
-                        ] =
-                        $"{AppRoles.WorkerCleanup},{AppRoles.WorkerCron}"
+                    ["APP_ROLES"] = "api,worker:payments"
                 }
             )
             .Build();
 
         var roles = configuration.GetAppRoles();
 
-        Assert.Contains(AppRoles.WorkerCleanup, roles);
-        Assert.Contains(AppRoles.WorkerCron, roles);
+        Assert.Contains("api", roles);
+        Assert.Contains("worker:payments", roles);
     }
 
     [Fact]

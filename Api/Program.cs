@@ -1,6 +1,5 @@
 using DotNetEnv;
 using Api.Startup;
-using Hangfire;
 using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,7 +22,6 @@ var app = builder.Build();
 
 app.LogStartupConfiguration();
 await app.ApplyMigrationsAsync();
-app.RegisterRecurringJobs();
 
 var forwardedHeadersOptions = new ForwardedHeadersOptions {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor
@@ -39,9 +37,6 @@ app.UseCors("Frontend");
 app.UseGlobalExceptionHandler();
 app.MapApiEndpoints();
 app.UseApiPipeline();
-
-if (builder.Environment.IsDevelopment())
-    app.UseHangfireDashboard();
 
 app.Run();
 

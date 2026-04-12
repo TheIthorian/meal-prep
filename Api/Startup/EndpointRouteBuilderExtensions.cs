@@ -1,6 +1,8 @@
 using Api.Endpoints;
 using Api.Endpoints.Middleware;
+using Api.Endpoints.Requests.MealPrep;
 using Api.Endpoints.Requests;
+using Api.Endpoints.Responses.MealPrep;
 using Api.Endpoints.Responses;
 using Api.Models;
 
@@ -81,6 +83,99 @@ public static class EndpointRouteBuilderExtensions
                 )
                 .Produces(StatusCodes.Status200OK)
                 .WithName("DeleteWorkspaceUser");
+
+            apiGroup.MapGet("/workspaces/{workspaceId:guid}/recipes", RecipesHandlers.GetRecipes)
+                .Produces<PaginatedResponse<RecipeListItemResponse>>()
+                .WithName("GetRecipes");
+
+            apiGroup.MapPost("/workspaces/{workspaceId:guid}/recipes/import-preview", RecipesHandlers.PostImportPreview)
+                .WithBodyValidation<ImportRecipePreviewRequest>()
+                .Produces<RecipeImportPreviewResponse>()
+                .WithName("PreviewRecipeImport");
+
+            apiGroup.MapGet("/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}", RecipesHandlers.GetRecipe)
+                .Produces<RecipeResponse>()
+                .WithName("GetRecipe");
+
+            apiGroup.MapPost("/workspaces/{workspaceId:guid}/recipes", RecipesHandlers.PostRecipe)
+                .WithBodyValidation<SaveRecipeRequest>()
+                .Produces<RecipeResponse>()
+                .WithName("CreateRecipe");
+
+            apiGroup.MapPatch("/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}", RecipesHandlers.PatchRecipe)
+                .WithBodyValidation<SaveRecipeRequest>()
+                .Produces<RecipeResponse>()
+                .WithName("UpdateRecipe");
+
+            apiGroup.MapDelete("/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}", RecipesHandlers.DeleteRecipe)
+                .Produces(StatusCodes.Status200OK)
+                .WithName("DeleteRecipe");
+
+            apiGroup.MapGet("/workspaces/{workspaceId:guid}/meal-plan-entries", MealPlanEntriesHandlers.GetMealPlanEntries)
+                .Produces<MealPlanEntryResponse[]>()
+                .WithName("GetMealPlanEntries");
+
+            apiGroup.MapPost("/workspaces/{workspaceId:guid}/meal-plan-entries", MealPlanEntriesHandlers.PostMealPlanEntry)
+                .WithBodyValidation<SaveMealPlanEntryRequest>()
+                .Produces<MealPlanEntryResponse>()
+                .WithName("CreateMealPlanEntry");
+
+            apiGroup.MapPatch(
+                    "/workspaces/{workspaceId:guid}/meal-plan-entries/{mealPlanEntryId:guid}",
+                    MealPlanEntriesHandlers.PatchMealPlanEntry
+                )
+                .WithBodyValidation<SaveMealPlanEntryRequest>()
+                .Produces<MealPlanEntryResponse>()
+                .WithName("UpdateMealPlanEntry");
+
+            apiGroup.MapDelete(
+                    "/workspaces/{workspaceId:guid}/meal-plan-entries/{mealPlanEntryId:guid}",
+                    MealPlanEntriesHandlers.DeleteMealPlanEntry
+                )
+                .Produces(StatusCodes.Status200OK)
+                .WithName("DeleteMealPlanEntry");
+
+            apiGroup.MapGet("/workspaces/{workspaceId:guid}/shopping-lists", ShoppingListsHandlers.GetShoppingLists)
+                .Produces<ShoppingListListItemResponse[]>()
+                .WithName("GetShoppingLists");
+
+            apiGroup.MapGet("/workspaces/{workspaceId:guid}/shopping-lists/{shoppingListId:guid}", ShoppingListsHandlers.GetShoppingList)
+                .Produces<ShoppingListResponse>()
+                .WithName("GetShoppingList");
+
+            apiGroup.MapPost("/workspaces/{workspaceId:guid}/shopping-lists/generate", ShoppingListsHandlers.PostGenerateShoppingList)
+                .WithBodyValidation<GenerateShoppingListRequest>()
+                .Produces<ShoppingListResponse>()
+                .WithName("GenerateShoppingList");
+
+            apiGroup.MapPatch("/workspaces/{workspaceId:guid}/shopping-lists/{shoppingListId:guid}", ShoppingListsHandlers.PatchShoppingList)
+                .WithBodyValidation<SaveShoppingListRequest>()
+                .Produces<ShoppingListResponse>()
+                .WithName("UpdateShoppingList");
+
+            apiGroup.MapDelete("/workspaces/{workspaceId:guid}/shopping-lists/{shoppingListId:guid}", ShoppingListsHandlers.DeleteShoppingList)
+                .Produces(StatusCodes.Status200OK)
+                .WithName("DeleteShoppingList");
+
+            apiGroup.MapPost("/workspaces/{workspaceId:guid}/shopping-lists/{shoppingListId:guid}/items", ShoppingListsHandlers.PostShoppingListItem)
+                .WithBodyValidation<SaveShoppingListItemRequest>()
+                .Produces<ShoppingListItemResponse>()
+                .WithName("CreateShoppingListItem");
+
+            apiGroup.MapPatch(
+                    "/workspaces/{workspaceId:guid}/shopping-lists/{shoppingListId:guid}/items/{itemId:guid}",
+                    ShoppingListsHandlers.PatchShoppingListItem
+                )
+                .WithBodyValidation<SaveShoppingListItemRequest>()
+                .Produces<ShoppingListItemResponse>()
+                .WithName("UpdateShoppingListItem");
+
+            apiGroup.MapDelete(
+                    "/workspaces/{workspaceId:guid}/shopping-lists/{shoppingListId:guid}/items/{itemId:guid}",
+                    ShoppingListsHandlers.DeleteShoppingListItem
+                )
+                .Produces(StatusCodes.Status200OK)
+                .WithName("DeleteShoppingListItem");
         }
     }
 }

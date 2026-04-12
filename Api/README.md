@@ -7,19 +7,17 @@ This backend powers Meal Prep, a web app for collecting recipes, importing recip
 - User authentication with ASP.NET Core Identity (Bearer tokens and cookies)
 - Multi-workspace support
 - Recipe and shopping-list application foundations
-- Redis caching
 - Swagger API documentation
 
 ## Prerequisites
 
 - .NET 10.0 SDK
 - PostgreSQL database
-- Redis server
 - S3-compatible storage (MinIO in local/dev)
 
 ## Setup
 
-For local development from the monorepo root, `docker compose up -d db redis minio minio-init` starts Postgres, Redis, and MinIO. On startup, the API creates the configured PostgreSQL database if it does not already exist and then applies EF Core migrations.
+For local development from the monorepo root, `docker compose up -d db minio minio-init` starts Postgres and MinIO. On startup, the API creates the configured PostgreSQL database if it does not already exist and then applies EF Core migrations.
 
 1. **Configure the database connection string** in `appsettings.json` or `appsettings.Development.json`:
 
@@ -100,5 +98,5 @@ Ensure PostgreSQL is accessible from the container. Redis is only required when 
 For local backend development/tests in this monorepo, start shared dependencies from the repo root:
 
 ```bash
-docker compose up -d db redis minio minio-init
+docker compose up -d db minio minio-init
 ```

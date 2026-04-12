@@ -2,8 +2,6 @@ namespace Api.Configuration;
 
 public static class AppRoles
 {
-    public const string WorkerCleanup = "worker:cleanup";
-    public const string WorkerCron = "worker:cron";
 }
 
 /// <summary>

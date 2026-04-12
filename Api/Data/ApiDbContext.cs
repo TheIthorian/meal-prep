@@ -71,6 +71,8 @@ public partial class ApiDbContext : IdentityDbContext<AppUser, IdentityRole<Guid
             .HasOne(uw => uw.Workspace)
             .WithMany(w => w.Members)
             .HasForeignKey(uw => uw.WorkspaceId);
+
+        OnModelCreatingPartial(modelBuilder);
     }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);

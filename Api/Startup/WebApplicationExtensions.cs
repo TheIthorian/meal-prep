@@ -1,8 +1,6 @@
 using Api.Configuration;
 using Api.Data;
 using Api.Endpoints.Middleware;
-using Api.Services;
-using Hangfire;
 
 namespace Api.Startup;
 
@@ -24,23 +22,6 @@ public static class WebApplicationExtensions
         {
             app.UseExceptionHandler();
         }
-        
-        public void RegisterRecurringJobs() {
-            if (!app.Configuration.HasAppRole(AppRoles.WorkerCron))
-                return;
-
-            using var scope = app.Services.CreateScope();
-            var recurringJobs = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
-
-            recurringJobs.AddOrUpdate<CleanupBackgroundJobs>(
-                CleanupBackgroundJobs.NightlyCleanupJobId,
-                BackgroundJobQueues.Cleanup,
-                job => job.RunNightlyCleanup(CancellationToken.None),
-                Cron.Daily(),
-                new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc }
-            );
-        }
-
 
         public void UseApiPipeline()
         {

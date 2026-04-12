@@ -3,10 +3,6 @@ using Api.Models;
 using Api.Services;
 using Api.Tests.Infrastructure;
 using Api.Tests.Integration;
-using Hangfire;
-using Hangfire.Common;
-using Hangfire.Storage;
-using Hangfire.States;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -62,32 +58,23 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
             ?? "localhost:6379,abortConnect=false"
         );
 
-        builder.ConfigureLogging(logging =>
-        {
+        builder.ConfigureLogging(logging => {
             logging.ClearProviders();
             logging.AddConsole();
             logging.SetMinimumLevel(LogLevel.Warning);
             logging.AddFilter("Microsoft", LogLevel.Warning);
             logging.AddFilter("System", LogLevel.Warning);
-            logging.AddFilter("Hangfire", LogLevel.Warning);
             logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
-        }
-        );
+        });
 
         builder.ConfigureAppConfiguration((_, configBuilder) =>
         {
             var connectionString = TestEnvironment.GetDatabaseConnectionString();
-            var redisConnectionString = Environment.GetEnvironmentVariable("ConnectionStrings__Redis")
-                                        ?? Environment.GetEnvironmentVariable("REDIS_CONNECTIONSTRING")
-                                        ?? "localhost:6379,abortConnect=false";
             var config = new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = connectionString,
                 ["ConnectionStrings__DefaultConnection"] = connectionString,
                 ["POSTGRES_CONNECTIONSTRING"] = connectionString,
-                ["ConnectionStrings:Redis"] = redisConnectionString,
-                ["ConnectionStrings__Redis"] = redisConnectionString,
-                ["REDIS_CONNECTIONSTRING"] = redisConnectionString,
                 ["AppRoles"] = "api",
                 ["AuthStateStore:Provider"] = "Postgres",
                 ["AuthStateStore__Provider"] = "Postgres",
@@ -114,25 +101,7 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
 
         builder.ConfigureTestServices(services =>
         {
-            var hangfireHostedServices = services
-                .Where(descriptor => descriptor.ServiceType == typeof(IHostedService)
-                                     && descriptor.ImplementationType?.Namespace?.StartsWith(
-                                         "Hangfire",
-                                         StringComparison.Ordinal
-                                     )
-                                     == true
-                )
-                .ToArray();
-
-            foreach (var descriptor in hangfireHostedServices)
-                services.Remove(descriptor);
-
             services.AddMemoryCache();
-
-            services.RemoveAll<IBackgroundJobClient>();
-            services.AddSingleton<IBackgroundJobClient, NoOpBackgroundJobClient>();
-            services.RemoveAll<IRecurringJobManager>();
-            services.AddSingleton<IRecurringJobManager, NoOpRecurringJobManager>();
             services.RemoveAll<IS3StorageService>();
             services.AddSingleton<IS3StorageService, InMemoryS3StorageService>();
 
@@ -156,8 +125,7 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
                 options.DefaultChallengeScheme = TestOrIdentityScheme;
             }
             );
-        }
-        );
+        });
     }
 
     public HttpClient CreateAuthenticatedClient(Guid userId)
@@ -253,29 +221,6 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
             return Task.CompletedTask;
         }
     }
-
-    private sealed class NoOpBackgroundJobClient : IBackgroundJobClient
-    {
-        public string Create(Job job, IState state)
-        {
-            return Guid.NewGuid().ToString("N");
-        }
-
-        public bool ChangeState(string jobId, IState state, string expectedState)
-        {
-            return true;
-        }
-    }
-
-    private sealed class NoOpRecurringJobManager : IRecurringJobManager
-    {
-        public void AddOrUpdate(string recurringJobId, Job job, string cronExpression, RecurringJobOptions options) { }
-
-        public void Trigger(string recurringJobId) { }
-
-        public void RemoveIfExists(string recurringJobId) { }
-    }
-
     private static void AddDefaultForwardedForHeader(HttpClient client)
     {
         client.DefaultRequestHeaders.Remove("X-Forwarded-For");
