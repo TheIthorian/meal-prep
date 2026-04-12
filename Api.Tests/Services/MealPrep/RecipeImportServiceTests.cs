@@ -1,8 +1,11 @@
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using Api.Configuration;
 using Api.Models;
 using Api.Services.MealPrep;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace Api.Tests.Services.MealPrep;
 
@@ -46,7 +49,7 @@ public class RecipeImportServiceTests
             """;
 
         var httpClient = new HttpClient(new StubHttpMessageHandler(html));
-        var service = new RecipeImportService(httpClient, new MeasurementService());
+        var service = CreateRecipeImportService(httpClient);
 
         var preview = await service.PreviewAsync("https://example.com/lemon-pasta");
 
@@ -64,7 +67,7 @@ public class RecipeImportServiceTests
     public async Task PreviewAsync_ShouldRejectLocalhostImports()
     {
         var httpClient = new HttpClient(new StubHttpMessageHandler("<html></html>"));
-        var service = new RecipeImportService(httpClient, new MeasurementService());
+        var service = CreateRecipeImportService(httpClient);
 
         var exception = await Assert.ThrowsAsync<Api.Domain.InvalidFormatException>(() =>
             service.PreviewAsync("http://localhost/recipe")
@@ -78,13 +81,48 @@ public class RecipeImportServiceTests
     {
         var oversizedHtml = new string('a', 2 * 1024 * 1024 + 1);
         var httpClient = new HttpClient(new StubHttpMessageHandler(oversizedHtml, oversizedHtml.Length));
-        var service = new RecipeImportService(httpClient, new MeasurementService());
+        var service = CreateRecipeImportService(httpClient);
 
         var exception = await Assert.ThrowsAsync<Api.Domain.InvalidFormatException>(() =>
             service.PreviewAsync("https://example.com/recipe")
         );
 
         Assert.Contains("too large", exception.Details.Detail);
+    }
+
+    [Fact]
+    public async Task PreviewAsync_WhenHeuristicsFailAndLlmDisabled_Throws()
+    {
+        var html = """
+            <html>
+              <head><title>Not a recipe</title></head>
+              <body><p>Hello world</p></body>
+            </html>
+            """;
+
+        var httpClient = new HttpClient(new StubHttpMessageHandler(html));
+        var service = CreateRecipeImportService(httpClient);
+
+        var exception = await Assert.ThrowsAsync<Api.Domain.InvalidFormatException>(() =>
+            service.PreviewAsync("https://example.com/page")
+        );
+
+        Assert.Contains("Could not find recipe metadata", exception.Details.Detail);
+    }
+
+    private static RecipeImportService CreateRecipeImportService(HttpClient httpClient)
+    {
+        var llmParser = new RecipeImportLlmParser(
+            Options.Create(new OpenAIConfiguration { ApiKey = string.Empty }),
+            NullLogger<RecipeImportLlmParser>.Instance
+        );
+
+        return new RecipeImportService(
+            httpClient,
+            new MeasurementService(),
+            llmParser,
+            NullLogger<RecipeImportService>.Instance
+        );
     }
 
     private sealed class StubHttpMessageHandler(string html, long? contentLength = null) : HttpMessageHandler

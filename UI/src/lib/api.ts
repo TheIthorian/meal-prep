@@ -2,6 +2,21 @@ import { PostWorkspaceRequest, WorkspaceResponse } from '@/models/workspace';
 import { httpClient } from './http-client';
 import { LoginRequest, RegisterRequest } from '@/models/auth';
 import { UserResponse } from '@/models/user';
+import {
+    GenerateShoppingListRequest,
+    MealPlanEntry,
+    Recipe,
+    RecipeImportPreview,
+    RecipeListItem,
+    SaveMealPlanEntryRequest,
+    SaveRecipeRequest,
+    SaveShoppingListItemRequest,
+    SaveShoppingListRequest,
+    ShoppingList,
+    ShoppingListItem,
+    ShoppingListListItem,
+} from '@/models/meal-prep';
+import type { PaginatedResponse } from '@/models/pagination';
 
 // Auth API
 export const authApi = {
@@ -27,4 +42,54 @@ export const workspacesApi = {
         httpClient.patch<void>(`/api/v1/workspaces/${workspaceId}/members/${userId}`, { role }),
     removeMember: (workspaceId: string, userId: string) =>
         httpClient.delete<void>(`/api/v1/workspaces/${workspaceId}/members/${userId}`),
+};
+
+export const recipesApi = {
+    getAll: (
+        workspaceId: string,
+        params?: { q?: string; page?: number; pageSize?: number; includeArchived?: boolean; orderBy?: string; direction?: 'asc' | 'desc' },
+    ) => httpClient.get<PaginatedResponse<RecipeListItem>>(`/api/v1/workspaces/${workspaceId}/recipes`, { params }),
+    getById: (workspaceId: string, recipeId: string) =>
+        httpClient.get<Recipe>(`/api/v1/workspaces/${workspaceId}/recipes/${recipeId}`),
+    create: (workspaceId: string, data: SaveRecipeRequest) =>
+        httpClient.post<Recipe>(`/api/v1/workspaces/${workspaceId}/recipes`, data),
+    update: (workspaceId: string, recipeId: string, data: SaveRecipeRequest) =>
+        httpClient.patch<Recipe>(`/api/v1/workspaces/${workspaceId}/recipes/${recipeId}`, data),
+    remove: (workspaceId: string, recipeId: string) =>
+        httpClient.delete<void>(`/api/v1/workspaces/${workspaceId}/recipes/${recipeId}`),
+    previewImport: (workspaceId: string, url: string) =>
+        httpClient.post<RecipeImportPreview>(`/api/v1/workspaces/${workspaceId}/recipes/import-preview`, { url }),
+};
+
+export const mealPlanApi = {
+    getAll: (workspaceId: string, params?: { from?: string; to?: string }) =>
+        httpClient.get<MealPlanEntry[]>(`/api/v1/workspaces/${workspaceId}/meal-plan-entries`, { params }),
+    create: (workspaceId: string, data: SaveMealPlanEntryRequest) =>
+        httpClient.post<MealPlanEntry>(`/api/v1/workspaces/${workspaceId}/meal-plan-entries`, data),
+    update: (workspaceId: string, mealPlanEntryId: string, data: SaveMealPlanEntryRequest) =>
+        httpClient.patch<MealPlanEntry>(`/api/v1/workspaces/${workspaceId}/meal-plan-entries/${mealPlanEntryId}`, data),
+    remove: (workspaceId: string, mealPlanEntryId: string) =>
+        httpClient.delete<void>(`/api/v1/workspaces/${workspaceId}/meal-plan-entries/${mealPlanEntryId}`),
+};
+
+export const shoppingListsApi = {
+    getAll: (workspaceId: string) =>
+        httpClient.get<ShoppingListListItem[]>(`/api/v1/workspaces/${workspaceId}/shopping-lists`),
+    getById: (workspaceId: string, shoppingListId: string) =>
+        httpClient.get<ShoppingList>(`/api/v1/workspaces/${workspaceId}/shopping-lists/${shoppingListId}`),
+    generate: (workspaceId: string, data: GenerateShoppingListRequest) =>
+        httpClient.post<ShoppingList>(`/api/v1/workspaces/${workspaceId}/shopping-lists/generate`, data),
+    update: (workspaceId: string, shoppingListId: string, data: SaveShoppingListRequest) =>
+        httpClient.patch<ShoppingList>(`/api/v1/workspaces/${workspaceId}/shopping-lists/${shoppingListId}`, data),
+    remove: (workspaceId: string, shoppingListId: string) =>
+        httpClient.delete<void>(`/api/v1/workspaces/${workspaceId}/shopping-lists/${shoppingListId}`),
+    createItem: (workspaceId: string, shoppingListId: string, data: SaveShoppingListItemRequest) =>
+        httpClient.post<ShoppingListItem>(`/api/v1/workspaces/${workspaceId}/shopping-lists/${shoppingListId}/items`, data),
+    updateItem: (workspaceId: string, shoppingListId: string, itemId: string, data: SaveShoppingListItemRequest) =>
+        httpClient.patch<ShoppingListItem>(
+            `/api/v1/workspaces/${workspaceId}/shopping-lists/${shoppingListId}/items/${itemId}`,
+            data,
+        ),
+    removeItem: (workspaceId: string, shoppingListId: string, itemId: string) =>
+        httpClient.delete<void>(`/api/v1/workspaces/${workspaceId}/shopping-lists/${shoppingListId}/items/${itemId}`),
 };

@@ -36,7 +36,10 @@ class AppHttpClient {
 
     constructor() {
         this.axiosInstance = axios.create({
-            baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000',
+            // In dev, default to same-origin + Vite proxy (see vite.config.ts). Override with VITE_API_BASE_URL.
+            baseURL:
+                import.meta.env.VITE_API_BASE_URL ||
+                (import.meta.env.DEV ? '' : 'http://localhost:5001'),
             withCredentials: true,
             headers: { 'Content-Type': 'application/json' },
         });
@@ -137,7 +140,10 @@ export function handleAxiosError(error: AxiosError<unknown>) {
                 variant: 'destructive',
             });
         }
-    } else if (error.response.status && [502, 503, 504].includes(error.response.status)) {
+    } else if (
+        error.response?.status &&
+        [502, 503, 504].includes(error.response.status)
+    ) {
         // Network error
         toast({
             title: 'Network Error',
@@ -149,15 +155,19 @@ export function handleAxiosError(error: AxiosError<unknown>) {
         toast({ title: errorData.title, description: errorData.detail, variant: 'destructive' });
     } else if (isPlatformError(error)) {
         toast({
-            title: error.response.data?.error || error.message || 'Error',
+            title: error.response?.data?.error || error.message || 'Error',
             variant: 'destructive',
         });
     } else {
-        // Other errors
+        // Other errors (e.g. CORS/network — often no response object)
+        const causeMsg =
+            error.cause && typeof error.cause === 'object' && 'message' in error.cause
+                ? String((error.cause as { message?: unknown }).message)
+                : undefined;
         toast({
             title: error.message || 'Error',
             description:
-                error.cause.message || error.message || 'An unexpected error occurred. Please try again later.',
+                causeMsg || error.message || 'An unexpected error occurred. Please try again later.',
             variant: 'destructive',
         });
     }

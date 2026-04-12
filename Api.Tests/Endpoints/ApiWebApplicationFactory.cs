@@ -79,6 +79,7 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
                 ["AuthStateStore:Provider"] = "Postgres",
                 ["AuthStateStore__Provider"] = "Postgres",
                 ["OpenAI:ApiKey"] = TestEnvironment.GetOpenAiApiKey(),
+                ["OpenAI:BaseUrl"] = "https://api.openai.com/v1",
                 ["OpenAI:Model"] = "gpt-4o-mini",
                 ["Test:DisableOpenTelemetry"] = "true",
                 ["S3:ServiceUrl"] = TestEnvironment.GetS3ServiceUrl(),

@@ -8,6 +8,13 @@ export default defineConfig(({ mode }) => ({
     server: {
         host: '::',
         port: 8080,
+        // Same-origin /api in dev — avoids cross-port CORS and HTTPS redirects to the API.
+        proxy: {
+            '/api': {
+                target: 'http://localhost:5001',
+                changeOrigin: true,
+            },
+        },
     },
     plugins: [react(), mode === 'development' && componentTagger()].filter(Boolean),
     resolve: {

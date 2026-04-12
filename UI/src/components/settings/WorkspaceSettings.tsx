@@ -19,7 +19,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
@@ -42,7 +42,6 @@ export function WorkspaceSettings() {
     const { user } = useAuth();
     const { currentWorkspace } = useWorkspace();
     const queryClient = useQueryClient();
-    const { toast } = useToast();
     const { capture } = useAnalytics();
 
     const [isAddWorkspaceModalOpen, setIsAddWorkspaceModalOpen] = useState(false);
@@ -213,47 +212,56 @@ export function WorkspaceSettings() {
 
     return (
         <>
-            <Card>
-                <CardHeader>
-                    <CardTitle>My Workspaces</CardTitle>
-                    <CardDescription>Manage your workspaces and create new ones</CardDescription>
+            <Card className='overflow-hidden border-border/80 shadow-sm'>
+                <CardHeader className='border-b border-border/60 bg-muted/20'>
+                    <CardTitle className='text-lg'>Workspaces</CardTitle>
+                    <CardDescription>Create workspaces to separate recipes and meal plans for home, work, or family.</CardDescription>
                 </CardHeader>
-                <CardContent className='space-y-4'>
-                    <div className='space-y-2'>
+                <CardContent className='space-y-4 pt-6'>
+                    <ul className='space-y-2'>
                         {workspaces.map(workspace => (
-                            <div
+                            <li
                                 key={workspace.id}
-                                className='flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors'
+                                className='flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-card px-4 py-3 transition-colors hover:border-primary/25 hover:bg-muted/30'
                             >
-                                <div>
-                                    <p className='font-medium'>{workspace.name}</p>
+                                <div className='min-w-0'>
+                                    <p className='font-medium text-foreground'>{workspace.name}</p>
                                     <p className='text-sm text-muted-foreground'>
-                                        {workspace.members.length} member(s)
+                                        {workspace.members.length}{' '}
+                                        {workspace.members.length === 1 ? 'member' : 'members'}
                                     </p>
                                 </div>
-                                <div className='flex items-center gap-2'>
-                                    {workspace.id === currentWorkspace?.workspaceId && <Badge>Current</Badge>}
-                                    <Button variant='ghost' size='icon' onClick={() => handleEditClick(workspace)}>
+                                <div className='flex shrink-0 items-center gap-2'>
+                                    {workspace.id === currentWorkspace?.workspaceId && (
+                                        <Badge className='font-normal'>Current</Badge>
+                                    )}
+                                    <Button
+                                        variant='ghost'
+                                        size='icon'
+                                        className='h-9 w-9'
+                                        onClick={() => handleEditClick(workspace)}
+                                        aria-label={`Edit ${workspace.name}`}
+                                    >
                                         <Pencil className='h-4 w-4' />
                                     </Button>
                                 </div>
-                            </div>
+                            </li>
                         ))}
-                    </div>
-                    <Button onClick={() => setIsAddWorkspaceModalOpen(true)}>
+                    </ul>
+                    <Button type='button' onClick={() => setIsAddWorkspaceModalOpen(true)}>
                         <Plus className='mr-2 h-4 w-4' />
-                        Create Workspace
+                        New workspace
                     </Button>
                 </CardContent>
             </Card>
 
             {currentWorkspace && (
-                <Card>
-                    <CardHeader>
+                <Card className='overflow-hidden border-border/80 shadow-sm'>
+                    <CardHeader className='border-b border-border/60 bg-muted/20'>
                         <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
                             <div className='min-w-0'>
-                                <CardTitle>Workspace Members</CardTitle>
-                                <CardDescription>Manage who has access to {currentWorkspace.name}</CardDescription>
+                                <CardTitle className='text-lg'>Members</CardTitle>
+                                <CardDescription>Who can access “{currentWorkspace.name}”</CardDescription>
                             </div>
                             <Button size='sm' className='shrink-0' onClick={() => setIsInviteMemberModalOpen(true)}>
                                 <UserPlus className='mr-2 h-4 w-4' />
@@ -385,7 +393,7 @@ export function WorkspaceSettings() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Create Workspace</DialogTitle>
-                        <DialogDescription>Create a new workspace to organize your finances.</DialogDescription>
+                        <DialogDescription>Create a workspace for a separate recipe library and meal plan.</DialogDescription>
                     </DialogHeader>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>

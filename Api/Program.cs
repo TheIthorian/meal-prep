@@ -32,8 +32,13 @@ forwardedHeadersOptions.KnownIPNetworks.Clear();
 forwardedHeadersOptions.KnownProxies.Clear();
 
 app.UseForwardedHeaders(forwardedHeadersOptions);
-app.UseHttpsRedirection();
+// CORS must run before HTTPS redirection so preflight OPTIONS is not redirected (browsers forbid that)
+// and so redirect responses include Access-Control-Allow-Origin.
 app.UseCors("Frontend");
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseGlobalExceptionHandler();
 app.MapApiEndpoints();
 app.UseApiPipeline();

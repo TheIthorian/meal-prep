@@ -1,7 +1,7 @@
 using Api.Configuration;
 using Api.Endpoints.Requests;
-using Api.Services.MealPrep;
 using Api.Services;
+using Api.Services.MealPrep;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 
@@ -23,6 +23,8 @@ public static class ApplicationServiceCollectionExtensions
                 .Configure(options => { options.Roles = configuration.GetAppRoles(); });
             services.AddOptions<S3StorageConfiguration>()
                 .Bind(configuration.GetSection("S3"));
+            services.AddOptions<OpenAIConfiguration>()
+                .Bind(configuration.GetSection("OpenAI"));
             services.AddProblemDetails();
             services.AddExceptionHandler<GlobalExceptionHandler>();
             services.AddAppRateLimiting();
@@ -41,6 +43,7 @@ public static class ApplicationServiceCollectionExtensions
             services.AddScoped<IS3StorageService, S3StorageService>();
             services.AddScoped<MeasurementService>();
             services.AddScoped<ShoppingListGenerationService>();
+            services.AddSingleton<RecipeImportLlmParser>();
             services.AddHttpClient<RecipeImportService>();
         }
     }

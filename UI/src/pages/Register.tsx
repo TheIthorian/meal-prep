@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, TrendingUp } from 'lucide-react';
+import { ChefHat, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { analyticsEvents, useAnalytics } from '@/lib/analytics';
 
@@ -52,7 +52,7 @@ export default function Register() {
                 <div className='text-center'>
                     <div className='flex justify-center mb-4'>
                         <div className='rounded-full bg-primary p-3'>
-                            <TrendingUp className='h-8 w-8 text-primary-foreground' />
+                            <ChefHat className='h-8 w-8 text-primary-foreground' aria-hidden />
                         </div>
                     </div>
                     <h1 className='text-3xl font-bold tracking-tight'>Meal Prep</h1>

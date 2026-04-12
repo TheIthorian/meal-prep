@@ -1,34 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here.
 All colors MUST be HSL.
 */
 
 @layer base {
     :root {
-        --background: 210 20% 98%;
-        --foreground: 215 25% 15%;
+        --background: 40 20% 97%;
+        --foreground: 220 15% 15%;
 
-        --card: 0 0% 100%;
-        --card-foreground: 215 25% 15%;
+        --card: 40 15% 99%;
+        --card-foreground: 220 15% 15%;
 
-        --popover: 0 0% 100%;
-        --popover-foreground: 215 25% 15%;
+        --popover: 40 15% 99%;
+        --popover-foreground: 220 15% 15%;
 
-        /* Professional blue for financial trust */
-        --primary: 214 84% 48%;
+        --primary: 152 38% 38%;
         --primary-foreground: 0 0% 100%;
-        --primary-hover: 214 84% 42%;
+        --primary-hover: 152 38% 32%;
 
-        --secondary: 210 17% 92%;
-        --secondary-foreground: 215 25% 15%;
+        --secondary: 40 12% 93%;
+        --secondary-foreground: 220 15% 20%;
 
-        --muted: 210 17% 92%;
-        --muted-foreground: 215 15% 45%;
+        --muted: 40 10% 94%;
+        --muted-foreground: 220 10% 46%;
 
-        --accent: 197 71% 48%;
+        --accent: 24 80% 55%;
         --accent-foreground: 0 0% 100%;
 
         /* Success green for positive transactions */
@@ -46,49 +47,50 @@ All colors MUST be HSL.
         --destructive-foreground: 0 0% 100%;
         --destructive-light: 0 84% 95%;
 
-        --border: 215 16% 88%;
-        --input: 215 16% 88%;
-        --ring: 214 84% 48%;
+        --border: 40 12% 90%;
+        --input: 40 12% 90%;
+        --ring: 152 38% 38%;
 
-        --radius: 0.5rem;
+        --radius: 0.75rem;
+
+        --font-heading: 'DM Serif Display', serif;
+        --font-body: 'DM Sans', system-ui, sans-serif;
 
         /* Sidebar colors */
-        --sidebar-background: 215 25% 15%;
-        --sidebar-foreground: 210 20% 92%;
-        --sidebar-primary: 214 84% 48%;
+        --sidebar-background: 40 15% 96%;
+        --sidebar-foreground: 220 15% 15%;
+        --sidebar-primary: 152 38% 38%;
         --sidebar-primary-foreground: 0 0% 100%;
-        --sidebar-accent: 215 25% 20%;
-        --sidebar-accent-foreground: 210 20% 92%;
-        --sidebar-border: 215 25% 22%;
-        --sidebar-ring: 214 84% 48%;
+        --sidebar-accent: 40 12% 93%;
+        --sidebar-accent-foreground: 220 15% 20%;
+        --sidebar-border: 40 12% 90%;
+        --sidebar-ring: 152 38% 38%;
 
         /* Animations */
         --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .dark {
-        --background: 240 1% 12%;
-        /* #1e1e1e */
-        --foreground: 240 1% 90%;
+        --background: 220 15% 10%;
+        --foreground: 40 10% 92%;
 
-        --card: 240 1% 15%;
-        /* #252526 */
-        --card-foreground: 240 1% 90%;
+        --card: 220 15% 13%;
+        --card-foreground: 40 10% 92%;
 
-        --popover: 240 1% 15%;
-        --popover-foreground: 240 1% 90%;
+        --popover: 220 15% 13%;
+        --popover-foreground: 40 10% 92%;
 
-        --primary: 214 84% 52%;
+        --primary: 152 38% 45%;
         --primary-foreground: 0 0% 100%;
-        --primary-hover: 214 84% 58%;
+        --primary-hover: 152 38% 50%;
 
-        --secondary: 240 1% 20%;
-        --secondary-foreground: 240 1% 90%;
+        --secondary: 220 12% 18%;
+        --secondary-foreground: 40 10% 90%;
 
-        --muted: 240 1% 20%;
-        --muted-foreground: 240 1% 60%;
+        --muted: 220 10% 20%;
+        --muted-foreground: 220 10% 60%;
 
-        --accent: 197 71% 52%;
+        --accent: 24 80% 55%;
         --accent-foreground: 0 0% 100%;
 
         --success: 142 71% 50%;
@@ -103,18 +105,18 @@ All colors MUST be HSL.
         --destructive-foreground: 0 0% 100%;
         --destructive-light: 0 84% 15%;
 
-        --border: 240 1% 20%;
-        --input: 240 1% 20%;
-        --ring: 214 84% 52%;
+        --border: 220 12% 20%;
+        --input: 220 12% 20%;
+        --ring: 152 38% 45%;
 
-        --sidebar-background: 240 1% 12%;
-        --sidebar-foreground: 240 1% 90%;
-        --sidebar-primary: 214 84% 52%;
+        --sidebar-background: 220 15% 8%;
+        --sidebar-foreground: 40 10% 92%;
+        --sidebar-primary: 152 38% 45%;
         --sidebar-primary-foreground: 0 0% 100%;
-        --sidebar-accent: 240 1% 18%;
-        --sidebar-accent-foreground: 240 1% 90%;
-        --sidebar-border: 240 1% 20%;
-        --sidebar-ring: 214 84% 52%;
+        --sidebar-accent: 220 12% 15%;
+        --sidebar-accent-foreground: 40 10% 90%;
+        --sidebar-border: 220 12% 18%;
+        --sidebar-ring: 152 38% 45%;
     }
 }
 
@@ -131,5 +133,31 @@ All colors MUST be HSL.
 
     body {
         min-width: 0;
+        font-family: var(--font-body);
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+        font-family: var(--font-heading);
+    }
+}
+
+@layer utilities {
+    .font-heading {
+        font-family: var(--font-heading);
+    }
+
+    .font-body {
+        font-family: var(--font-body);
+    }
+
+    .safe-area-pb {
+        padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+
+    .safe-area-pt {
+        padding-top: env(safe-area-inset-top, 0);
     }
 }

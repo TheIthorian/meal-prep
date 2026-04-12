@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '@/lib/api';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -30,7 +30,6 @@ const profileSchema = z.object({
 export function ProfileSettings() {
     const { user, clearCurrentUser } = useAuth();
     const queryClient = useQueryClient();
-    const { toast } = useToast();
     const navigate = useNavigate();
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [deleteConfirmation, setDeleteConfirmation] = useState('');
@@ -86,23 +85,23 @@ export function ProfileSettings() {
 
     return (
         <>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Profile Information</CardTitle>
-                    <CardDescription>Update your personal information and email address</CardDescription>
+            <Card className='overflow-hidden border-border/80 shadow-sm'>
+                <CardHeader className='border-b border-border/60 bg-muted/20'>
+                    <CardTitle className='text-lg'>Profile</CardTitle>
+                    <CardDescription>Your display name and sign-in email</CardDescription>
                 </CardHeader>
-                <CardContent className='space-y-4'>
+                <CardContent className='space-y-4 pt-6'>
                     <Form {...profileForm}>
-                        <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className='space-y-4'>
-                            <div className='grid gap-4 md:grid-cols-2'>
+                        <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className='space-y-6'>
+                            <div className='grid gap-6 sm:grid-cols-2'>
                                 <FormField
                                     control={profileForm.control}
                                     name='displayName'
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Display Name</FormLabel>
+                                            <FormLabel>Display name</FormLabel>
                                             <FormControl>
-                                                <Input {...field} />
+                                                <Input autoComplete='name' {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -110,32 +109,44 @@ export function ProfileSettings() {
                                 />
                                 <FormItem>
                                     <FormLabel htmlFor='email'>Email</FormLabel>
-                                    <Input id='email' type='email' defaultValue={user?.email} disabled />
+                                    <Input
+                                        id='email'
+                                        type='email'
+                                        autoComplete='email'
+                                        defaultValue={user?.email}
+                                        disabled
+                                        className='bg-muted/50'
+                                    />
+                                    <p className='text-xs text-muted-foreground'>Email cannot be changed here.</p>
                                 </FormItem>
                             </div>
                             <Button type='submit' disabled={updateProfile.isPending}>
-                                {updateProfile.isPending ? 'Saving...' : 'Save Changes'}
+                                {updateProfile.isPending ? 'Saving…' : 'Save profile'}
                             </Button>
                         </form>
                     </Form>
                 </CardContent>
             </Card>
 
-            <Card className='border-destructive/50'>
-                <CardHeader>
-                    <CardTitle className='text-destructive'>Danger Zone</CardTitle>
-                    <CardDescription>Irreversible actions for your account</CardDescription>
+            <Card className='overflow-hidden border-destructive/30 shadow-sm'>
+                <CardHeader className='border-b border-destructive/20 bg-destructive/5'>
+                    <CardTitle className='text-lg text-destructive'>Danger zone</CardTitle>
+                    <CardDescription>Deleting your account removes workspaces and recipes you own.</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <div className='flex items-center justify-between'>
+                <CardContent className='pt-6'>
+                    <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
                         <div className='space-y-1'>
-                            <h4 className='font-medium'>Delete Account</h4>
+                            <p className='font-medium'>Delete account</p>
                             <p className='text-sm text-muted-foreground'>
-                                Permanently delete your account and all associated data. This action cannot be undone.
+                                This cannot be undone. All data tied to your account will be removed.
                             </p>
                         </div>
-                        <Button variant='destructive' onClick={() => setIsDeleteModalOpen(true)}>
-                            Delete Account
+                        <Button
+                            variant='destructive'
+                            className='shrink-0 sm:ml-4'
+                            onClick={() => setIsDeleteModalOpen(true)}
+                        >
+                            Delete account
                         </Button>
                     </div>
                 </CardContent>

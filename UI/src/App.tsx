@@ -2,15 +2,22 @@ import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { AppLayout } from '@/components/layouts/AppLayout';
 import { WorkspaceRedirect } from '@/components/WorkspaceRedirect';
+import { MealPrepAppLayout } from '@/components/meal-prep/MealPrepAppLayout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Settings from './pages/Settings';
+import SettingsRedirectPage from './pages/SettingsRedirectPage';
+import RecipeLibraryPage from './pages/meal-prep/RecipeLibraryPage';
+import RecipeDetailPage from './pages/meal-prep/RecipeDetailPage';
+import WeeklyPlannerPage from './pages/meal-prep/WeeklyPlannerPage';
+import ShoppingListPage from './pages/meal-prep/ShoppingListPage';
+import ShoppingModePage from './pages/meal-prep/ShoppingModePage';
+import CookingModePage from './pages/meal-prep/CookingModePage';
 import TermsOfService from './pages/TermsOfService';
 import DataRetention from './pages/DataRetention';
 import NotFoundError from './pages/NotFoundError';
@@ -57,23 +64,42 @@ const App = () => (
                                             path='/settings'
                                             element={
                                                 <ProtectedRoute>
-                                                    <AppLayout />
+                                                    <SettingsRedirectPage />
                                                 </ProtectedRoute>
                                             }
-                                        >
-                                            <Route index element={<Settings />} />
-                                        </Route>
+                                        />
 
                                         <Route
                                             path='/workspaces/:workspaceId'
                                             element={
                                                 <ProtectedRoute>
-                                                    <AppLayout />
+                                                    <MealPrepAppLayout />
                                                 </ProtectedRoute>
                                             }
                                         >
+                                            <Route index element={<RecipeLibraryPage />} />
+                                            <Route path='recipe/:recipeId' element={<RecipeDetailPage />} />
+                                            <Route path='planner' element={<WeeklyPlannerPage />} />
+                                            <Route path='shopping' element={<ShoppingListPage />} />
                                             <Route path='settings' element={<Settings />} />
                                         </Route>
+
+                                        <Route
+                                            path='/workspaces/:workspaceId/shopping-mode'
+                                            element={
+                                                <ProtectedRoute>
+                                                    <ShoppingModePage />
+                                                </ProtectedRoute>
+                                            }
+                                        />
+                                        <Route
+                                            path='/workspaces/:workspaceId/cooking/:recipeId'
+                                            element={
+                                                <ProtectedRoute>
+                                                    <CookingModePage />
+                                                </ProtectedRoute>
+                                            }
+                                        />
 
                                         <Route path='*' element={<NotFoundError />} />
                                     </Routes>

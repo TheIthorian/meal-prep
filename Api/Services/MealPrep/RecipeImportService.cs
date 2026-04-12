@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Text;
 using Api.Domain;
+using Api.Logging;
 using Api.Models;
 
 namespace Api.Services.MealPrep;
@@ -11,7 +12,12 @@ namespace Api.Services.MealPrep;
 /// <summary>
 ///     Fetches and extracts recipe previews from external web pages.
 /// </summary>
-public class RecipeImportService(HttpClient httpClient, MeasurementService measurementService)
+public class RecipeImportService(
+    HttpClient httpClient,
+    MeasurementService measurementService,
+    RecipeImportLlmParser recipeImportLlmParser,
+    ILogger<RecipeImportService> logger
+)
 {
     private const int MaxResponseBytes = 2 * 1024 * 1024;
     private static readonly Regex JsonLdScriptPattern = new(
@@ -53,10 +59,84 @@ public class RecipeImportService(HttpClient httpClient, MeasurementService measu
         var heuristic = TryExtractHeuristicRecipe(html, url);
         if (heuristic is not null) return heuristic;
 
+        using (logger.BeginPropertyScope(("sourceUrl", url)))
+        {
+            logger.LogInformation("Recipe import using LLM fallback.");
+        }
+
+        var llmStructured = await recipeImportLlmParser.TryParseStructuredRecipeAsync(html, url, cancellationToken);
+        if (llmStructured is not null)
+            return MapLlmStructuredPreview(llmStructured, url);
+
         throw new InvalidFormatException(
             "Recipe import failed",
             "Could not find recipe metadata on that page. You can still create the recipe manually."
         );
+    }
+
+    private RecipeImportPreview MapLlmStructuredPreview(RecipeImportLlmStructuredDto dto, string sourceUrl)
+    {
+        var servings = dto.Servings > 0 ? dto.Servings : 1m;
+        var title = dto.Title.Trim();
+        var description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim();
+
+        var tags = dto.Tags
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Select(tag => tag.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(tag => tag, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var ingredientLines = dto.IngredientLines.Where(line => !string.IsNullOrWhiteSpace(line)).ToList();
+        var ingredients = ingredientLines
+            .Select((text, index) => ParseIngredient(text, index))
+            .ToArray();
+
+        var stepTexts = dto.Steps
+            .Select(step => step.Instruction.Trim())
+            .Where(text => !string.IsNullOrWhiteSpace(text))
+            .ToList();
+
+        var steps = stepTexts
+            .Select((step, index) => new RecipeImportPreviewStep(index, step, ParseTimerSeconds(step)))
+            .ToArray();
+
+        var nutrition = BuildNutritionPreviewFromLlm(dto.Nutrition ?? new RecipeImportLlmNutritionDto(), servings);
+
+        return new RecipeImportPreview(
+            title,
+            description,
+            servings,
+            sourceUrl,
+            dto.PrepMinutes,
+            dto.CookMinutes,
+            tags,
+            ingredients,
+            steps,
+            nutrition
+        );
+    }
+
+    private RecipeImportPreviewNutrition? BuildNutritionPreviewFromLlm(RecipeImportLlmNutritionDto nutrition, decimal servingBasis)
+    {
+        var nutrients = new List<RecipeImportPreviewNutrient>();
+
+        void TryAdd(string nutrientType, decimal? amount)
+        {
+            if (amount is not null) nutrients.Add(new RecipeImportPreviewNutrient(nutrientType, amount.Value));
+        }
+
+        TryAdd(RecipeNutrientTypes.Calories, nutrition.Calories);
+        TryAdd(RecipeNutrientTypes.Protein, nutrition.Protein);
+        TryAdd(RecipeNutrientTypes.Carbohydrate, nutrition.Carbohydrate);
+        TryAdd(RecipeNutrientTypes.Fat, nutrition.Fat);
+        TryAdd(RecipeNutrientTypes.Fiber, nutrition.Fiber);
+        TryAdd(RecipeNutrientTypes.Sugar, nutrition.Sugar);
+        TryAdd(RecipeNutrientTypes.Sodium, nutrition.Sodium);
+
+        return nutrients.Count == 0
+            ? null
+            : new RecipeImportPreviewNutrition(servingBasis, nutrients);
     }
 
     private static void EnsureImportUrlIsAllowed(Uri parsedUrl)
