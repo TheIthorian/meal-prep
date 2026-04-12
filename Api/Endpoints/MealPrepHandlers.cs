@@ -101,10 +101,10 @@ internal static class RecipesHandlers
         [FromBody] SaveRecipeRequest body
     )
     {
-        var currentUserId = currentUserService.UserId;
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
-        if (currentUserId is null || workspaceUser is null) throw new UnauthorizedException();
+        if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
+        var currentUserId = workspaceUser.UserId;
         var recipe = Recipe.CreateNew(workspaceUser.Workspace, body.Title, body.Servings);
         ApplyRecipe(recipe, body);
 
@@ -131,10 +131,10 @@ internal static class RecipesHandlers
         [FromBody] SaveRecipeRequest body
     )
     {
-        var currentUserId = currentUserService.UserId;
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
-        if (currentUserId is null || workspaceUser is null) throw new UnauthorizedException();
+        if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
+        var currentUserId = workspaceUser.UserId;
         var recipe = await db.Recipes
             .Include(value => value.Ingredients)
             .Include(value => value.Steps)
@@ -160,10 +160,10 @@ internal static class RecipesHandlers
         Guid recipeId
     )
     {
-        var currentUserId = currentUserService.UserId;
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
-        if (currentUserId is null || workspaceUser is null) throw new UnauthorizedException();
+        if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
+        var currentUserId = workspaceUser.UserId;
         var recipe = await db.Recipes
             .ForCurrentUser(currentUserId)
             .WhereIsNotDeleted()
@@ -186,8 +186,8 @@ internal static class RecipesHandlers
         CancellationToken cancellationToken
     )
     {
-        var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
-        if (workspaceUser is null) throw new UnauthorizedException();
+        if (await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId) is null)
+            throw new EntityNotFoundException("workspace not found", null);
 
         var preview = await recipeImportService.PreviewAsync(body.Url, cancellationToken);
         return TypedResults.Json(preview.ToResponse());
@@ -272,10 +272,10 @@ internal static class MealPlanEntriesHandlers
         [FromBody] SaveMealPlanEntryRequest body
     )
     {
-        var currentUserId = currentUserService.UserId;
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
-        if (currentUserId is null || workspaceUser is null) throw new UnauthorizedException();
+        if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
+        var currentUserId = workspaceUser.UserId;
         var recipe = await db.Recipes
             .ForCurrentUser(currentUserId)
             .WhereIsNotDeleted()
@@ -422,10 +422,10 @@ internal static class ShoppingListsHandlers
         [FromBody] GenerateShoppingListRequest body
     )
     {
-        var currentUserId = currentUserService.UserId;
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
-        if (currentUserId is null || workspaceUser is null) throw new UnauthorizedException();
+        if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
+        var currentUserId = workspaceUser.UserId;
         var recipes = await db.Recipes
             .Include(recipe => recipe.Ingredients)
             .ForCurrentUser(currentUserId)

@@ -27,6 +27,16 @@ public static class ObservabilityServiceCollectionExtensions
                 "true",
                 StringComparison.OrdinalIgnoreCase
             ),
+            Enabled = string.Equals(
+                configuration["OTEL_ENABLED"],
+                "true",
+                StringComparison.OrdinalIgnoreCase
+            ),
+            EnableConsoleExporter = string.Equals(
+                configuration["OTEL_ENABLE_CONSOLE_EXPORTER"],
+                "true",
+                StringComparison.OrdinalIgnoreCase
+            ),
             ExporterEndpoint = configuration["OTEL_EXPORTER_ENDPOINT"],
             LogsExporterEndpoint = configuration["OTEL_EXPORTER_LOGS_ENDPOINT"],
             ApiKey = configuration["OTEL_EXPORTER_API_KEY"],
@@ -73,7 +83,7 @@ public static class ObservabilityServiceCollectionExtensions
 
         public void AddAppOpenTelemetry() {
             var openTelemetryOptions = BuildOpenTelemetryOptions(builder.Configuration);
-            if (openTelemetryOptions.DisableForTests)
+            if (openTelemetryOptions.DisableForTests || !openTelemetryOptions.Enabled)
                 return;
 
             builder.Services
@@ -102,7 +112,7 @@ public static class ObservabilityServiceCollectionExtensions
                                     );
                                 }
                             );
-                        else
+                        else if (openTelemetryOptions.EnableConsoleExporter)
                             tracing.AddConsoleExporter();
                     }
                 )
@@ -111,9 +121,8 @@ public static class ObservabilityServiceCollectionExtensions
                             .AddHttpClientInstrumentation()
                             .AddRuntimeInstrumentation();
 
-                        // Axiom does not support OTel metrics yet.
-                        // We can still use the console exporter in development if needed.
-                        if (string.IsNullOrEmpty(openTelemetryOptions.ExporterEndpoint))
+                        // Axiom does not support OTel metrics yet, so console export is explicit.
+                        if (openTelemetryOptions.EnableConsoleExporter)
                             metrics.AddConsoleExporter();
                     }
                 )
@@ -131,7 +140,7 @@ public static class ObservabilityServiceCollectionExtensions
                                     );
                                 }
                             );
-                        else
+                        else if (openTelemetryOptions.EnableConsoleExporter)
                             logging.AddConsoleExporter();
                     },
                     options => {

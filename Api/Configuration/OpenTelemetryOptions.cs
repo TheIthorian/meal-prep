@@ -6,6 +6,8 @@ namespace Api.Configuration;
 public class OpenTelemetryOptions
 {
     public bool DisableForTests { get; set; }
+    public bool Enabled { get; set; }
+    public bool EnableConsoleExporter { get; set; }
     public string? ExporterEndpoint { get; set; }
     public string? LogsExporterEndpoint { get; set; }
     public string? ApiKey { get; set; }
