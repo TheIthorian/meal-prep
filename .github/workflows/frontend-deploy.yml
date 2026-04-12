@@ -1,0 +1,94 @@
+name: Deploy Frontend
+
+on:
+  workflow_dispatch:
+    inputs:
+      VITE_API_BASE_URL:
+        description: "API Base URL"
+        required: true
+        type: string
+      VITE_PUBLIC_POSTHOG_HOST:
+        description: "PostHog API Host"
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      VITE_API_BASE_URL:
+        required: false
+        type: string
+      VITE_PUBLIC_POSTHOG_HOST:
+        required: false
+        type: string
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+      VITE_PUBLIC_POSTHOG_KEY:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: UI
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: UI/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm build
+        env:
+          VITE_API_BASE_URL: ${{ inputs.VITE_API_BASE_URL || vars.VITE_API_BASE_URL }}
+          VITE_PUBLIC_POSTHOG_HOST: ${{ inputs.VITE_PUBLIC_POSTHOG_HOST || vars.VITE_PUBLIC_POSTHOG_HOST }}
+          VITE_PUBLIC_POSTHOG_KEY: ${{ secrets.VITE_PUBLIC_POSTHOG_KEY }}
+
+      - name: Get commit messages
+        id: commit_messages
+        env:
+          COMMITS_JSON: ${{ toJson(github.event.commits) }}
+        run: |
+          # Handle manual dispatch (null) and preserve shell safety for arbitrary commit text.
+          if [ -z "${COMMITS_JSON:-}" ] || [ "$COMMITS_JSON" = "null" ]; then
+            echo "messages=Manual Trigger or No Commits" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          MESSAGES=$(jq -r '[.[].message | gsub("\\r?\\n"; " ")] | join("; ")' <<< "$COMMITS_JSON")
+
+          if [ -z "$MESSAGES" ]; then
+            MESSAGES="No Commit Messages"
+          fi
+
+          echo "messages=$MESSAGES" >> "$GITHUB_OUTPUT"
+
+      - name: Debug Cloudflare Projects
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages project list
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: UI
+          command: pages deploy dist --project-name=myapp-ui --commit-hash=${{ github.sha }} --commit-message="${{ steps.commit_messages.outputs.messages }}" --commit-dirty=true

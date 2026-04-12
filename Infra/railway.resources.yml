@@ -1,0 +1,21 @@
+project:
+    environment: production
+
+app:
+    service: myapp
+    repo: TheIthorian/myapp
+    variables:
+        ASPNETCORE_ENVIRONMENT: Production
+        ASPNETCORE_HTTP_PORTS: '${{PORT}}'
+
+resources:
+    postgres:
+        service: Postgres
+    redis:
+        service: Redis
+    bucket:
+        name: Bucket
+        region: ams
+
+patch:
+    skipDeploys: false

@@ -1,0 +1,109 @@
+﻿networks:
+  myapp-net:
+    name: myapp-net
+    external: false
+
+services:
+  api:
+    container_name: myapp-api
+    image: api
+    build:
+      context: .
+      dockerfile: Api/Dockerfile
+    env_file:
+      - .docker.env
+    environment:
+      - "ASPNETCORE_HTTP_PORTS=5001"
+    ports:
+      - '5000:5000'
+      - '5001:5001'
+    depends_on:
+      - redis
+      - db
+      - minio
+    networks:
+      - myapp-net
+  
+  redis:
+    container_name: myapp-redis
+    image: redis:latest
+    restart: always
+    ports:
+      - '6379:6379'
+    networks:
+      - myapp-net
+    command: redis-server --save 20 1 --loglevel warning
+    volumes:
+      - redis:/data
+  
+  minio:
+    container_name: myapp-minio
+    image: minio/minio:latest
+    entrypoint: bash
+    environment:
+      - MINIO_ROOT_USER=minio
+      - MINIO_ROOT_PASSWORD=123456789
+      - MINIO_SITE_REGION=eu-west-1
+    command:
+      - -c
+      - |
+        mkdir -p /data/drive/myapp-dev
+        /usr/bin/minio server /data/drive/myapp-dev --console-address ":9001"
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    networks:
+      - myapp-net
+    volumes:
+      - miniodata:/data
+  
+  minio-init:
+    container_name: myapp-minio-init
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set local http://myapp-minio:9000 minio 123456789;
+      mc mb --ignore-existing local/myapp-dev;
+      mc mb --ignore-existing local/myapp-autotest;
+      "
+    networks:
+      - myapp-net
+  
+  db:
+    container_name: myapp-pg-db
+    image: postgres:17
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - myapp-net
+    environment:
+      # NOTE: POSTGRES_DB/USER/PASSWORD should match values in app container
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: root
+      PGOPTIONS: '--client-min-messages=warning' # ignore errors if the dbs have already been created
+  
+  otel-collector:
+    container_name: myapp-otel-collector
+    image: otel/opentelemetry-collector-contrib:0.99.0
+    command: [ '--config=/etc/otel-collector-config.yaml' ]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - '4317:4317' # OTLP gRPC
+      - '4318:4318' # OTLP HTTP
+      - '55681:55681' # (optional) legacy OTLP HTTP
+    networks:
+      - myapp-net
+
+volumes:
+  redis:
+    driver: local
+  miniodata:
+  postgres-data:

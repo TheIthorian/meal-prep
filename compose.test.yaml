@@ -1,0 +1,23 @@
+services:
+  tests:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    working_dir: /repo
+    volumes:
+      - ./:/repo
+      - ${HOME}/.nuget/packages:/root/.nuget/packages
+    environment:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+    depends_on:
+      - db
+      - redis
+      - minio
+      - minio-init
+    networks:
+      - myapp-net
+    command: ["bash", "-lc", "sleep infinity"]
+
+networks:
+  myapp-net:
+    name: myapp-net
+    external: false

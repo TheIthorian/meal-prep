@@ -1,0 +1,69 @@
+name: Backend Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Start backend dependencies
+        run: docker compose -f compose.yaml -f compose.test.yaml up -d
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            if docker exec myapp-pg-db pg_isready -U root >/dev/null 2>&1; then
+              echo "PostgreSQL is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "PostgreSQL did not become ready in time"
+          exit 1
+
+      - name: Wait for Redis
+        run: |
+          for i in {1..30}; do
+            if docker exec $(docker ps -qf "ancestor=redis:latest") redis-cli ping | grep -q PONG; then
+              echo "Redis is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Redis did not become ready in time"
+          exit 1
+
+      - name: Wait for MinIO
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null; then
+              echo "MinIO is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MinIO did not become ready in time"
+          exit 1
+
+      - name: Run backend tests
+        run: >
+          docker compose -f compose.yaml -f compose.test.yaml exec -T tests
+          dotnet test Api.Tests/Api.Tests.csproj --configuration Release
+
+      - name: Stop backend dependencies
+        if: always()
+        run: docker compose -f compose.yaml -f compose.test.yaml down -v

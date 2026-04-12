@@ -1,0 +1,36 @@
+name: Deploy Backend (to DigitalOcean Container Registry)
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      DIGITALOCEAN_ACCESS_TOKEN:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to DigitalOcean
+        uses: docker/login-action@v3
+        with:
+          registry: registry.digitalocean.com
+          username: ${{ github.actor }}
+          password: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Api
+        uses: docker/build-push-action@v6
+        with:
+          context: . # Build context must be repo root to access Api.csproj
+          file: Api/Dockerfile
+          push: true
+          tags: registry.digitalocean.com/${{ vars.DIGITALOCEAN_REGISTRY_NAME }}/myapp-api:latest

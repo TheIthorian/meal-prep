@@ -1,0 +1,64 @@
+name: E2E Browser Tests
+
+on:
+  #   pull_request:
+  #     branches: [main]
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Base URL to run E2E tests against"
+        required: false
+        type: string
+
+jobs:
+  playwright-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: true
+      PLAYWRIGHT_BASE_URL: ${{ inputs.base_url || vars.E2E_BASE_URL || secrets.E2E_BASE_URL }}
+    defaults:
+      run:
+        working-directory: E2eTests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate base URL
+        run: |
+          if [ -z "${PLAYWRIGHT_BASE_URL}" ]; then
+            echo "PLAYWRIGHT_BASE_URL is required."
+            echo "Set workflow_dispatch input 'base_url' or repository variable/secret 'E2E_BASE_URL'."
+            exit 1
+          fi
+          echo "Running E2E tests against: ${PLAYWRIGHT_BASE_URL}"
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: npm test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: E2eTests/playwright-report
+          retention-days: 14
+
+      - name: Upload Playwright test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: E2eTests/test-results
+          retention-days: 14
