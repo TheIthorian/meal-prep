@@ -149,7 +149,7 @@ public static class ObservabilityServiceCollectionExtensions
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(options => {
                     options.CustomSchemaIds(type => type.FullName?.Replace("+", ".") ?? type.Name);
-                    options.SwaggerDoc("v1", new OpenApiInfo { Title = "MyApp Api", Version = "v1" });
+                    options.SwaggerDoc("v1", new OpenApiInfo { Title = "Meal Prep API", Version = "v1" });
                 }
             );
         }

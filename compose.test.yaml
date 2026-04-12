@@ -14,10 +14,10 @@ services:
       - minio
       - minio-init
     networks:
-      - myapp-net
+      - meal-prep-net
     command: ["bash", "-lc", "sleep infinity"]
 
 networks:
-  myapp-net:
-    name: myapp-net
+  meal-prep-net:
+    name: meal-prep-net
     external: false

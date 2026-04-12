@@ -91,4 +91,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: UI
-          command: pages deploy dist --project-name=myapp-ui --commit-hash=${{ github.sha }} --commit-message="${{ steps.commit_messages.outputs.messages }}" --commit-dirty=true
+          command: pages deploy dist --project-name=meal-prep-ui --commit-hash=${{ github.sha }} --commit-message="${{ steps.commit_messages.outputs.messages }}" --commit-dirty=true

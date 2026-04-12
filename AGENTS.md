@@ -40,7 +40,7 @@
 ## Tests
 
 - Backend tests live in `Api.Tests`; prefer `dotnet test Api.Tests/Api.Tests.csproj`.
-- If backend tests need to be executed, run them in the `myapp-dotnet` Docker container rather than on the host machine.
+- If backend tests need to be executed, run them in the `meal-prep-dotnet` Docker container rather than on the host machine.
 - If tests need infrastructure, rely on the docker compose services already defined in `compose.yaml`/`compose.test.yaml`.
 
 ## Responding to tasks

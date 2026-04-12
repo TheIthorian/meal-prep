@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-MyApp API: A microservices-based ASP.NET Core application with comprehensive infrastructure and authentication.
+Meal Prep API: An ASP.NET Core application for recipe import and shopping-list workflows with supporting infrastructure and authentication.
 
 ## Development Commands
 
@@ -15,10 +15,10 @@ MyApp API: A microservices-based ASP.NET Core application with comprehensive inf
 dotnet build
 
 # Build Docker containers
-docker-compose build
+docker compose build
 
 # Start development environment
-docker-compose up -d
+docker compose up -d
 ```
 
 ### Running Tests
@@ -38,7 +38,7 @@ dotnet test --filter "TestCategory=YourCategory"
 dotnet run
 
 # Generate REST client requests
-# Use myapp-api.http in Visual Studio Code or JetBrains Rider
+# Use meal-prep-api.http in Visual Studio Code or JetBrains Rider
 ```
 
 ## Key Architecture Components

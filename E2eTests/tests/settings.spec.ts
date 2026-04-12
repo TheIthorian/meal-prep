@@ -3,7 +3,7 @@ import { expectVisualSimilarity } from './support/screenshot-similarity.js';
 
 function uniqueEmail() {
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
-    return `myapp-settings-${nonce}@example.com`;
+    return `meal-prep-settings-${nonce}@example.com`;
 }
 
 test.describe('Settings flows', () => {

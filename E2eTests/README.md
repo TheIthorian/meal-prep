@@ -2,10 +2,7 @@
 
 This directory contains a standalone Node.js Playwright app for browser-based end-to-end tests.
 
-In a fork of the base repo, replace any placeholder deployment URLs before running these tests against your own app. In particular:
-
-- `myapp.com`: replace with your real deployed application domain or localhost
-- `myapp-ui.pages.dev`: replace with your preview/staging frontend hostname if you use Pages-style deployments
+Set `PLAYWRIGHT_BASE_URL` to the deployed UI you want to test, such as local, staging, or production.
 
 ## What is covered
 
@@ -27,10 +24,10 @@ In a fork of the base repo, replace any placeholder deployment URLs before runni
 cd E2eTests
 pnpm install
 pnpm run install:browsers
-PLAYWRIGHT_BASE_URL="https://myapp.com" pnpm test
+PLAYWRIGHT_BASE_URL="https://meal-prep.example.com" pnpm test
 ```
 
-For a fork, point `PLAYWRIGHT_BASE_URL` at your own environment, for example `https://app.example.com`.
+Point `PLAYWRIGHT_BASE_URL` at the environment you want to validate, for example `https://app.example.com`.
 
 ## Configuration
 

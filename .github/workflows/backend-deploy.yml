@@ -33,4 +33,4 @@ jobs:
           context: . # Build context must be repo root to access Api.csproj
           file: Api/Dockerfile
           push: true
-          tags: registry.digitalocean.com/${{ vars.DIGITALOCEAN_REGISTRY_NAME }}/myapp-api:latest
+          tags: registry.digitalocean.com/${{ vars.DIGITALOCEAN_REGISTRY_NAME }}/meal-prep-api:latest

@@ -19,10 +19,10 @@ public class ConfigurationLoggingExtensionsTests
     [Fact]
     public void MaskConfigurationValue_MasksSensitiveConnectionStringSegments()
     {
-        var value = "Host=localhost;Password=secret123;Username=app;Database=myapp";
+        var value = "Host=localhost;Password=secret123;Username=app;Database=meal_prep";
 
         var masked = ConfigurationLoggingExtensions.MaskConfigurationValue("Database", value);
 
-        Assert.Equal("Host=localhost;Password=se***23;Username=app;Database=myapp", masked);
+        Assert.Equal("Host=localhost;Password=se***23;Username=app;Database=meal_prep", masked);
     }
 }

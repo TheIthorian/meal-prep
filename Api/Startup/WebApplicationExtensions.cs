@@ -65,7 +65,9 @@ public static class WebApplicationExtensions
             {
                 app.MapSwagger();
                 app.UseSwagger();
-                app.UseSwaggerUI(options => { options.SwaggerEndpoint("/swagger/v1/swagger.json", "MyApp Api v1"); });
+                app.UseSwaggerUI(options => {
+                    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Meal Prep API v1");
+                });
             }
         }
     }

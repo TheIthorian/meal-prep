@@ -2,8 +2,8 @@ project:
     environment: production
 
 app:
-    service: myapp
-    repo: TheIthorian/myapp
+    service: meal-prep
+    repo: TheIthorian/meal-prep
     variables:
         ASPNETCORE_ENVIRONMENT: Production
         ASPNETCORE_HTTP_PORTS: '${{PORT}}'

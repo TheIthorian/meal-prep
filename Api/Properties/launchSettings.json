@@ -16,7 +16,7 @@
       "applicationUrl": "http://localhost:5000",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "POSTGRES_CONNECTIONSTRING": "Host=localhost;Port=5432;Database=myapp_dev;Username=root;Password=password"
+        "POSTGRES_CONNECTIONSTRING": "Host=localhost;Port=5432;Database=meal_prep_dev;Username=root;Password=password"
       }
     }
   }

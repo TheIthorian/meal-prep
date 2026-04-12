@@ -1,14 +1,12 @@
 # API
 
-This backend is the base ASP.NET Core 10 minimal API for the starter repo. Treat product-specific names in the codebase as placeholders until you replace them in your fork.
+This backend powers Meal Prep, a web app for collecting recipes, importing recipes from the web, and turning recipe ingredients into shopping lists.
 
 ## Features
 
 - User authentication with ASP.NET Core Identity (Bearer tokens and cookies)
 - Multi-workspace support
-- Account and transaction management
-- Category hierarchy
-- Currency support
+- Recipe and shopping-list application foundations
 - Redis caching
 - Swagger API documentation
 
@@ -23,19 +21,11 @@ This backend is the base ASP.NET Core 10 minimal API for the starter repo. Treat
 
 For local development from the monorepo root, `docker compose up -d db redis minio minio-init` starts Postgres, Redis, and MinIO. On startup, the API creates the configured PostgreSQL database if it does not already exist and then applies EF Core migrations.
 
-Before exposing this backend as your own service, update the placeholder identifiers called out in the root [README](../README.md#forking-checklist). The most important backend-specific ones are:
-
-- `myapp_dev`: default development database name
-- `myapp-dev`: default dev object-storage bucket name
-- `myapp-autotest`: test/automation object-storage bucket name
-- `myapp-net`: Docker network name used by local services
-- `MyApp`: API/OpenAPI display name used in generated docs and UI text
-
 1. **Configure the database connection string** in `appsettings.json` or `appsettings.Development.json`:
 
    ```json
    "ConnectionStrings": {
-     "DefaultConnection": "Host=localhost;Database=myapp_dev;Username=root;Password=password"
+     "DefaultConnection": "Host=localhost;Database=meal_prep_dev;Username=root;Password=password"
    }
    ```
 
@@ -73,7 +63,7 @@ Before exposing this backend as your own service, update the placeholder identif
    ```
 
    If `dotnet ef` reports missing packages after a restore from a different environment, delete
-   `Api/obj` and `Api.Tests/obj`, run `dotnet restore myapp-dotnet.sln` from the repo root,
+   `Api/obj` and `Api.Tests/obj`, run `dotnet restore meal-prep.sln` from the repo root,
    and then retry the migration command.
 
 4. **Run the application**:
@@ -94,15 +84,15 @@ docker compose up -d
 dotnet run --project Api
 ```
 
-That is the standard way to use the API when this repo is acting as a base template.
+That is the standard local workflow for backend development.
 
 ## Docker
 
 Build and run with Docker:
 
 ```bash
-docker build -t myapp-api .
-docker run -p 5000:5000 -p 5001:5001 myapp-api
+docker build -t meal-prep-api .
+docker run -p 5000:5000 -p 5001:5001 meal-prep-api
 ```
 
 Ensure PostgreSQL is accessible from the container. Redis is only required when `AuthStateStore.Provider=Redis`.

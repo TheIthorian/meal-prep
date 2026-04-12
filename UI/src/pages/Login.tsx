@@ -45,8 +45,8 @@ export default function Login() {
                             <TrendingUp className='h-8 w-8 text-primary-foreground' />
                         </div>
                     </div>
-                    <h1 className='text-3xl font-bold tracking-tight'>MyApp</h1>
-                    <p className='mt-2 text-muted-foreground'>MyAppDescription</p>
+                    <h1 className='text-3xl font-bold tracking-tight'>Meal Prep</h1>
+                    <p className='mt-2 text-muted-foreground'>Turn recipes into shopping lists</p>
                 </div>
 
                 <Card>

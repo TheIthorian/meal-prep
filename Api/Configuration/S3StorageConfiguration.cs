@@ -8,6 +8,6 @@ public class S3StorageConfiguration
     public string? ServiceUrl { get; set; }
     public string? AccessKey { get; set; }
     public string? SecretKey { get; set; }
-    public string BucketName { get; set; } = "myapp-dev";
+    public string BucketName { get; set; } = "meal-prep-dev";
     public string Region { get; set; } = "eu-west-1";
 }
