@@ -66,6 +66,36 @@ public class RecipeImportServiceTests
     }
 
     [Fact]
+    public async Task PreviewAsync_ShouldParseNumericRecipeYieldInJsonLd()
+    {
+        var html = """
+            <html>
+              <head>
+                <script type="application/ld+json">
+                {
+                  "@context": "https://schema.org",
+                  "@type": "Recipe",
+                  "name": "Test Dish",
+                  "recipeYield": 6,
+                  "recipeIngredient": [ "1 cup rice" ],
+                  "recipeInstructions": [ { "text": "Cook." } ]
+                }
+                </script>
+              </head>
+              <body></body>
+            </html>
+            """;
+
+        var httpClient = new HttpClient(new StubHttpMessageHandler(html));
+        var service = CreateRecipeImportService(httpClient);
+
+        var preview = await service.PreviewAsync("https://example.com/numeric-yield");
+
+        Assert.Equal("Test Dish", preview.Title);
+        Assert.Equal(6m, preview.Servings);
+    }
+
+    [Fact]
     public async Task PreviewAsync_ShouldRejectLocalhostImports()
     {
         var httpClient = new HttpClient(new StubHttpMessageHandler("<html></html>"));

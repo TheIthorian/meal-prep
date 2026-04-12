@@ -482,13 +482,26 @@ public class RecipeImportService(
     {
         if (node is null) return null;
 
-        var raw = node switch {
-            JsonValue jsonValue => jsonValue.GetValue<string>(),
-            JsonArray jsonArray => jsonArray.FirstOrDefault()?.GetValue<string>(),
-            _ => null
-        };
+        if (node is JsonArray jsonArray)
+            return ParseServings(jsonArray.FirstOrDefault());
 
-        if (string.IsNullOrWhiteSpace(raw)) return null;
+        if (node is not JsonValue jsonValue)
+            return null;
+
+        if (jsonValue.TryGetValue<decimal>(out var dec))
+            return dec > 0 ? dec : null;
+
+        if (jsonValue.TryGetValue<int>(out var intVal))
+            return intVal > 0 ? intVal : null;
+
+        if (jsonValue.TryGetValue<long>(out var longVal))
+            return longVal > 0 ? longVal : null;
+
+        if (jsonValue.TryGetValue<double>(out var dbl))
+            return dbl > 0 ? (decimal)dbl : null;
+
+        if (!jsonValue.TryGetValue<string>(out var raw) || string.IsNullOrWhiteSpace(raw))
+            return null;
 
         var match = Regex.Match(raw, "[0-9]+(?:\\.[0-9]+)?");
         return match.Success && decimal.TryParse(match.Value, out var servings) ? servings : null;
