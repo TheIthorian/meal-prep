@@ -66,6 +66,7 @@ public class WorkspacesHandlers
             .Include(w => w.Members)
             .ThenInclude(uw => uw.User)
             .ForCurrentUser(currentUserId)
+            .Where(w => w.Id == workspaceId)
             .FirstOrDefaultAsync();
 
         return workspace is null

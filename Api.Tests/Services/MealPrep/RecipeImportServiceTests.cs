@@ -2,8 +2,10 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using Api.Configuration;
+using Api.Data;
 using Api.Models;
 using Api.Services.MealPrep;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -117,10 +119,15 @@ public class RecipeImportServiceTests
             NullLogger<RecipeImportLlmParser>.Instance
         );
 
+        var dbOptions = new DbContextOptionsBuilder<ApiDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
         return new RecipeImportService(
             httpClient,
             new MeasurementService(),
             llmParser,
+            new ApiDbContext(dbOptions),
             NullLogger<RecipeImportService>.Instance
         );
     }

@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Text;
+using Api.Data;
 using Api.Domain;
 using Api.Logging;
 using Api.Models;
@@ -16,6 +17,7 @@ public class RecipeImportService(
     HttpClient httpClient,
     MeasurementService measurementService,
     RecipeImportLlmParser recipeImportLlmParser,
+    ApiDbContext db,
     ILogger<RecipeImportService> logger
 )
 {
@@ -25,7 +27,17 @@ public class RecipeImportService(
         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled
     );
 
-    public async Task<RecipeImportPreview> PreviewAsync(string url, CancellationToken cancellationToken = default)
+    public Task<RecipeImportPreview> PreviewAsync(string url, CancellationToken cancellationToken = default)
+    {
+        return PreviewAsync(url, null, null, cancellationToken);
+    }
+
+    public async Task<RecipeImportPreview> PreviewAsync(
+        string url,
+        Guid? workspaceId,
+        Guid? userId,
+        CancellationToken cancellationToken = default
+    )
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var parsedUrl))
             throw new InvalidFormatException("Recipe import failed", "The provided URL is not valid.");
@@ -64,14 +76,55 @@ public class RecipeImportService(
             logger.LogInformation("Recipe import using LLM fallback.");
         }
 
-        var llmStructured = await recipeImportLlmParser.TryParseStructuredRecipeAsync(html, url, cancellationToken);
-        if (llmStructured is not null)
-            return MapLlmStructuredPreview(llmStructured, url);
+        var llmInvocation = await recipeImportLlmParser.TryParseStructuredRecipeAsync(html, url, cancellationToken);
+
+        if (llmInvocation is not null && workspaceId is not null)
+            await TryPersistRecipeImportAiLogAsync(workspaceId.Value, userId, url, llmInvocation, cancellationToken);
+
+        if (llmInvocation?.Structured is not null)
+            return MapLlmStructuredPreview(llmInvocation.Structured, url);
 
         throw new InvalidFormatException(
             "Recipe import failed",
             "Could not find recipe metadata on that page. You can still create the recipe manually."
         );
+    }
+
+    private async Task TryPersistRecipeImportAiLogAsync(
+        Guid workspaceId,
+        Guid? userId,
+        string sourceUrl,
+        RecipeImportLlmInvocationResult invocation,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            var row = new RecipeImportAiLog {
+                WorkspaceId = workspaceId,
+                UserId = userId,
+                SourceUrl = sourceUrl,
+                ProviderBaseUrl = invocation.ProviderBaseUrl,
+                Model = invocation.Model,
+                RequestJson = invocation.RequestJson,
+                ResponseContent = invocation.ResponseContent,
+                FinishReason = invocation.FinishReason,
+                ParsedSuccessfully = invocation.ParsedSuccessfully,
+                FailureDetail = invocation.FailureDetail
+            };
+
+            await db.RecipeImportAiLogs.AddAsync(row, cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            using var scope = logger.BeginPropertyScope(
+                ("workspaceId", workspaceId),
+                ("sourceUrl", sourceUrl)
+            );
+
+            logger.LogWarning(ex, "Failed to persist recipe import AI log.");
+        }
     }
 
     private RecipeImportPreview MapLlmStructuredPreview(RecipeImportLlmStructuredDto dto, string sourceUrl)

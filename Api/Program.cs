@@ -17,6 +17,7 @@ builder.Services.AddIdentityAndAuth(builder.Environment);
 builder.Services.AddFrontendCors(builder.Configuration);
 
 builder.Services.AddApplicationServices(builder.Configuration);
+builder.Services.AddMealPrepMcpServer();
 
 var app = builder.Build();
 
@@ -41,6 +42,7 @@ if (!app.Environment.IsDevelopment())
 }
 app.UseGlobalExceptionHandler();
 app.MapApiEndpoints();
+app.MapMealPrepMcpEndpoints();
 app.UseApiPipeline();
 
 app.Run();

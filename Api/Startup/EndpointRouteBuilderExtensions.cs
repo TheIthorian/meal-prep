@@ -43,6 +43,18 @@ public static class EndpointRouteBuilderExtensions
                 .Produces(StatusCodes.Status400BadRequest)
                 .WithName("DeleteMe");
 
+            apiGroup.MapPost("/me/mcp-access-tokens", McpAccessTokenHandlers.PostMcpAccessToken)
+                .WithBodyValidation<PostMcpAccessTokenRequest>()
+                .Produces<McpAccessTokenCreatedResponse>()
+                .WithName("CreateMcpAccessToken");
+
+            apiGroup.MapGet("/me/mcp-access-tokens", McpAccessTokenHandlers.GetMcpAccessTokens)
+                .Produces<McpAccessTokenListItemResponse[]>()
+                .WithName("ListMcpAccessTokens");
+
+            apiGroup.MapDelete("/me/mcp-access-tokens/{tokenId:guid}", McpAccessTokenHandlers.DeleteMcpAccessToken)
+                .WithName("RevokeMcpAccessToken");
+
             apiGroup.MapPost("/workspaces", WorkspacesHandlers.PostWorkspace)
                 .WithBodyValidation<PostWorkspaceRequest>()
                 .Produces<WorkspaceResponse>()

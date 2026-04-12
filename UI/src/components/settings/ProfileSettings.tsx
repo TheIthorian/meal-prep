@@ -85,72 +85,74 @@ export function ProfileSettings() {
 
     return (
         <>
-            <Card className='overflow-hidden border-border/80 shadow-sm'>
-                <CardHeader className='border-b border-border/60 bg-muted/20'>
-                    <CardTitle className='text-lg'>Profile</CardTitle>
-                    <CardDescription>Your display name and sign-in email</CardDescription>
-                </CardHeader>
-                <CardContent className='space-y-4 pt-6'>
-                    <Form {...profileForm}>
-                        <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className='space-y-6'>
-                            <div className='grid gap-6 sm:grid-cols-2'>
-                                <FormField
-                                    control={profileForm.control}
-                                    name='displayName'
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Display name</FormLabel>
-                                            <FormControl>
-                                                <Input autoComplete='name' {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormItem>
-                                    <FormLabel htmlFor='email'>Email</FormLabel>
-                                    <Input
-                                        id='email'
-                                        type='email'
-                                        autoComplete='email'
-                                        defaultValue={user?.email}
-                                        disabled
-                                        className='bg-muted/50'
+            <div className='space-y-6'>
+                <Card className='overflow-hidden border-border/80 shadow-sm'>
+                    <CardHeader className='border-b border-border/60 bg-muted/20'>
+                        <CardTitle className='text-lg'>Profile</CardTitle>
+                        <CardDescription>Your display name and sign-in email</CardDescription>
+                    </CardHeader>
+                    <CardContent className='space-y-4 pt-6'>
+                        <Form {...profileForm}>
+                            <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className='space-y-6'>
+                                <div className='grid gap-6 sm:grid-cols-2'>
+                                    <FormField
+                                        control={profileForm.control}
+                                        name='displayName'
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Display name</FormLabel>
+                                                <FormControl>
+                                                    <Input autoComplete='name' {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
                                     />
-                                    <p className='text-xs text-muted-foreground'>Email cannot be changed here.</p>
-                                </FormItem>
-                            </div>
-                            <Button type='submit' disabled={updateProfile.isPending}>
-                                {updateProfile.isPending ? 'Saving…' : 'Save profile'}
-                            </Button>
-                        </form>
-                    </Form>
-                </CardContent>
-            </Card>
+                                    <FormItem>
+                                        <FormLabel htmlFor='email'>Email</FormLabel>
+                                        <Input
+                                            id='email'
+                                            type='email'
+                                            autoComplete='email'
+                                            defaultValue={user?.email}
+                                            disabled
+                                            className='bg-muted/50'
+                                        />
+                                        <p className='text-xs text-muted-foreground'>Email cannot be changed here.</p>
+                                    </FormItem>
+                                </div>
+                                <Button type='submit' disabled={updateProfile.isPending}>
+                                    {updateProfile.isPending ? 'Saving…' : 'Save profile'}
+                                </Button>
+                            </form>
+                        </Form>
+                    </CardContent>
+                </Card>
 
-            <Card className='overflow-hidden border-destructive/30 shadow-sm'>
-                <CardHeader className='border-b border-destructive/20 bg-destructive/5'>
-                    <CardTitle className='text-lg text-destructive'>Danger zone</CardTitle>
-                    <CardDescription>Deleting your account removes workspaces and recipes you own.</CardDescription>
-                </CardHeader>
-                <CardContent className='pt-6'>
-                    <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
-                        <div className='space-y-1'>
-                            <p className='font-medium'>Delete account</p>
-                            <p className='text-sm text-muted-foreground'>
-                                This cannot be undone. All data tied to your account will be removed.
-                            </p>
+                <Card className='overflow-hidden border-destructive/30 shadow-sm'>
+                    <CardHeader className='border-b border-destructive/20 bg-destructive/5'>
+                        <CardTitle className='text-lg text-destructive'>Danger zone</CardTitle>
+                        <CardDescription>Deleting your account removes workspaces and recipes you own.</CardDescription>
+                    </CardHeader>
+                    <CardContent className='pt-6'>
+                        <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+                            <div className='space-y-1'>
+                                <p className='font-medium'>Delete account</p>
+                                <p className='text-sm text-muted-foreground'>
+                                    This cannot be undone. All data tied to your account will be removed.
+                                </p>
+                            </div>
+                            <Button
+                                variant='destructive'
+                                className='shrink-0 sm:ml-4'
+                                onClick={() => setIsDeleteModalOpen(true)}
+                            >
+                                Delete account
+                            </Button>
                         </div>
-                        <Button
-                            variant='destructive'
-                            className='shrink-0 sm:ml-4'
-                            onClick={() => setIsDeleteModalOpen(true)}
-                        >
-                            Delete account
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            </div>
 
             <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
                 <AlertDialogContent>

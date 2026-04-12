@@ -189,7 +189,7 @@ internal static class RecipesHandlers
         if (await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId) is null)
             throw new EntityNotFoundException("workspace not found", null);
 
-        var preview = await recipeImportService.PreviewAsync(body.Url, cancellationToken);
+        var preview = await recipeImportService.PreviewAsync(body.Url, workspaceId, currentUserService.UserId, cancellationToken);
         return TypedResults.Json(preview.ToResponse());
     }
 

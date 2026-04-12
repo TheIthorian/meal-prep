@@ -1,3 +1,4 @@
+using Api.Authentication;
 using Api.Configuration;
 using Api.Endpoints.Requests;
 using Api.Services;
@@ -36,10 +37,20 @@ public static class ApplicationServiceCollectionExtensions
                 }
             );
 
-            services.AddAuthorization();
+            services.AddAuthorization(options => {
+                    options.AddPolicy(
+                        McpAuthorizationPolicies.McpPat,
+                        policy => {
+                            policy.AuthenticationSchemes.Add(McpPatAuthenticationDefaults.AuthenticationScheme);
+                            policy.RequireAuthenticatedUser();
+                        }
+                    );
+                }
+            );
 
             services.AddHttpContextAccessor();
             services.AddScoped<CurrentUserService>();
+            services.AddScoped<McpPersonalAccessTokenService>();
             services.AddScoped<IS3StorageService, S3StorageService>();
             services.AddScoped<MeasurementService>();
             services.AddScoped<ShoppingListGenerationService>();

@@ -13,6 +13,8 @@ public partial class ApiDbContext
     public DbSet<ShoppingList> ShoppingLists => Set<ShoppingList>();
     public DbSet<ShoppingListItem> ShoppingListItems => Set<ShoppingListItem>();
     public DbSet<ShoppingListSource> ShoppingListSources => Set<ShoppingListSource>();
+    public DbSet<RecipeImportAiLog> RecipeImportAiLogs => Set<RecipeImportAiLog>();
+    public DbSet<McpPersonalAccessToken> McpPersonalAccessTokens => Set<McpPersonalAccessToken>();
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
@@ -76,5 +78,25 @@ public partial class ApiDbContext
             .WithMany()
             .HasForeignKey(source => source.MealPlanEntryId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<RecipeImportAiLog>()
+            .HasOne(log => log.Workspace)
+            .WithMany()
+            .HasForeignKey(log => log.WorkspaceId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<RecipeImportAiLog>().HasIndex(log => new { log.WorkspaceId, log.CreatedAt });
+
+        modelBuilder.Entity<McpPersonalAccessToken>()
+            .HasOne(token => token.User)
+            .WithMany()
+            .HasForeignKey(token => token.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<McpPersonalAccessToken>()
+            .HasOne(token => token.Workspace)
+            .WithMany()
+            .HasForeignKey(token => token.WorkspaceId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

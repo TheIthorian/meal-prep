@@ -1,5 +1,6 @@
 using System.ClientModel;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Api.Configuration;
 using Api.Logging;
@@ -15,6 +16,12 @@ namespace Api.Services.MealPrep;
 public sealed class RecipeImportLlmParser
 {
     private const int MaxHtmlChars = 120_000;
+    private const string SystemPrompt = """
+        You extract one primary recipe from web page HTML. Use only information supported by the HTML.
+        If the page has no real recipe, set title to an empty string, ingredientLines and steps to empty arrays, and description to explain briefly that no recipe was found.
+        Ingredient lines must be plain text as a cook would list them (quantity, unit, name).
+        Instructions must be ordered cooking steps. Omit nutrition values unless clearly stated.
+        """;
 
     private static readonly BinaryData RecipeJsonSchema = BinaryData.FromString(
         """
@@ -80,13 +87,23 @@ public sealed class RecipeImportLlmParser
         PropertyNameCaseInsensitive = true
     };
 
+    private static readonly JsonSerializerOptions RequestLogSerializerOptions = new() {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        WriteIndented = false
+    };
+
     private readonly ChatClient? _chatClient;
     private readonly ILogger<RecipeImportLlmParser> _logger;
+    private readonly string _providerBaseUrl;
+    private readonly string _model;
 
     public RecipeImportLlmParser(IOptions<OpenAIConfiguration> options, ILogger<RecipeImportLlmParser> logger)
     {
         _logger = logger;
         var cfg = options.Value;
+        _providerBaseUrl = cfg.BaseUrl.Trim();
+        _model = cfg.Model.Trim();
+
         if (string.IsNullOrWhiteSpace(cfg.ApiKey))
             return;
 
@@ -102,9 +119,9 @@ public sealed class RecipeImportLlmParser
     }
 
     /// <summary>
-    ///     Returns structured recipe fields from page HTML, or null when LLM import is not configured or parsing fails.
+    ///     Returns null when LLM import is not configured. Otherwise returns request/response details and optional parsed recipe.
     /// </summary>
-    internal async Task<RecipeImportLlmStructuredDto?> TryParseStructuredRecipeAsync(
+    internal async Task<RecipeImportLlmInvocationResult?> TryParseStructuredRecipeAsync(
         string html,
         string sourceUrl,
         CancellationToken cancellationToken = default
@@ -120,26 +137,28 @@ public sealed class RecipeImportLlmParser
         {
             _logger.LogWarning("Recipe import LLM skipped: no HTML content after preparation.");
 
-            return null;
+            return new RecipeImportLlmInvocationResult(
+                null,
+                _providerBaseUrl,
+                _model,
+                BuildRequestJson(sourceUrl, ""),
+                null,
+                null,
+                false,
+                "No HTML content after removing scripts/styles."
+            );
         }
 
-        var messages = new List<ChatMessage> {
-            new SystemChatMessage(
-                """
-                You extract one primary recipe from web page HTML. Use only information supported by the HTML.
-                If the page has no real recipe, set title to an empty string, ingredientLines and steps to empty arrays, and description to explain briefly that no recipe was found.
-                Ingredient lines must be plain text as a cook would list them (quantity, unit, name).
-                Instructions must be ordered cooking steps. Omit nutrition values unless clearly stated.
-                """
-            ),
-            new UserChatMessage(
-                $"""
-                 Source URL: {sourceUrl}
+        var userContent = $"""
+            Source URL: {sourceUrl}
 
-                 HTML:
-                 {prepared}
-                 """
-            )
+            HTML:
+            {prepared}
+            """;
+
+        var messages = new List<ChatMessage> {
+            new SystemChatMessage(SystemPrompt),
+            new UserChatMessage(userContent)
         };
 
         var options = new ChatCompletionOptions {
@@ -152,22 +171,44 @@ public sealed class RecipeImportLlmParser
             )
         };
 
+        var requestJson = BuildRequestJson(sourceUrl, userContent);
+
         try
         {
             ClientResult<ChatCompletion> result = await _chatClient.CompleteChatAsync(messages, options, cancellationToken);
             var completion = result.Value;
+            var finishReason = completion.FinishReason.ToString();
+
             if (!string.IsNullOrWhiteSpace(completion.Refusal))
             {
                 _logger.LogWarning("Recipe import LLM refused to respond.");
 
-                return null;
+                return new RecipeImportLlmInvocationResult(
+                    null,
+                    _providerBaseUrl,
+                    _model,
+                    requestJson,
+                    completion.Refusal,
+                    finishReason,
+                    false,
+                    "Model returned a refusal instead of recipe JSON."
+                );
             }
 
             if (completion.Content.Count == 0)
             {
                 _logger.LogWarning("Recipe import LLM returned no message content parts.");
 
-                return null;
+                return new RecipeImportLlmInvocationResult(
+                    null,
+                    _providerBaseUrl,
+                    _model,
+                    requestJson,
+                    null,
+                    finishReason,
+                    false,
+                    "No message content parts in the completion."
+                );
             }
 
             var text = completion.Content[0].Text;
@@ -175,7 +216,16 @@ public sealed class RecipeImportLlmParser
             {
                 _logger.LogWarning("Recipe import LLM returned empty content.");
 
-                return null;
+                return new RecipeImportLlmInvocationResult(
+                    null,
+                    _providerBaseUrl,
+                    _model,
+                    requestJson,
+                    text,
+                    finishReason,
+                    false,
+                    "Assistant message text was empty."
+                );
             }
 
             var dto = JsonSerializer.Deserialize<RecipeImportLlmStructuredDto>(text, SerializerOptions);
@@ -183,17 +233,72 @@ public sealed class RecipeImportLlmParser
             {
                 _logger.LogWarning("Recipe import LLM returned JSON that could not be validated.");
 
-                return null;
+                return new RecipeImportLlmInvocationResult(
+                    null,
+                    _providerBaseUrl,
+                    _model,
+                    requestJson,
+                    text,
+                    finishReason,
+                    false,
+                    "Deserialized JSON was null or failed plausibility checks (title, ingredients, steps)."
+                );
             }
 
-            return dto;
+            return new RecipeImportLlmInvocationResult(
+                dto,
+                _providerBaseUrl,
+                _model,
+                requestJson,
+                text,
+                finishReason,
+                true,
+                null
+            );
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Recipe import LLM request failed.");
 
-            return null;
+            return new RecipeImportLlmInvocationResult(
+                null,
+                _providerBaseUrl,
+                _model,
+                requestJson,
+                null,
+                null,
+                false,
+                TruncateForFailureDetail(ex.ToString())
+            );
         }
+    }
+
+    private static string BuildRequestJson(string sourceUrl, string userMessageContent)
+    {
+        var payload = new RecipeImportLlmRequestLogDto(
+            [
+                new RecipeImportLlmMessageLogDto("system", SystemPrompt),
+                new RecipeImportLlmMessageLogDto("user", userMessageContent)
+            ],
+            new RecipeImportLlmOptionsLogDto(
+                0.2,
+                4096,
+                "json_schema",
+                "recipe_import",
+                true
+            ),
+            sourceUrl
+        );
+
+        return JsonSerializer.Serialize(payload, RequestLogSerializerOptions);
+    }
+
+    private static string TruncateForFailureDetail(string detail, int maxChars = 8000)
+    {
+        if (detail.Length <= maxChars)
+            return detail;
+
+        return detail[..maxChars] + "…";
     }
 
     private static bool IsPlausibleRecipe(RecipeImportLlmStructuredDto dto)
@@ -229,6 +334,22 @@ public sealed class RecipeImportLlmParser
         return stripped[..MaxHtmlChars];
     }
 }
+
+internal sealed record RecipeImportLlmMessageLogDto(string Role, string Content);
+
+internal sealed record RecipeImportLlmOptionsLogDto(
+    double Temperature,
+    int MaxOutputTokenCount,
+    string ResponseFormatKind,
+    string JsonSchemaName,
+    bool JsonSchemaStrict
+);
+
+internal sealed record RecipeImportLlmRequestLogDto(
+    IReadOnlyList<RecipeImportLlmMessageLogDto> Messages,
+    RecipeImportLlmOptionsLogDto Options,
+    string SourceUrl
+);
 
 /// <summary>
 ///     Structured recipe payload produced by the LLM (JSON schema). Internal to the meal-prep import flow.

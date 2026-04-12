@@ -1,3 +1,4 @@
+using Api.Authentication;
 using Api.Data;
 using Api.Models;
 using Microsoft.AspNetCore.Authentication;
@@ -143,7 +144,11 @@ public static class DataAndAuthServiceCollectionExtensions
                         };
                     }
                 )
-                .AddBearerToken(IdentityConstants.BearerScheme);
+                .AddBearerToken(IdentityConstants.BearerScheme)
+                .AddScheme<McpPatAuthenticationSchemeOptions, McpPatAuthenticationHandler>(
+                    McpPatAuthenticationDefaults.AuthenticationScheme,
+                    _ => { }
+                );
         }
 
         public void AddFrontendCors(IConfiguration configuration)

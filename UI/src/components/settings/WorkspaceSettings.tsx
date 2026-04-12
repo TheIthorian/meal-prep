@@ -212,85 +212,149 @@ export function WorkspaceSettings() {
 
     return (
         <>
-            <Card className='overflow-hidden border-border/80 shadow-sm'>
-                <CardHeader className='border-b border-border/60 bg-muted/20'>
-                    <CardTitle className='text-lg'>Workspaces</CardTitle>
-                    <CardDescription>Create workspaces to separate recipes and meal plans for home, work, or family.</CardDescription>
-                </CardHeader>
-                <CardContent className='space-y-4 pt-6'>
-                    <ul className='space-y-2'>
-                        {workspaces.map(workspace => (
-                            <li
-                                key={workspace.id}
-                                className='flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-card px-4 py-3 transition-colors hover:border-primary/25 hover:bg-muted/30'
-                            >
-                                <div className='min-w-0'>
-                                    <p className='font-medium text-foreground'>{workspace.name}</p>
-                                    <p className='text-sm text-muted-foreground'>
-                                        {workspace.members.length}{' '}
-                                        {workspace.members.length === 1 ? 'member' : 'members'}
-                                    </p>
-                                </div>
-                                <div className='flex shrink-0 items-center gap-2'>
-                                    {workspace.id === currentWorkspace?.workspaceId && (
-                                        <Badge className='font-normal'>Current</Badge>
-                                    )}
-                                    <Button
-                                        variant='ghost'
-                                        size='icon'
-                                        className='h-9 w-9'
-                                        onClick={() => handleEditClick(workspace)}
-                                        aria-label={`Edit ${workspace.name}`}
-                                    >
-                                        <Pencil className='h-4 w-4' />
-                                    </Button>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                    <Button type='button' onClick={() => setIsAddWorkspaceModalOpen(true)}>
-                        <Plus className='mr-2 h-4 w-4' />
-                        New workspace
-                    </Button>
-                </CardContent>
-            </Card>
-
-            {currentWorkspace && (
+            <div className='space-y-6'>
                 <Card className='overflow-hidden border-border/80 shadow-sm'>
                     <CardHeader className='border-b border-border/60 bg-muted/20'>
-                        <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
-                            <div className='min-w-0'>
-                                <CardTitle className='text-lg'>Members</CardTitle>
-                                <CardDescription>Who can access “{currentWorkspace.name}”</CardDescription>
-                            </div>
-                            <Button size='sm' className='shrink-0' onClick={() => setIsInviteMemberModalOpen(true)}>
-                                <UserPlus className='mr-2 h-4 w-4' />
-                                Invite Member
-                            </Button>
-                        </div>
+                        <CardTitle className='text-lg'>Workspaces</CardTitle>
+                        <CardDescription>
+                            Create workspaces to separate recipes and meal plans for home, work, or family.
+                        </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        {isMobile ? (
-                            <ul className='space-y-3'>
-                                {members.map(member => {
-                                    const isCurrentUser = member.userId === user?.userId;
-                                    const isOwner = member.role === 'owner';
-                                    return (
-                                        <li key={member.userId} className='flex flex-col gap-2 rounded-lg border p-3'>
-                                            <div className='flex min-w-0 items-start justify-between gap-2'>
-                                                <div className='min-w-0'>
-                                                    <p className='font-medium truncate'>{member.displayName}</p>
-                                                    <p className='text-sm text-muted-foreground truncate'>
-                                                        {member.email}
-                                                    </p>
+                    <CardContent className='space-y-4 pt-6'>
+                        <ul className='space-y-2'>
+                            {workspaces.map(workspace => (
+                                <li
+                                    key={workspace.id}
+                                    className='flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-card px-4 py-3 transition-colors hover:border-primary/25 hover:bg-muted/30'
+                                >
+                                    <div className='min-w-0'>
+                                        <p className='font-medium text-foreground'>{workspace.name}</p>
+                                        <p className='text-sm text-muted-foreground'>
+                                            {workspace.members.length}{' '}
+                                            {workspace.members.length === 1 ? 'member' : 'members'}
+                                        </p>
+                                    </div>
+                                    <div className='flex shrink-0 items-center gap-2'>
+                                        {workspace.id === currentWorkspace?.workspaceId && (
+                                            <Badge className='font-normal'>Current</Badge>
+                                        )}
+                                        <Button
+                                            variant='ghost'
+                                            size='icon'
+                                            className='h-9 w-9'
+                                            onClick={() => handleEditClick(workspace)}
+                                            aria-label={`Edit ${workspace.name}`}
+                                        >
+                                            <Pencil className='h-4 w-4' />
+                                        </Button>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                        <Button type='button' onClick={() => setIsAddWorkspaceModalOpen(true)}>
+                            <Plus className='mr-2 h-4 w-4' />
+                            New workspace
+                        </Button>
+                    </CardContent>
+                </Card>
+
+                {currentWorkspace && (
+                    <Card className='overflow-hidden border-border/80 shadow-sm'>
+                        <CardHeader className='border-b border-border/60 bg-muted/20'>
+                            <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+                                <div className='min-w-0'>
+                                    <CardTitle className='text-lg'>Members</CardTitle>
+                                    <CardDescription>Who can access “{currentWorkspace.name}”</CardDescription>
+                                </div>
+                                <Button size='sm' className='shrink-0' onClick={() => setIsInviteMemberModalOpen(true)}>
+                                    <UserPlus className='mr-2 h-4 w-4' />
+                                    Invite Member
+                                </Button>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            {isMobile ? (
+                                <ul className='space-y-3'>
+                                    {members.map(member => {
+                                        const isCurrentUser = member.userId === user?.userId;
+                                        const isOwner = member.role === 'owner';
+                                        return (
+                                            <li
+                                                key={member.userId}
+                                                className='flex flex-col gap-2 rounded-lg border p-3'
+                                            >
+                                                <div className='flex min-w-0 items-start justify-between gap-2'>
+                                                    <div className='min-w-0'>
+                                                        <p className='font-medium truncate'>{member.displayName}</p>
+                                                        <p className='text-sm text-muted-foreground truncate'>
+                                                            {member.email}
+                                                        </p>
+                                                    </div>
+                                                    <div className='flex shrink-0 items-center gap-2'>
+                                                        {isOwner || isCurrentUser ? (
+                                                            <Badge variant={getRoleBadgeVariant(member.role)}>
+                                                                {member.role}
+                                                            </Badge>
+                                                        ) : (
+                                                            <>
+                                                                <Select
+                                                                    defaultValue={member.role}
+                                                                    onValueChange={value =>
+                                                                        updateMemberRole.mutate({
+                                                                            userId: member.userId,
+                                                                            role: value,
+                                                                        })
+                                                                    }
+                                                                >
+                                                                    <SelectTrigger className='h-8 w-[100px]'>
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value='admin'>Admin</SelectItem>
+                                                                        <SelectItem value='member'>Member</SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
+                                                                <Button
+                                                                    variant='ghost'
+                                                                    size='icon'
+                                                                    className='h-8 w-8'
+                                                                    onClick={() => removeMember.mutate(member.userId)}
+                                                                >
+                                                                    <Trash2 className='h-4 w-4 text-destructive' />
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className='flex shrink-0 items-center gap-2'>
-                                                    {isOwner || isCurrentUser ? (
-                                                        <Badge variant={getRoleBadgeVariant(member.role)}>
-                                                            {member.role}
-                                                        </Badge>
-                                                    ) : (
-                                                        <>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>User</TableHead>
+                                            <TableHead>Email</TableHead>
+                                            <TableHead>Role</TableHead>
+                                            <TableHead className='w-[100px]'>Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {members.map(member => {
+                                            const isCurrentUser = member.userId === user?.userId;
+                                            const isOwner = member.role === 'owner';
+
+                                            return (
+                                                <TableRow key={member.userId}>
+                                                    <TableCell className='font-medium'>{member.displayName}</TableCell>
+                                                    <TableCell>{member.email}</TableCell>
+                                                    <TableCell>
+                                                        {isOwner || isCurrentUser ? (
+                                                            <Badge variant={getRoleBadgeVariant(member.role)}>
+                                                                {member.role}
+                                                            </Badge>
+                                                        ) : (
                                                             <Select
                                                                 defaultValue={member.role}
                                                                 onValueChange={value =>
@@ -300,7 +364,7 @@ export function WorkspaceSettings() {
                                                                     })
                                                                 }
                                                             >
-                                                                <SelectTrigger className='h-8 w-[100px]'>
+                                                                <SelectTrigger className='w-[120px]'>
                                                                     <SelectValue />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
@@ -308,92 +372,37 @@ export function WorkspaceSettings() {
                                                                     <SelectItem value='member'>Member</SelectItem>
                                                                 </SelectContent>
                                                             </Select>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {!isOwner && !isCurrentUser && (
                                                             <Button
                                                                 variant='ghost'
                                                                 size='icon'
-                                                                className='h-8 w-8'
                                                                 onClick={() => removeMember.mutate(member.userId)}
                                                             >
                                                                 <Trash2 className='h-4 w-4 text-destructive' />
                                                             </Button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        ) : (
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>User</TableHead>
-                                        <TableHead>Email</TableHead>
-                                        <TableHead>Role</TableHead>
-                                        <TableHead className='w-[100px]'>Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {members.map(member => {
-                                        const isCurrentUser = member.userId === user?.userId;
-                                        const isOwner = member.role === 'owner';
-
-                                        return (
-                                            <TableRow key={member.userId}>
-                                                <TableCell className='font-medium'>{member.displayName}</TableCell>
-                                                <TableCell>{member.email}</TableCell>
-                                                <TableCell>
-                                                    {isOwner || isCurrentUser ? (
-                                                        <Badge variant={getRoleBadgeVariant(member.role)}>
-                                                            {member.role}
-                                                        </Badge>
-                                                    ) : (
-                                                        <Select
-                                                            defaultValue={member.role}
-                                                            onValueChange={value =>
-                                                                updateMemberRole.mutate({
-                                                                    userId: member.userId,
-                                                                    role: value,
-                                                                })
-                                                            }
-                                                        >
-                                                            <SelectTrigger className='w-[120px]'>
-                                                                <SelectValue />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value='admin'>Admin</SelectItem>
-                                                                <SelectItem value='member'>Member</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {!isOwner && !isCurrentUser && (
-                                                        <Button
-                                                            variant='ghost'
-                                                            size='icon'
-                                                            onClick={() => removeMember.mutate(member.userId)}
-                                                        >
-                                                            <Trash2 className='h-4 w-4 text-destructive' />
-                                                        </Button>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        )}
-                    </CardContent>
-                </Card>
-            )}
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
 
             <Dialog open={isAddWorkspaceModalOpen} onOpenChange={setIsAddWorkspaceModalOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Create Workspace</DialogTitle>
-                        <DialogDescription>Create a workspace for a separate recipe library and meal plan.</DialogDescription>
+                        <DialogDescription>
+                            Create a workspace for a separate recipe library and meal plan.
+                        </DialogDescription>
                     </DialogHeader>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
