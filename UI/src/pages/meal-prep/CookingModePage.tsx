@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, List } from 'lucide-react';
+import { ArrowLeft, ExternalLink, List } from 'lucide-react';
 import { recipesApi } from '@/lib/api';
-import { scaleRecipeIngredients } from '@/lib/meal-prep';
+import { safeHttpUrlHref, scaleRecipeIngredients } from '@/lib/meal-prep';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { LoadingState } from '@/components/common/LoadingState';
 import { InstructionWithInlineAmounts } from '@/components/recipes/InstructionWithInlineAmounts';
@@ -56,6 +56,7 @@ export default function CookingModePage() {
     const totalSteps = recipe.steps.length;
 
     const detailPath = `/workspaces/${workspaceId}/recipe/${recipe.id}`;
+    const sourceHref = safeHttpUrlHref(recipe.sourceUrl);
 
     return (
         <div className='flex min-h-screen flex-col bg-background'>
@@ -86,6 +87,25 @@ export default function CookingModePage() {
                         targetServings={targetServings}
                         onTargetServingsChange={setTargetServings}
                     />
+                    {recipe.sourceUrl ? (
+                        <div className='flex justify-center pt-2'>
+                            {sourceHref ? (
+                                <a
+                                    href={sourceHref}
+                                    target='_blank'
+                                    rel='noopener noreferrer'
+                                    className='inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground'
+                                >
+                                    <ExternalLink className='h-3.5 w-3.5 shrink-0' />
+                                    Original recipe
+                                </a>
+                            ) : (
+                                <span className='max-w-full px-2 text-center text-[11px] text-muted-foreground break-all'>
+                                    {recipe.sourceUrl}
+                                </span>
+                            )}
+                        </div>
+                    ) : null}
                 </div>
             </div>
 

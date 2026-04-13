@@ -65,7 +65,8 @@ public sealed class RecipeImportLlmParser
               },
               "required": ["calories", "protein", "carbohydrate", "fat", "fiber", "sugar", "sodium"],
               "additionalProperties": false
-            }
+            },
+            "imageUrl": { "type": ["string", "null"] }
           },
           "required": [
             "title",
@@ -76,7 +77,8 @@ public sealed class RecipeImportLlmParser
             "tags",
             "ingredientLines",
             "steps",
-            "nutrition"
+            "nutrition",
+            "imageUrl"
           ],
           "additionalProperties": false
         }
@@ -365,6 +367,7 @@ internal sealed class RecipeImportLlmStructuredDto
     public List<string> IngredientLines { get; set; } = [];
     public List<RecipeImportLlmStepDto> Steps { get; set; } = [];
     public RecipeImportLlmNutritionDto Nutrition { get; set; } = new();
+    public string? ImageUrl { get; set; }
 }
 
 internal sealed class RecipeImportLlmStepDto

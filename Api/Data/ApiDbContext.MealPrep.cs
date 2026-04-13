@@ -14,6 +14,7 @@ public partial class ApiDbContext
     public DbSet<ShoppingListItem> ShoppingListItems => Set<ShoppingListItem>();
     public DbSet<ShoppingListSource> ShoppingListSources => Set<ShoppingListSource>();
     public DbSet<RecipeImportAiLog> RecipeImportAiLogs => Set<RecipeImportAiLog>();
+    public DbSet<IngredientCategoryCache> IngredientCategoryCaches => Set<IngredientCategoryCache>();
     public DbSet<McpPersonalAccessToken> McpPersonalAccessTokens => Set<McpPersonalAccessToken>();
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
@@ -86,6 +87,10 @@ public partial class ApiDbContext
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<RecipeImportAiLog>().HasIndex(log => new { log.WorkspaceId, log.CreatedAt });
+
+        modelBuilder.Entity<IngredientCategoryCache>()
+            .HasIndex(cache => cache.NormalizedIngredientName)
+            .IsUnique();
 
         modelBuilder.Entity<McpPersonalAccessToken>()
             .HasOne(token => token.User)

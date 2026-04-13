@@ -13,6 +13,10 @@ export const analyticsEvents = {
     userRegistered: 'user_registered',
     workspaceCreated: 'workspace_created',
     workspaceSwitched: 'workspace_switched',
+    recipeDeleted: 'recipe_deleted',
+    shoppingListDeleted: 'shopping_list_deleted',
+    mcpAccessTokenCreated: 'mcp_access_token_created',
+    mcpAccessTokenRevoked: 'mcp_access_token_revoked',
 } as const;
 
 type AnalyticsEventName = (typeof analyticsEvents)[keyof typeof analyticsEvents];

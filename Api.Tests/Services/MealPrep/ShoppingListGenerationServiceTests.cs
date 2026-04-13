@@ -1,17 +1,26 @@
 using Api.Models;
 using Api.Services.MealPrep;
+using Moq;
 
 namespace Api.Tests.Services.MealPrep;
 
 public class ShoppingListGenerationServiceTests
 {
-    private readonly ShoppingListGenerationService _service = new(new MeasurementService());
+    private static ShoppingListGenerationService CreateService()
+    {
+        var resolver = new Mock<IIngredientCategoryResolver>();
+        resolver
+            .Setup(r => r.ResolveAsync(It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<string, string>(StringComparer.Ordinal));
+
+        return new ShoppingListGenerationService(new MeasurementService(), resolver.Object);
+    }
 
     [Fact]
-    public void BuildFromSources_ShouldMergeCompatibleUnits()
+    public async Task BuildFromSources_ShouldMergeCompatibleUnits()
     {
         var workspace = Workspace.CreateNew("Family Kitchen");
-        var shoppingList = _service.BuildFromSources(
+        var shoppingList = await CreateService().BuildFromSourcesAsync(
             workspace,
             "Weekly shop",
             null,
@@ -47,10 +56,10 @@ public class ShoppingListGenerationServiceTests
     }
 
     [Fact]
-    public void BuildFromSources_ShouldKeepNonConvertibleItemsSeparate()
+    public async Task BuildFromSources_ShouldKeepNonConvertibleItemsSeparate()
     {
         var workspace = Workspace.CreateNew("Family Kitchen");
-        var shoppingList = _service.BuildFromSources(
+        var shoppingList = await CreateService().BuildFromSourcesAsync(
             workspace,
             "Weekly shop",
             null,

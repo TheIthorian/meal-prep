@@ -99,8 +99,11 @@ internal static class RecipesHandlers
     public static async Task<JsonHttpResult<RecipeResponse>> PostRecipe(
         CurrentUserService currentUserService,
         ApiDbContext db,
+        RecipeImportService recipeImportService,
+        IS3StorageService s3StorageService,
         Guid workspaceId,
-        [FromBody] SaveRecipeRequest body
+        [FromBody] SaveRecipeRequest body,
+        CancellationToken cancellationToken
     )
     {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
@@ -109,9 +112,10 @@ internal static class RecipesHandlers
         var currentUserId = workspaceUser.UserId;
         var recipe = Recipe.CreateNew(workspaceUser.Workspace, body.Title, body.Servings);
         ApplyRecipe(recipe, body);
+        await TryApplyImportedImageAsync(body, recipe, recipeImportService, s3StorageService, cancellationToken);
 
         await db.Recipes.AddAsync(recipe);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(cancellationToken);
 
         recipe = await db.Recipes
             .Include(value => value.Ingredients)
@@ -119,7 +123,7 @@ internal static class RecipesHandlers
             .Include(value => value.Nutrition)
             .ForCurrentUser(currentUserId)
             .WhereIsNotDeleted()
-            .FirstAsync(value => value.Id == recipe.Id);
+            .FirstAsync(value => value.Id == recipe.Id, cancellationToken);
 
         return TypedResults.Json(recipe.ToRecipeResponse());
     }
@@ -128,9 +132,12 @@ internal static class RecipesHandlers
     public static async Task<JsonHttpResult<RecipeResponse>> PatchRecipe(
         CurrentUserService currentUserService,
         ApiDbContext db,
+        RecipeImportService recipeImportService,
+        IS3StorageService s3StorageService,
         Guid workspaceId,
         Guid recipeId,
-        [FromBody] SaveRecipeRequest body
+        [FromBody] SaveRecipeRequest body,
+        CancellationToken cancellationToken
     )
     {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
@@ -144,12 +151,13 @@ internal static class RecipesHandlers
             .ForCurrentUser(currentUserId)
             .WhereIsNotDeleted()
             .Where(value => value.WorkspaceId == workspaceId && value.Id == recipeId)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (recipe is null) throw new EntityNotFoundException("Recipe not found", null);
 
         ApplyRecipe(recipe, body);
-        await db.SaveChangesAsync();
+        await TryApplyImportedImageAsync(body, recipe, recipeImportService, s3StorageService, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
 
         return TypedResults.Json(recipe.ToRecipeResponse());
     }
@@ -314,6 +322,31 @@ internal static class RecipesHandlers
 
         var preview = await recipeImportService.PreviewAsync(body.Url, workspaceId, currentUserService.UserId, cancellationToken);
         return TypedResults.Json(preview.ToResponse());
+    }
+
+    private static async Task TryApplyImportedImageAsync(
+        SaveRecipeRequest body,
+        Recipe recipe,
+        RecipeImportService recipeImportService,
+        IS3StorageService s3StorageService,
+        CancellationToken cancellationToken
+    )
+    {
+        if (string.IsNullOrWhiteSpace(body.ImportImageUrl) || string.IsNullOrWhiteSpace(body.SourceUrl)) return;
+
+        var payload = await recipeImportService.TryDownloadImportImageAsync(
+            body.ImportImageUrl,
+            body.SourceUrl,
+            cancellationToken
+        );
+
+        if (payload is null) return;
+
+        if (!string.IsNullOrEmpty(recipe.ImageObjectKey)) await s3StorageService.DeleteFileAsync(recipe.ImageObjectKey);
+
+        await using var stream = new MemoryStream(payload.Data);
+        var key = await s3StorageService.UploadFileAsync(stream, payload.FileName, payload.ContentType);
+        recipe.SetImageObjectKey(key);
     }
 
     private static void ApplyRecipe(Recipe recipe, SaveRecipeRequest body)
@@ -542,7 +575,8 @@ internal static class ShoppingListsHandlers
         ApiDbContext db,
         ShoppingListGenerationService shoppingListGenerationService,
         Guid workspaceId,
-        [FromBody] GenerateShoppingListRequest body
+        [FromBody] GenerateShoppingListRequest body,
+        CancellationToken cancellationToken
     )
     {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
@@ -599,22 +633,23 @@ internal static class ShoppingListsHandlers
         if (sources.Length == 0)
             throw new InvalidFormatException("Shopping list generation failed", "No valid recipes or plan entries were selected.");
 
-        var shoppingList = shoppingListGenerationService.BuildFromSources(
+        var shoppingList = await shoppingListGenerationService.BuildFromSourcesAsync(
             workspaceUser.Workspace,
             body.Name,
             body.Notes,
-            sources
+            sources,
+            cancellationToken
         );
 
-        await db.ShoppingLists.AddAsync(shoppingList);
-        await db.SaveChangesAsync();
+        await db.ShoppingLists.AddAsync(shoppingList, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
 
         shoppingList = await db.ShoppingLists
             .Include(list => list.Items)
             .Include(list => list.Sources)
             .ForCurrentUser(currentUserId)
             .WhereIsNotDeleted()
-            .FirstAsync(list => list.Id == shoppingList.Id);
+            .FirstAsync(list => list.Id == shoppingList.Id, cancellationToken);
 
         return TypedResults.Json(shoppingList.ToShoppingListResponse());
     }

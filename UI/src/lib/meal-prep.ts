@@ -77,6 +77,7 @@ export function createEmptyRecipe(workspaceId: string): Recipe {
         isArchived: false,
         tags: [],
         hasImage: false,
+        importImageUrl: null,
         ingredients: [{ id: crypto.randomUUID(), sortOrder: 0, name: '', displayText: '', amount: null, unit: '', preparationNote: '', section: '' }],
         steps: [{ id: crypto.randomUUID(), sortOrder: 0, instruction: '', timerSeconds: null }],
         nutrition: null,
@@ -153,6 +154,7 @@ export function toSaveRecipeRequest(recipe: Recipe): SaveRecipeRequest {
                       })),
                   }
                 : null,
+        importImageUrl: recipe.importImageUrl ?? undefined,
     };
 }
 
@@ -223,6 +225,19 @@ export function searchRecipes(recipes: RecipeListItem[], term: string) {
 
 export function toggleShoppingItem(items: ShoppingListItem[], itemId: string) {
     return items.map(item => (item.id === itemId ? { ...item, isChecked: !item.isChecked } : item));
+}
+
+/** Returns an http(s) href safe to use in a link, or null if the value is missing or not a web URL. */
+export function safeHttpUrlHref(raw: string | null | undefined): string | null {
+    if (raw === null || raw === undefined) return null;
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    try {
+        const u = new URL(trimmed);
+        return u.protocol === 'http:' || u.protocol === 'https:' ? u.href : null;
+    } catch {
+        return null;
+    }
 }
 
 /** Full URL for authenticated GET of the recipe cover image (uses session cookies). */

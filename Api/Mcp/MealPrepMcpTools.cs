@@ -128,7 +128,15 @@ public sealed class MealPrepMcpTools(
         _ = cancellationToken;
         RequireMcpWorkspace(workspaceId);
         var body = DeserializeBody<SaveRecipeRequest>(recipeJson);
-        var result = await RecipesHandlers.PostRecipe(currentUserService, db, workspaceId, body);
+        var result = await RecipesHandlers.PostRecipe(
+            currentUserService,
+            db,
+            recipeImportService,
+            s3StorageService,
+            workspaceId,
+            body,
+            cancellationToken
+        );
         return Serialize(result);
     }
 
@@ -143,7 +151,16 @@ public sealed class MealPrepMcpTools(
         _ = cancellationToken;
         RequireMcpWorkspace(workspaceId);
         var body = DeserializeBody<SaveRecipeRequest>(recipeJson);
-        var result = await RecipesHandlers.PatchRecipe(currentUserService, db, workspaceId, recipeId, body);
+        var result = await RecipesHandlers.PatchRecipe(
+            currentUserService,
+            db,
+            recipeImportService,
+            s3StorageService,
+            workspaceId,
+            recipeId,
+            body,
+            cancellationToken
+        );
         return Serialize(result);
     }
 
@@ -279,7 +296,8 @@ public sealed class MealPrepMcpTools(
             db,
             shoppingListGenerationService,
             workspaceId,
-            body
+            body,
+            cancellationToken
         );
         return Serialize(result);
     }

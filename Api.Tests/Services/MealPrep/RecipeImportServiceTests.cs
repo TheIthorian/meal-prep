@@ -42,7 +42,8 @@ public class RecipeImportServiceTests
                     "calories": "420 calories",
                     "proteinContent": "14 g"
                   },
-                  "keywords": "quick, dinner"
+                  "keywords": "quick, dinner",
+                  "image": "https://example.com/hero.jpg"
                 }
                 </script>
               </head>
@@ -63,6 +64,7 @@ public class RecipeImportServiceTests
         Assert.Equal(4m, preview.Nutrition?.ServingBasis);
         Assert.Equal(420m, preview.Nutrition?.Nutrients.Single(nutrient => nutrient.NutrientType == RecipeNutrientTypes.Calories).Amount);
         Assert.Equal(14m, preview.Nutrition?.Nutrients.Single(nutrient => nutrient.NutrientType == RecipeNutrientTypes.Protein).Amount);
+        Assert.Equal("https://example.com/hero.jpg", preview.ImageUrl);
     }
 
     [Fact]

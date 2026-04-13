@@ -17,6 +17,7 @@ import {
     ShoppingListListItem,
 } from '@/models/meal-prep';
 import type { PaginatedResponse } from '@/models/pagination';
+import type { McpAccessTokenCreated, McpAccessTokenListItem } from '@/models/mcp';
 
 // Auth API
 export const authApi = {
@@ -42,6 +43,13 @@ export const workspacesApi = {
         httpClient.patch<void>(`/api/v1/workspaces/${workspaceId}/members/${userId}`, { role }),
     removeMember: (workspaceId: string, userId: string) =>
         httpClient.delete<void>(`/api/v1/workspaces/${workspaceId}/members/${userId}`),
+};
+
+export const mcpAccessTokensApi = {
+    list: () => httpClient.get<McpAccessTokenListItem[]>('/api/v1/me/mcp-access-tokens'),
+    create: (body: { workspaceId: string; name?: string | null }) =>
+        httpClient.post<McpAccessTokenCreated>('/api/v1/me/mcp-access-tokens', body),
+    revoke: (tokenId: string) => httpClient.delete<void>(`/api/v1/me/mcp-access-tokens/${tokenId}`),
 };
 
 export const recipesApi = {

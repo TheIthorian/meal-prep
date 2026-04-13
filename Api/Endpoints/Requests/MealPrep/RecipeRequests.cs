@@ -1,3 +1,4 @@
+using Api.Services.MealPrep;
 using FluentValidation;
 
 namespace Api.Endpoints.Requests.MealPrep;
@@ -30,7 +31,8 @@ public record SaveRecipeRequest(
     string[] Tags,
     SaveRecipeIngredientRequest[] Ingredients,
     SaveRecipeStepRequest[] Steps,
-    SaveRecipeNutritionRequest? Nutrition
+    SaveRecipeNutritionRequest? Nutrition,
+    string? ImportImageUrl
 );
 
 public record ImportRecipePreviewRequest(string Url);
@@ -48,6 +50,22 @@ public class SaveRecipeRequestValidator : AbstractValidator<SaveRecipeRequest>
         RuleForEach(x => x.Ingredients).SetValidator(new SaveRecipeIngredientRequestValidator());
         RuleForEach(x => x.Steps).SetValidator(new SaveRecipeStepRequestValidator());
         When(x => x.Nutrition is not null, () => { RuleFor(x => x.Nutrition!).SetValidator(new SaveRecipeNutritionRequestValidator()); });
+        RuleFor(x => x.ImportImageUrl).MaximumLength(2048);
+        When(
+            x => !string.IsNullOrWhiteSpace(x.ImportImageUrl),
+            () => {
+                RuleFor(x => x.ImportImageUrl!)
+                    .Must(uri => Uri.TryCreate(uri, UriKind.Absolute, out var u)
+                                 && (string.Equals(u.Scheme, "https", StringComparison.OrdinalIgnoreCase)
+                                     || string.Equals(u.Scheme, "http", StringComparison.OrdinalIgnoreCase)))
+                    .WithMessage("Import image URL must be an absolute http(s) URL.");
+                RuleFor(x => x).Must(x =>
+                        !string.IsNullOrWhiteSpace(x.SourceUrl)
+                        && RecipeImportImagePolicy.AreHostsCompatibleForImportedImage(x.SourceUrl!, x.ImportImageUrl!)
+                    )
+                    .WithMessage("Import image must use the same site as the recipe source URL.");
+            }
+        );
     }
 }
 

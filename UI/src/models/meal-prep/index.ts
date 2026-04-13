@@ -64,6 +64,8 @@ export interface Recipe {
     isArchived: boolean;
     tags: string[];
     hasImage: boolean;
+    /** Set when saving after URL import; server downloads and stores the image once. */
+    importImageUrl?: string | null;
     ingredients: RecipeIngredient[];
     steps: RecipeStep[];
     nutrition?: RecipeNutrition | null;
@@ -107,6 +109,7 @@ export interface SaveRecipeRequest {
     ingredients: SaveRecipeIngredientRequest[];
     steps: SaveRecipeStepRequest[];
     nutrition?: SaveRecipeNutritionRequest | null;
+    importImageUrl?: string | null;
 }
 
 export interface RecipeImportPreview {
@@ -120,6 +123,7 @@ export interface RecipeImportPreview {
     ingredients: RecipeIngredient[];
     steps: RecipeStep[];
     nutrition?: RecipeNutrition | null;
+    imageUrl?: string | null;
 }
 
 export interface MealPlanEntry {

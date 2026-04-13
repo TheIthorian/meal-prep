@@ -190,23 +190,27 @@ export function handleAxiosError(error: AxiosError<unknown>) {
     }
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function isProblemError(
     error: AxiosError<ProblemDetail> | AxiosError<PlatformError>,
 ): error is AxiosError<ProblemDetail> {
-    return error.response?.data !== undefined && 'errors' in error.response.data;
+    const data = error.response?.data;
+    return isPlainObject(data) && 'errors' in data;
 }
 
 function isAppException(error: unknown): error is AxiosError<AppError> {
-    return (
-        error instanceof AxiosError &&
-        'response' in error &&
-        'title' in error.response.data &&
-        'type' in error.response.data
-    );
+    if (!(error instanceof AxiosError) || !('response' in error)) return false;
+    const data = error.response?.data;
+    return isPlainObject(data) && 'title' in data && 'type' in data;
 }
 
 function isPlatformError(error: unknown): error is AxiosError<PlatformError> {
-    return error instanceof AxiosError && 'response' in error && 'error' in error.response.data;
+    if (!(error instanceof AxiosError) || error.response?.data === undefined) return false;
+    const data = error.response.data;
+    return isPlainObject(data) && 'error' in data;
 }
 
 export const httpClient = new AppHttpClient();

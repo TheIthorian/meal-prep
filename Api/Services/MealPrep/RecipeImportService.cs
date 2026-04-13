@@ -82,12 +82,61 @@ public class RecipeImportService(
             await TryPersistRecipeImportAiLogAsync(workspaceId.Value, userId, url, llmInvocation, cancellationToken);
 
         if (llmInvocation?.Structured is not null)
-            return MapLlmStructuredPreview(llmInvocation.Structured, url);
+            return MapLlmStructuredPreview(llmInvocation.Structured, url, html);
 
         throw new InvalidFormatException(
             "Recipe import failed",
             "Could not find recipe metadata on that page. You can still create the recipe manually."
         );
+    }
+
+    /// <summary>
+    ///     Downloads a recipe image from a URL that belongs to the same site as <paramref name="sourcePageUrl" />.
+    /// </summary>
+    public async Task<ImportedRecipeImagePayload?> TryDownloadImportImageAsync(
+        string imageUrl,
+        string sourcePageUrl,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!RecipeImportImagePolicy.AreHostsCompatibleForImportedImage(sourcePageUrl, imageUrl)) return null;
+
+        if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri)) return null;
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        request.Headers.UserAgent.ParseAdd("MealPrepBot/1.0");
+
+        using var response = await httpClient.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken
+        );
+
+        if (!response.IsSuccessStatusCode) return null;
+
+        if (response.Content.Headers.ContentLength is > RecipeImageUploadConstants.MaxBytes) return null;
+
+        var mediaType = response.Content.Headers.ContentType?.MediaType;
+        if (!RecipeImageUploadConstants.IsAllowedContentType(mediaType)) return null;
+
+        await using var networkStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        await using var memory = new MemoryStream();
+        var buffer = new byte[8192];
+        long total = 0;
+
+        int read;
+        while ((read = await networkStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+        {
+            total += read;
+            if (total > RecipeImageUploadConstants.MaxBytes) return null;
+
+            await memory.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+        }
+
+        var bytes = memory.ToArray();
+        var fileName = RecipeImageUploadConstants.FileNameForUpload(Path.GetFileName(uri.LocalPath), mediaType ?? "image/jpeg");
+
+        return new ImportedRecipeImagePayload(bytes, mediaType ?? "image/jpeg", fileName);
     }
 
     private async Task TryPersistRecipeImportAiLogAsync(
@@ -127,7 +176,7 @@ public class RecipeImportService(
         }
     }
 
-    private RecipeImportPreview MapLlmStructuredPreview(RecipeImportLlmStructuredDto dto, string sourceUrl)
+    private RecipeImportPreview MapLlmStructuredPreview(RecipeImportLlmStructuredDto dto, string sourceUrl, string html)
     {
         var servings = dto.Servings > 0 ? dto.Servings : 1m;
         var title = dto.Title.Trim();
@@ -156,6 +205,11 @@ public class RecipeImportService(
 
         var nutrition = BuildNutritionPreviewFromLlm(dto.Nutrition ?? new RecipeImportLlmNutritionDto(), servings);
 
+        var imageUrl = !string.IsNullOrWhiteSpace(dto.ImageUrl)
+            ? ResolveToAbsoluteUri(dto.ImageUrl.Trim(), sourceUrl)
+            : null;
+        imageUrl ??= TryExtractOgImageFromHtml(html, sourceUrl);
+
         return new RecipeImportPreview(
             title,
             description,
@@ -166,7 +220,8 @@ public class RecipeImportService(
             tags,
             ingredients,
             steps,
-            nutrition
+            nutrition,
+            imageUrl
         );
     }
 
@@ -308,6 +363,8 @@ public class RecipeImportService(
             var nutritionObject = recipeObject["nutrition"] as JsonObject;
             var nutrition = nutritionObject is null ? null : BuildNutritionPreview(nutritionObject, servings);
 
+            var imageUrl = TryExtractRecipeImageUrl(recipeObject, sourceUrl) ?? TryExtractOgImageFromHtml(html, sourceUrl);
+
             return new RecipeImportPreview(
                 title,
                 recipeObject["description"]?.GetValue<string>()?.Trim(),
@@ -318,7 +375,8 @@ public class RecipeImportService(
                 tags,
                 ingredients,
                 steps.Select((step, index) => new RecipeImportPreviewStep(index, step, ParseTimerSeconds(step))).ToArray(),
-                nutrition
+                nutrition,
+                imageUrl
             );
         }
 
@@ -336,6 +394,8 @@ public class RecipeImportService(
         var steps = ReadInstructionElements(html);
         if (ingredientTexts.Count == 0 || steps.Count == 0) return null;
 
+        var imageUrl = TryExtractOgImageFromHtml(html, sourceUrl);
+
         return new RecipeImportPreview(
             title.Trim(),
             ReadMetaContent(html, "name", "description"),
@@ -346,7 +406,8 @@ public class RecipeImportService(
             [],
             ingredientTexts.Select((text, index) => ParseIngredient(text, index)).ToArray(),
             steps.Select((step, index) => new RecipeImportPreviewStep(index, step, ParseTimerSeconds(step))).ToArray(),
-            null
+            null,
+            imageUrl
         );
     }
 
@@ -568,6 +629,74 @@ public class RecipeImportService(
         return secondMatch.Success ? int.Parse(secondMatch.Groups["seconds"].Value) : null;
     }
 
+    private static string? ResolveToAbsoluteUri(string? raw, string sourceUrl) {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+
+        var trimmed = raw.Trim();
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var absolute)) return absolute.ToString();
+
+        if (!Uri.TryCreate(sourceUrl, UriKind.Absolute, out var baseUri)) return null;
+
+        return Uri.TryCreate(baseUri, trimmed, out var combined) ? combined.ToString() : null;
+    }
+
+    private static string? TryExtractRecipeImageUrl(JsonObject recipeObject, string sourceUrl) {
+        var imageNode = recipeObject["image"];
+        if (imageNode is null) return null;
+
+        var candidates = new List<string>();
+
+        switch (imageNode)
+        {
+            case JsonValue jsonValue:
+                if (jsonValue.TryGetValue<string>(out var single)) candidates.Add(single.Trim());
+
+                break;
+            case JsonArray jsonArray:
+                foreach (var item in jsonArray) CollectImageUrlsFromNode(item, candidates);
+
+                break;
+            case JsonObject jsonObject:
+                CollectImageUrlsFromNode(jsonObject, candidates);
+
+                break;
+        }
+
+        foreach (var raw in candidates.Where(value => !string.IsNullOrWhiteSpace(value)))
+        {
+            var resolved = ResolveToAbsoluteUri(raw, sourceUrl);
+            if (resolved is not null) return resolved;
+        }
+
+        return null;
+    }
+
+    private static void CollectImageUrlsFromNode(JsonNode? node, List<string> candidates) {
+        switch (node)
+        {
+            case JsonValue jsonValue:
+                if (jsonValue.TryGetValue<string>(out var s) && !string.IsNullOrWhiteSpace(s)) candidates.Add(s.Trim());
+
+                break;
+            case JsonObject jsonObject:
+                foreach (var key in new[] { "url", "contentUrl" })
+                {
+                    if (jsonObject[key] is JsonValue urlValue && urlValue.TryGetValue<string>(out var url) && !string.IsNullOrWhiteSpace(url))
+                        candidates.Add(url.Trim());
+                }
+
+                break;
+        }
+    }
+
+    private static string? TryExtractOgImageFromHtml(string html, string sourceUrl) {
+        var raw = ReadMetaContent(html, "property", "og:image")
+                  ?? ReadMetaContent(html, "property", "og:image:url")
+                  ?? ReadMetaContent(html, "name", "twitter:image");
+
+        return ResolveToAbsoluteUri(raw, sourceUrl);
+    }
+
     private static string? ReadMetaContent(string html, string attributeName, string attributeValue)
     {
         var match = Regex.Match(
@@ -632,8 +761,14 @@ public sealed record RecipeImportPreview(
     IReadOnlyCollection<string> Tags,
     IReadOnlyCollection<RecipeImportPreviewIngredient> Ingredients,
     IReadOnlyCollection<RecipeImportPreviewStep> Steps,
-    RecipeImportPreviewNutrition? Nutrition
+    RecipeImportPreviewNutrition? Nutrition,
+    string? ImageUrl
 );
+
+/// <summary>
+///     Raw image bytes downloaded during recipe import, ready to upload to object storage.
+/// </summary>
+public sealed record ImportedRecipeImagePayload(byte[] Data, string ContentType, string FileName);
 
 public sealed record RecipeImportPreviewIngredient(
     int SortOrder,

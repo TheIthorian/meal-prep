@@ -62,7 +62,8 @@ public record RecipeImportPreviewResponse(
     string[] Tags,
     RecipeIngredientResponse[] Ingredients,
     RecipeStepResponse[] Steps,
-    RecipeNutritionResponse? Nutrition
+    RecipeNutritionResponse? Nutrition,
+    string? ImageUrl
 );
 
 /// <summary>
@@ -184,7 +185,8 @@ public static class RecipeResponseTransforms
                             .ThenBy(nutrient => nutrient.NutrientType)
                             .Select(nutrient => new RecipeNutrientResponse(Guid.Empty, nutrient.NutrientType, nutrient.Amount))
                             .ToArray()
-                    )
+                    ),
+                preview.ImageUrl
             );
         }
     }

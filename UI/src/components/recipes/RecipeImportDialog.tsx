@@ -31,6 +31,7 @@ export function RecipeImportDialog({ workspaceId, onImported, trigger }: RecipeI
                 description: preview.description ?? '',
                 servings: preview.servings,
                 sourceUrl: preview.sourceUrl,
+                importImageUrl: preview.imageUrl ?? null,
                 prepMinutes: preview.prepMinutes ?? null,
                 cookMinutes: preview.cookMinutes ?? null,
                 tags: preview.tags,

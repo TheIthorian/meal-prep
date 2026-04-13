@@ -5,14 +5,16 @@ namespace Api.Services.MealPrep;
 /// <summary>
 ///     Builds shopping lists from recipes or meal-plan entries while consolidating compatible ingredients.
 /// </summary>
-public class ShoppingListGenerationService(MeasurementService measurementService)
+public class ShoppingListGenerationService(MeasurementService measurementService, IIngredientCategoryResolver ingredientCategoryResolver)
 {
-    public ShoppingList BuildFromSources(
+    public async Task<ShoppingList> BuildFromSourcesAsync(
         Workspace workspace,
         string name,
         string? notes,
-        IReadOnlyCollection<ShoppingListGenerationSource> sources
-    ) {
+        IReadOnlyCollection<ShoppingListGenerationSource> sources,
+        CancellationToken cancellationToken = default
+    )
+    {
         var shoppingList = ShoppingList.CreateNew(workspace, name);
         shoppingList.UpdateDetails(name, notes);
         shoppingList.MarkGenerated(DateTime.UtcNow);
@@ -72,16 +74,31 @@ public class ShoppingListGenerationService(MeasurementService measurementService
             };
         }
 
-        var generatedItems = groupedIngredients.Values
-            .OrderBy(item => item.Section)
-            .ThenBy(item => item.Name)
-            .Select((item, index) => CreateGeneratedItem(index, item))
-            .Concat(rawIngredients.OrderBy(item => item.Section).ThenBy(item => item.Name).Select((item, index) =>
-                CreateGeneratedItem(index + groupedIngredients.Count, item)
-            ))
+        var groupedList = groupedIngredients.Values.ToList();
+        var categoryKeys = groupedList.Concat(rawIngredients)
+            .Select(item => item.NormalizedName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.Ordinal)
             .ToArray();
 
-        shoppingList.ReplaceItems(generatedItems);
+        var categoryMap = await ingredientCategoryResolver.ResolveAsync(categoryKeys, cancellationToken).ConfigureAwait(false);
+
+        string? ResolveCategory(AggregatedIngredient item)
+        {
+            if (categoryMap.TryGetValue(item.NormalizedName, out var c) && !string.IsNullOrWhiteSpace(c))
+                return c;
+
+            return item.Section;
+        }
+
+        var combined = groupedList
+            .Concat(rawIngredients)
+            .OrderBy(item => ResolveCategory(item))
+            .ThenBy(item => item.Name)
+            .Select((item, index) => CreateGeneratedItem(index, item, ResolveCategory(item)))
+            .ToArray();
+
+        shoppingList.ReplaceItems(combined);
         shoppingList.ReplaceSources(
             sources.Select(source =>
                 ShoppingListSource.CreateNew(source.RecipeId, source.MealPlanEntryId, source.SourceName)
@@ -91,7 +108,7 @@ public class ShoppingListGenerationService(MeasurementService measurementService
         return shoppingList;
     }
 
-    private ShoppingListItem CreateGeneratedItem(int sortOrder, AggregatedIngredient item)
+    private ShoppingListItem CreateGeneratedItem(int sortOrder, AggregatedIngredient item, string? category)
     {
         decimal? amount = item.Amount;
         string? unit = item.Unit;
@@ -115,7 +132,7 @@ public class ShoppingListGenerationService(MeasurementService measurementService
             item.NormalizedName,
             isApproximate,
             false,
-            item.Section,
+            category,
             item.PreparationNote
         );
     }

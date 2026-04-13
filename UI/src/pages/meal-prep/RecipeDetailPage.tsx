@@ -1,10 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Clock, Flame } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { ArrowLeft, Clock, ExternalLink, Flame, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { recipesApi } from '@/lib/api';
-import { getNutrientAmount, scaleRecipeIngredients } from '@/lib/meal-prep';
+import { analyticsEvents, useAnalytics, withWorkspaceProperties } from '@/lib/analytics';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { toast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import {
+    AlertDialog,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { getNutrientAmount, safeHttpUrlHref, scaleRecipeIngredients } from '@/lib/meal-prep';
 import { InstructionWithInlineAmounts } from '@/components/recipes/InstructionWithInlineAmounts';
 import { RecipeYieldScale } from '@/components/recipes/RecipeYieldScale';
 import type { Recipe, RecipeListItem } from '@/models/meal-prep';
@@ -40,12 +53,36 @@ function recipeToListItem(recipe: {
 
 export default function RecipeDetailPage() {
     const { workspaceId = '', recipeId = '' } = useParams<{ workspaceId: string; recipeId: string }>();
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const { currentWorkspace } = useWorkspace();
+    const { capture } = useAnalytics();
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
     const { data: recipe, isLoading } = useQuery({
         queryKey: ['recipe', workspaceId, recipeId],
         queryFn: () => recipesApi.getById(workspaceId, recipeId),
         enabled: Boolean(workspaceId && recipeId),
+    });
+
+    const deleteRecipe = useMutation({
+        mutationFn: () => recipesApi.remove(workspaceId, recipeId),
+        onSuccess: () => {
+            const title = recipe?.title ?? 'Recipe';
+            queryClient.removeQueries({ queryKey: ['recipe', workspaceId, recipeId] });
+            queryClient.invalidateQueries({ queryKey: ['recipes', workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ['meal-plan', workspaceId] });
+            capture(
+                analyticsEvents.recipeDeleted,
+                withWorkspaceProperties(currentWorkspace, { recipe_id: recipeId }),
+            );
+            toast({
+                title: 'Recipe deleted',
+                description: `"${title}" was removed from your library.`,
+            });
+            setDeleteDialogOpen(false);
+            navigate(`/workspaces/${workspaceId}/`);
+        },
     });
 
     function handleRecipeImageChanged(nextHasImage: boolean) {
@@ -87,6 +124,7 @@ export default function RecipeDetailPage() {
 
     const listItem = recipeToListItem(recipe);
     const cookingPath = `/workspaces/${workspaceId}/cooking/${recipe.id}`;
+    const sourceHref = safeHttpUrlHref(recipe.sourceUrl);
 
     return (
         <motion.div
@@ -95,13 +133,24 @@ export default function RecipeDetailPage() {
             transition={{ duration: 0.3 }}
             className='mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10'
         >
-            <Link
-                to={`/workspaces/${workspaceId}/`}
-                className='mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground'
-            >
-                <ArrowLeft className='h-4 w-4' />
-                Back to recipes
-            </Link>
+            <div className='mb-6 flex flex-wrap items-center justify-between gap-3'>
+                <Link
+                    to={`/workspaces/${workspaceId}/`}
+                    className='inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground'
+                >
+                    <ArrowLeft className='h-4 w-4' />
+                    Back to recipes
+                </Link>
+                <Button
+                    type='button'
+                    variant='outline'
+                    className='border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive'
+                    onClick={() => setDeleteDialogOpen(true)}
+                >
+                    <Trash2 className='mr-1.5 h-4 w-4' />
+                    Delete
+                </Button>
+            </div>
 
             <RecipePhotoSection
                 workspaceId={workspaceId}
@@ -124,6 +173,27 @@ export default function RecipeDetailPage() {
                 </div>
                 <h1 className='font-heading mb-2 text-3xl text-foreground md:text-4xl'>{recipe.title}</h1>
                 <p className='text-muted-foreground'>{recipe.description ?? '—'}</p>
+
+                {recipe.sourceUrl ? (
+                    <div className='mt-3'>
+                        {sourceHref ? (
+                            <a
+                                href={sourceHref}
+                                target='_blank'
+                                rel='noopener noreferrer'
+                                className='inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline'
+                            >
+                                <ExternalLink className='h-4 w-4 shrink-0' />
+                                View original recipe
+                            </a>
+                        ) : (
+                            <p className='text-sm text-muted-foreground break-all'>
+                                <span className='font-medium text-foreground'>Source: </span>
+                                {recipe.sourceUrl}
+                            </p>
+                        )}
+                    </div>
+                ) : null}
 
                 <div className='mt-4 flex flex-wrap items-center gap-6 text-sm text-muted-foreground'>
                     {(recipe.prepMinutes ?? recipe.cookMinutes) ? (
@@ -229,6 +299,28 @@ export default function RecipeDetailPage() {
                     </div>
                 </div>
             )}
+
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this recipe?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This removes &quot;{recipe.title}&quot; from your library. You can import or add it again
+                            later if you change your mind.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleteRecipe.isPending}>Cancel</AlertDialogCancel>
+                        <Button
+                            variant='destructive'
+                            disabled={deleteRecipe.isPending}
+                            onClick={() => deleteRecipe.mutate()}
+                        >
+                            {deleteRecipe.isPending ? 'Deleting…' : 'Delete recipe'}
+                        </Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </motion.div>
     );
 }
