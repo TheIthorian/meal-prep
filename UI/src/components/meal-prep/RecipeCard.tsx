@@ -12,12 +12,13 @@ interface RecipeCardProps {
 
 export function RecipeCard({ workspaceId, recipe, index }: RecipeCardProps) {
     const to = `/workspaces/${workspaceId}/recipe/${recipe.id}`;
+    const entranceDelay = Math.min(index, 5) * 0.02;
 
     return (
         <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: index * 0.06, ease: 'easeOut' }}
+            transition={{ duration: 0.2, delay: entranceDelay, ease: 'easeOut' }}
         >
             <Link
                 to={to}

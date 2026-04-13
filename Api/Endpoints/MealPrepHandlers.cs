@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Api.Endpoints;
 
@@ -134,6 +135,7 @@ internal static class RecipesHandlers
         ApiDbContext db,
         RecipeImportService recipeImportService,
         IS3StorageService s3StorageService,
+        ILoggerFactory loggerFactory,
         Guid workspaceId,
         Guid recipeId,
         [FromBody] SaveRecipeRequest body,
@@ -144,22 +146,98 @@ internal static class RecipesHandlers
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
         var currentUserId = workspaceUser.UserId;
-        var recipe = await db.Recipes
+        var recipeQuery = db.Recipes
+            .ForCurrentUser(currentUserId)
+            .WhereIsNotDeleted()
+            .Where(value => value.WorkspaceId == workspaceId && value.Id == recipeId);
+
+        var updatedCount = await recipeQuery.ExecuteUpdateAsync(setters => setters
+            .SetProperty(value => value.Title, body.Title)
+            .SetProperty(value => value.Description, body.Description)
+            .SetProperty(value => value.Servings, body.Servings)
+            .SetProperty(value => value.SourceUrl, body.SourceUrl)
+            .SetProperty(value => value.Notes, body.Notes)
+            .SetProperty(value => value.PrepMinutes, body.PrepMinutes)
+            .SetProperty(value => value.CookMinutes, body.CookMinutes)
+            .SetProperty(value => value.IsArchived, body.IsArchived)
+            .SetProperty(value => value.Tags, body.Tags)
+            .SetProperty(value => value.UpdatedAt, DateTime.UtcNow),
+            cancellationToken
+        );
+
+        if (updatedCount == 0) throw new EntityNotFoundException("Recipe not found", null);
+
+        await db.RecipeIngredients
+            .Where(value => value.RecipeId == recipeId)
+            .ExecuteDeleteAsync(cancellationToken);
+        await db.RecipeSteps
+            .Where(value => value.RecipeId == recipeId)
+            .ExecuteDeleteAsync(cancellationToken);
+        await db.RecipeNutrition
+            .Where(value => value.RecipeId == recipeId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        var newIngredients = body.Ingredients.Select((ingredient, index) =>
+            RecipeIngredient.CreateNew(
+                index,
+                ingredient.Name,
+                ingredient.DisplayText,
+                ingredient.Amount,
+                ingredient.Unit,
+                ingredient.NormalizedIngredientName,
+                ingredient.PreparationNote,
+                ingredient.Section
+            )
+        ).ToArray();
+
+        var newSteps = body.Steps.Select((step, index) => RecipeStep.CreateNew(index, step.Instruction, step.TimerSeconds)).ToArray();
+
+        var newNutrition = body.Nutrition?.Nutrients
+            .GroupBy(nutrient => nutrient.NutrientType.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(group => RecipeNutrition.CreateNew(group.Key, group.Last().Amount))
+            .ToArray()
+            ?? Array.Empty<RecipeNutrition>();
+
+        foreach (var ingredient in newIngredients)
+            db.Entry(ingredient).Property(nameof(RecipeIngredient.RecipeId)).CurrentValue = recipeId;
+        foreach (var step in newSteps)
+            db.Entry(step).Property(nameof(RecipeStep.RecipeId)).CurrentValue = recipeId;
+        foreach (var nutrient in newNutrition)
+            db.Entry(nutrient).Property(nameof(RecipeNutrition.RecipeId)).CurrentValue = recipeId;
+
+        await db.RecipeIngredients.AddRangeAsync(newIngredients, cancellationToken);
+        await db.RecipeSteps.AddRangeAsync(newSteps, cancellationToken);
+        await db.RecipeNutrition.AddRangeAsync(newNutrition, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(body.ImportImageUrl) && !string.IsNullOrWhiteSpace(body.SourceUrl))
+        {
+            var payload = await recipeImportService.TryDownloadImportImageAsync(body.ImportImageUrl, body.SourceUrl, cancellationToken);
+            if (payload is not null)
+            {
+                var existingImageKey = await recipeQuery.Select(value => value.ImageObjectKey).FirstOrDefaultAsync(cancellationToken);
+                if (!string.IsNullOrEmpty(existingImageKey))
+                    await s3StorageService.DeleteFileAsync(existingImageKey);
+
+                await using var stream = new MemoryStream(payload.Data);
+                var key = await s3StorageService.UploadFileAsync(stream, payload.FileName, payload.ContentType);
+                await recipeQuery.ExecuteUpdateAsync(setters => setters
+                    .SetProperty(value => value.ImageObjectKey, key)
+                    .SetProperty(value => value.UpdatedAt, DateTime.UtcNow), cancellationToken);
+            }
+        }
+
+        var updatedRecipe = await db.Recipes
             .Include(value => value.Ingredients)
             .Include(value => value.Steps)
             .Include(value => value.Nutrition)
+            .AsNoTracking()
             .ForCurrentUser(currentUserId)
             .WhereIsNotDeleted()
             .Where(value => value.WorkspaceId == workspaceId && value.Id == recipeId)
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstAsync(cancellationToken);
 
-        if (recipe is null) throw new EntityNotFoundException("Recipe not found", null);
-
-        ApplyRecipe(recipe, body);
-        await TryApplyImportedImageAsync(body, recipe, recipeImportService, s3StorageService, cancellationToken);
-        await db.SaveChangesAsync(cancellationToken);
-
-        return TypedResults.Json(recipe.ToRecipeResponse());
+        return TypedResults.Json(updatedRecipe.ToRecipeResponse());
     }
 
     [Authorize]
@@ -459,7 +537,7 @@ internal static class RecipesHandlers
                 .GroupBy(nutrient => nutrient.NutrientType.Trim(), StringComparer.OrdinalIgnoreCase)
                 .Select(group => RecipeNutrition.CreateNew(group.Key, group.Last().Amount))
                 .ToArray()
-            ?? []
+            ?? Array.Empty<RecipeNutrition>()
         );
     }
 }
@@ -815,7 +893,7 @@ internal static class ShoppingListsHandlers
             body.IsManual,
             body.Category,
             body.Note,
-            body.SourceNames ?? []
+            body.SourceNames ?? Array.Empty<string>()
         );
 
         item.Update(
@@ -829,7 +907,7 @@ internal static class ShoppingListsHandlers
             body.IsManual,
             body.Category,
             body.Note,
-            body.SourceNames ?? []
+            body.SourceNames ?? Array.Empty<string>()
         );
 
         shoppingList.Items.Add(item);

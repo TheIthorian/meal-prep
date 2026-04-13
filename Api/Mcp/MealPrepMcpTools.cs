@@ -7,7 +7,9 @@ using Api.Data;
 using Api.Domain;
 using Api.Endpoints;
 using Api.Endpoints.Requests.MealPrep;
+using Api.Endpoints.Responses.MealPrep;
 using Api.Models;
+using Api.Models.Filter;
 using Api.Services;
 using Api.Services.MealPrep;
 using FluentValidation;
@@ -17,6 +19,8 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 
 namespace Api.Mcp;
 
@@ -31,7 +35,9 @@ public sealed class MealPrepMcpTools(
     RecipeImportService recipeImportService,
     ShoppingListGenerationService shoppingListGenerationService,
     MeasurementService measurementService,
-    IS3StorageService s3StorageService
+    IS3StorageService s3StorageService,
+    ILogger<MealPrepMcpTools> logger,
+    ILoggerFactory loggerFactory
 )
 {
     private static string Serialize<T>(JsonHttpResult<T> result) {
@@ -88,6 +94,40 @@ public sealed class MealPrepMcpTools(
     private static string SerializeAppException(AppException exception)
     {
         return JsonSerializer.Serialize(exception.Details, McpJson.SerializerOptions);
+    }
+
+    private static string BuildUnhandledErrorResponse(string toolName, string? errorDetail = null)
+    {
+        var body = new ProblemDetails {
+            Title = "MCP tool execution failed",
+            Type = "https://localhost:5000/errors/McpToolExecutionException",
+            Status = StatusCodes.Status500InternalServerError,
+            Detail = errorDetail ?? $"The MCP tool '{toolName}' failed. See server logs for details."
+        };
+        return JsonSerializer.Serialize(body, McpJson.SerializerOptions);
+    }
+
+    private async Task<string> ExecuteToolWithErrorLoggingAsync(string toolName, Func<Task<string>> action)
+    {
+        try
+        {
+            return await action();
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogWarning("MCP tool {ToolName} was canceled.", toolName);
+            throw;
+        }
+        catch (AppException appException)
+        {
+            logger.LogWarning(appException, "MCP tool {ToolName} failed with an application error.", toolName);
+            return SerializeAppException(appException);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "MCP tool {ToolName} failed.", toolName);
+            return BuildUnhandledErrorResponse(toolName, $"{toolName} failed: {exception.Message}");
+        }
     }
 
     [McpServerTool]
@@ -196,34 +236,39 @@ public sealed class MealPrepMcpTools(
         string? importImageUrl,
         CancellationToken cancellationToken
     ) {
-        _ = cancellationToken;
-        var workspaceId = RequireMcpWorkspaceId();
-        var recipe = new SaveRecipeRequest(
-            title,
-            description,
-            servings,
-            sourceUrl,
-            notes,
-            prepMinutes,
-            cookMinutes,
-            isArchived,
-            tags,
-            ingredients,
-            steps,
-            nutrition,
-            importImageUrl
+        return await ExecuteToolWithErrorLoggingAsync(
+            nameof(CreateRecipe),
+            async () =>
+            {
+                var workspaceId = RequireMcpWorkspaceId();
+                var recipe = new SaveRecipeRequest(
+                    title,
+                    description,
+                    servings,
+                    sourceUrl,
+                    notes,
+                    prepMinutes,
+                    cookMinutes,
+                    isArchived,
+                    tags,
+                    ingredients,
+                    steps,
+                    nutrition,
+                    importImageUrl
+                );
+                await ValidateRequestAsync(recipe, cancellationToken);
+                var result = await RecipesHandlers.PostRecipe(
+                    currentUserService,
+                    db,
+                    recipeImportService,
+                    s3StorageService,
+                    workspaceId,
+                    recipe,
+                    cancellationToken
+                );
+                return Serialize(result);
+            }
         );
-        await ValidateRequestAsync(recipe, cancellationToken);
-        var result = await RecipesHandlers.PostRecipe(
-            currentUserService,
-            db,
-            recipeImportService,
-            s3StorageService,
-            workspaceId,
-            recipe,
-            cancellationToken
-        );
-        return Serialize(result);
     }
 
     [McpServerTool]
@@ -259,35 +304,97 @@ public sealed class MealPrepMcpTools(
         string? importImageUrl,
         CancellationToken cancellationToken
     ) {
-        _ = cancellationToken;
-        var workspaceId = RequireMcpWorkspaceId();
-        var recipe = new SaveRecipeRequest(
-            title,
-            description,
-            servings,
-            sourceUrl,
-            notes,
-            prepMinutes,
-            cookMinutes,
-            isArchived,
-            tags,
-            ingredients,
-            steps,
-            nutrition,
-            importImageUrl
+        return await ExecuteToolWithErrorLoggingAsync(
+            nameof(UpdateRecipe),
+            async () =>
+            {
+                var workspaceId = RequireMcpWorkspaceId();
+                var recipe = new SaveRecipeRequest(
+                    title,
+                    description,
+                    servings,
+                    sourceUrl,
+                    notes,
+                    prepMinutes,
+                    cookMinutes,
+                    isArchived,
+                    tags,
+                    ingredients,
+                    steps,
+                    nutrition,
+                    importImageUrl
+                );
+                await ValidateRequestAsync(recipe, cancellationToken);
+
+                var result = await RecipesHandlers.PatchRecipe(
+                    currentUserService,
+                    db,
+                    recipeImportService,
+                    s3StorageService,
+                    loggerFactory,
+                    workspaceId,
+                    recipeId,
+                    recipe,
+                    cancellationToken
+                );
+                return Serialize(result);
+            }
         );
-        await ValidateRequestAsync(recipe, cancellationToken);
-        var result = await RecipesHandlers.PatchRecipe(
-            currentUserService,
-            db,
-            recipeImportService,
-            s3StorageService,
-            workspaceId,
-            recipeId,
-            recipe,
-            cancellationToken
+    }
+
+    [McpServerTool]
+    [Description("Sets a recipe image from a public image URL.")]
+    public async Task<string> SetRecipeImageFromUrl(
+        [Description("Recipe id to update.")]
+        Guid recipeId,
+        [Description("Public image URL to import for this recipe.")]
+        string imageUrl,
+        CancellationToken cancellationToken
+    ) {
+        return await ExecuteToolWithErrorLoggingAsync(
+            nameof(SetRecipeImageFromUrl),
+            async () =>
+            {
+                var workspaceId = RequireMcpWorkspaceId();
+                var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
+                if (workspaceUser is null)
+                    throw new EntityNotFoundException("workspace not found", null);
+
+                var recipe = await db.Recipes
+                    .ForCurrentUser(workspaceUser.UserId)
+                    .WhereIsNotDeleted()
+                    .Where(value => value.WorkspaceId == workspaceId && value.Id == recipeId)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (recipe is null)
+                    throw new EntityNotFoundException("Recipe not found", null);
+
+                var sourceForPolicy = string.IsNullOrWhiteSpace(recipe.SourceUrl) ? imageUrl : recipe.SourceUrl;
+                var payload = await recipeImportService.TryDownloadImportImageAsync(imageUrl, sourceForPolicy!, cancellationToken);
+                if (payload is null)
+                    throw new InvalidFormatException("Image import failed", "Could not download a valid image from the provided URL.");
+
+                if (!string.IsNullOrEmpty(recipe.ImageObjectKey))
+                    await s3StorageService.DeleteFileAsync(recipe.ImageObjectKey);
+
+                await using var stream = new MemoryStream(payload.Data);
+                var key = await s3StorageService.UploadFileAsync(stream, payload.FileName, payload.ContentType);
+                recipe.SetImageObjectKey(key);
+                await db.SaveChangesAsync(cancellationToken);
+
+                var updatedRecipe = await db.Recipes
+                    .Include(value => value.Ingredients)
+                    .Include(value => value.Steps)
+                    .Include(value => value.Nutrition)
+                    .AsNoTracking()
+                    .ForCurrentUser(workspaceUser.UserId)
+                    .WhereIsNotDeleted()
+                    .Where(value => value.WorkspaceId == workspaceId && value.Id == recipeId)
+                    .FirstAsync(cancellationToken);
+
+                return JsonSerializer.Serialize(updatedRecipe.ToRecipeResponse(), McpJson.SerializerOptions);
+            }
         );
-        return Serialize(result);
     }
 
     [McpServerTool]
@@ -306,19 +413,25 @@ public sealed class MealPrepMcpTools(
         string sourceUrl,
         CancellationToken cancellationToken
     ) {
-        var workspaceId = RequireMcpWorkspaceId();
-        var body = new ImportRecipeRequest(sourceUrl);
-        await ValidateRequestAsync(body, cancellationToken);
-        var result = await RecipesHandlers.PostImportRecipe(
-            currentUserService,
-            db,
-            recipeImportService,
-            s3StorageService,
-            workspaceId,
-            body,
-            cancellationToken
+        return await ExecuteToolWithErrorLoggingAsync(
+            nameof(ImportRecipe),
+            async () =>
+            {
+                var workspaceId = RequireMcpWorkspaceId();
+                var body = new ImportRecipeRequest(sourceUrl);
+                await ValidateRequestAsync(body, cancellationToken);
+                var result = await RecipesHandlers.PostImportRecipe(
+                    currentUserService,
+                    db,
+                    recipeImportService,
+                    s3StorageService,
+                    workspaceId,
+                    body,
+                    cancellationToken
+                );
+                return Serialize(result);
+            }
         );
-        return Serialize(result);
     }
 
     [McpServerTool]
