@@ -17,9 +17,9 @@ public partial class ApiDbContext
     public DbSet<IngredientCategoryCache> IngredientCategoryCaches => Set<IngredientCategoryCache>();
     public DbSet<McpPersonalAccessToken> McpPersonalAccessTokens => Set<McpPersonalAccessToken>();
 
-    partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<Recipe>().HasIndex(recipe => new { recipe.WorkspaceId, recipe.IsDeleted, recipe.IsArchived });
+    partial void OnModelCreatingPartial(ModelBuilder modelBuilder) {
+        modelBuilder.Entity<Recipe>()
+            .HasIndex(recipe => new { recipe.WorkspaceId, recipe.IsDeleted, recipe.IsArchived });
         modelBuilder.Entity<Recipe>().Property(recipe => recipe.Servings).HasPrecision(10, 2);
         modelBuilder.Entity<Recipe>().Property(recipe => recipe.NutritionServingBasis).HasPrecision(10, 2);
         modelBuilder.Entity<Recipe>().Property(recipe => recipe.Tags).HasColumnType("text[]");
@@ -45,7 +45,8 @@ public partial class ApiDbContext
         modelBuilder.Entity<RecipeNutrition>().HasIndex(value => new { value.RecipeId, value.NutrientType }).IsUnique();
         modelBuilder.Entity<RecipeNutrition>().Property(value => value.Amount).HasPrecision(10, 2);
 
-        modelBuilder.Entity<MealPlanEntry>().HasIndex(entry => new { entry.WorkspaceId, entry.PlannedDate, entry.IsDeleted });
+        modelBuilder.Entity<MealPlanEntry>()
+            .HasIndex(entry => new { entry.WorkspaceId, entry.PlannedDate, entry.IsDeleted });
         modelBuilder.Entity<MealPlanEntry>().Property(entry => entry.TargetServings).HasPrecision(10, 2);
         modelBuilder.Entity<MealPlanEntry>()
             .HasOne(entry => entry.Recipe)

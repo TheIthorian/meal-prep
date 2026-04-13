@@ -64,7 +64,11 @@ public static class ShoppingListResponseTransforms
                 shoppingList.Name,
                 shoppingList.Notes,
                 shoppingList.GeneratedAt,
-                shoppingList.Items.OrderBy(item => item.IsChecked).ThenBy(item => item.SortOrder).Select(item => item.ToResponse()).ToArray(),
+                shoppingList.Items
+                    .OrderBy(item => item.IsChecked)
+                    .ThenBy(item => item.SortOrder)
+                    .Select(item => item.ToResponse())
+                    .ToArray(),
                 shoppingList.Sources.Select(source => source.ToResponse()).ToArray()
             );
         }
@@ -94,7 +98,12 @@ public static class ShoppingListResponseTransforms
     extension(ShoppingListSource source)
     {
         public ShoppingListSourceResponse ToResponse() {
-            return new ShoppingListSourceResponse(source.Id, source.RecipeId, source.MealPlanEntryId, source.SourceName);
+            return new ShoppingListSourceResponse(
+                source.Id,
+                source.RecipeId,
+                source.MealPlanEntryId,
+                source.SourceName
+            );
         }
     }
 }

@@ -20,8 +20,7 @@ public class CurrentUserService(
             ? Guid.Parse(userId)
             : null;
 
-    public async Task<AppUser?> GetCurrentUserAsync()
-    {
+    public async Task<AppUser?> GetCurrentUserAsync() {
         using var methodTiming = System.Diagnostics.Activity.Current.BeginAppMethodEvent();
 
         var principal = httpContextAccessor.HttpContext?.User;
@@ -31,8 +30,7 @@ public class CurrentUserService(
     /**
      * Prefer to use over GetCurrentUserAsync when you need the workspace entity
      */
-    public async Task<WorkspaceUser?> GetCurrentWorkspaceUserAsync(Guid workspaceId)
-    {
+    public async Task<WorkspaceUser?> GetCurrentWorkspaceUserAsync(Guid workspaceId) {
         using var methodTiming = System.Diagnostics.Activity.Current.BeginAppMethodEvent();
 
         return await db.WorkspaceUsers

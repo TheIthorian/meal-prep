@@ -74,20 +74,33 @@ export function ShoppingListGeneratorDialog({
                         </div>
                         <div className='space-y-2 md:col-span-2'>
                             <label className='text-sm font-medium'>Notes</label>
-                            <Textarea value={notes} onChange={event => setNotes(event.target.value)} placeholder='Optional notes for this shopping trip.' />
+                            <Textarea
+                                value={notes}
+                                onChange={event => setNotes(event.target.value)}
+                                placeholder='Optional notes for this shopping trip.'
+                            />
                         </div>
                     </div>
 
                     <div className='space-y-3'>
                         <h3 className='text-sm font-semibold'>Planned Meals</h3>
                         <div className='space-y-2'>
-                            {sortedEntries.length === 0 && <p className='text-sm text-muted-foreground'>No meal-plan entries found for the current view.</p>}
+                            {sortedEntries.length === 0 && (
+                                <p className='text-sm text-muted-foreground'>
+                                    No meal-plan entries found for the current view.
+                                </p>
+                            )}
                             {sortedEntries.map(entry => (
-                                <label key={entry.id} className='flex items-start gap-3 rounded-lg border border-border p-3'>
+                                <label
+                                    key={entry.id}
+                                    className='flex items-start gap-3 rounded-lg border border-border p-3'
+                                >
                                     <Checkbox
                                         checked={selectedMealPlanEntryIds.includes(entry.id)}
                                         onCheckedChange={() =>
-                                            setSelectedMealPlanEntryIds(currentValue => toggleValue(currentValue, entry.id))
+                                            setSelectedMealPlanEntryIds(currentValue =>
+                                                toggleValue(currentValue, entry.id),
+                                            )
                                         }
                                     />
                                     <div className='space-y-1'>
@@ -105,14 +118,21 @@ export function ShoppingListGeneratorDialog({
                         <h3 className='text-sm font-semibold'>Recipes</h3>
                         <div className='space-y-2'>
                             {recipes.map(recipe => (
-                                <label key={recipe.id} className='flex items-start gap-3 rounded-lg border border-border p-3'>
+                                <label
+                                    key={recipe.id}
+                                    className='flex items-start gap-3 rounded-lg border border-border p-3'
+                                >
                                     <Checkbox
                                         checked={selectedRecipeIds.includes(recipe.id)}
-                                        onCheckedChange={() => setSelectedRecipeIds(currentValue => toggleValue(currentValue, recipe.id))}
+                                        onCheckedChange={() =>
+                                            setSelectedRecipeIds(currentValue => toggleValue(currentValue, recipe.id))
+                                        }
                                     />
                                     <div className='space-y-1'>
                                         <div className='font-medium'>{recipe.title}</div>
-                                        <div className='text-sm text-muted-foreground'>{recipe.ingredientCount} ingredients</div>
+                                        <div className='text-sm text-muted-foreground'>
+                                            {recipe.ingredientCount} ingredients
+                                        </div>
                                     </div>
                                 </label>
                             ))}
@@ -122,7 +142,9 @@ export function ShoppingListGeneratorDialog({
                     <div className='flex justify-end'>
                         <Button
                             onClick={handleGenerate}
-                            disabled={isSaving || (selectedMealPlanEntryIds.length === 0 && selectedRecipeIds.length === 0)}
+                            disabled={
+                                isSaving || (selectedMealPlanEntryIds.length === 0 && selectedRecipeIds.length === 0)
+                            }
                         >
                             {isSaving ? 'Generating...' : 'Generate List'}
                         </Button>

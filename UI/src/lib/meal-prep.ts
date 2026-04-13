@@ -10,6 +10,14 @@ import type {
     ShoppingListListItem,
 } from '@/models/meal-prep';
 
+/** Human-readable label for canonical kebab-case recipe tags (e.g. light-lunch → Light Lunch). */
+export function formatRecipeTagLabel(tag: string) {
+    return tag
+        .split('-')
+        .map(part => (part.length > 0 ? part.charAt(0).toUpperCase() + part.slice(1) : part))
+        .join(' ');
+}
+
 export function formatAmount(amount?: number | null) {
     if (amount === null || amount === undefined || Number.isNaN(amount)) return '';
     return Number(amount.toFixed(2)).toString();
@@ -21,7 +29,8 @@ export function buildIngredientDisplay(ingredient: {
     name: string;
     preparationNote?: string | null;
 }) {
-    const amountPart = ingredient.amount !== null && ingredient.amount !== undefined ? formatAmount(ingredient.amount) : '';
+    const amountPart =
+        ingredient.amount !== null && ingredient.amount !== undefined ? formatAmount(ingredient.amount) : '';
     const baseText = [amountPart, ingredient.unit?.trim(), ingredient.name.trim()].filter(Boolean).join(' ');
     return ingredient.preparationNote?.trim() ? `${baseText}, ${ingredient.preparationNote.trim()}` : baseText;
 }
@@ -49,11 +58,16 @@ export function scaleRecipeIngredients(
     originalServings: number,
     targetServings: number,
 ): RecipeIngredient[] {
-    if (!originalServings || originalServings <= 0 || originalServings === targetServings) return ingredients;
+    if (!originalServings || originalServings <= 0 || Math.abs(originalServings - targetServings) < 1e-6) {
+        return ingredients;
+    }
 
     const ratio = targetServings / originalServings;
     return ingredients.map(ingredient => {
-        const amount = ingredient.amount === null || ingredient.amount === undefined ? ingredient.amount : Number((ingredient.amount * ratio).toFixed(3));
+        const amount =
+            ingredient.amount === null || ingredient.amount === undefined
+                ? ingredient.amount
+                : Number((ingredient.amount * ratio).toFixed(3));
         const displayText = buildIngredientDisplay({
             amount,
             unit: ingredient.unit,
@@ -96,7 +110,18 @@ export function createEmptyRecipe(workspaceId: string): Recipe {
         tags: [],
         hasImage: false,
         importImageUrl: null,
-        ingredients: [{ id: crypto.randomUUID(), sortOrder: 0, name: '', displayText: '', amount: null, unit: '', preparationNote: '', section: '' }],
+        ingredients: [
+            {
+                id: crypto.randomUUID(),
+                sortOrder: 0,
+                name: '',
+                displayText: '',
+                amount: null,
+                unit: '',
+                preparationNote: '',
+                section: '',
+            },
+        ],
         steps: [{ id: crypto.randomUUID(), sortOrder: 0, instruction: '', timerSeconds: null }],
         nutrition: null,
     };
@@ -110,16 +135,18 @@ export function getNutrientAmount(nutrition: RecipeNutrition | null | undefined,
 }
 
 export function setNutrientAmount(recipe: Recipe, nutrientType: string, amount: number | null): Recipe {
-    const base = recipe.nutrition?.nutrients.filter(
-        nutrient => nutrient.nutrientType.toLowerCase() !== nutrientType.toLowerCase(),
-    ) ?? [];
+    const base =
+        recipe.nutrition?.nutrients.filter(
+            nutrient => nutrient.nutrientType.toLowerCase() !== nutrientType.toLowerCase(),
+        ) ?? [];
 
     const nutrients =
-        amount === null || Number.isNaN(amount)
-            ? base
-            : [...base, { id: crypto.randomUUID(), nutrientType, amount }];
+        amount === null || Number.isNaN(amount) ? base : [...base, { id: crypto.randomUUID(), nutrientType, amount }];
 
-    if (nutrients.length === 0 && (recipe.nutrition?.servingBasis === null || recipe.nutrition?.servingBasis === undefined)) {
+    if (
+        nutrients.length === 0 &&
+        (recipe.nutrition?.servingBasis === null || recipe.nutrition?.servingBasis === undefined)
+    ) {
         return { ...recipe, nutrition: null };
     }
 
@@ -261,7 +288,6 @@ export function safeHttpUrlHref(raw: string | null | undefined): string | null {
 /** Full URL for authenticated GET of the recipe cover image (uses session cookies). */
 export function recipeImageRequestUrl(workspaceId: string, recipeId: string) {
     const path = `/api/v1/workspaces/${workspaceId}/recipes/${recipeId}/image`;
-    const base =
-        import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '' : 'http://localhost:5001');
+    const base = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '' : 'http://localhost:5001');
     return `${base}${path}`;
 }

@@ -20,11 +20,7 @@ import {
 import { ShoppingListGeneratorDialog } from '@/components/shopping/ShoppingListGeneratorDialog';
 import { LoadingState } from '@/components/common/LoadingState';
 import { EmptyState } from '@/components/common/EmptyState';
-import type {
-    ShoppingList as ShoppingListModel,
-    ShoppingListItem,
-    ShoppingListListItem,
-} from '@/models/meal-prep';
+import type { ShoppingList as ShoppingListModel, ShoppingListItem, ShoppingListListItem } from '@/models/meal-prep';
 import { getShoppingListProgress, startOfWeek, toDateInputValue, addDays } from '@/lib/meal-prep';
 
 function formatShoppingListDate(iso: string | null | undefined) {
@@ -280,7 +276,11 @@ export default function ShoppingListPage() {
                                                                 queryKey: ['shopping-lists', workspaceId],
                                                             });
                                                             void queryClient.invalidateQueries({
-                                                                queryKey: ['shopping-list', workspaceId, shoppingList.id],
+                                                                queryKey: [
+                                                                    'shopping-list',
+                                                                    workspaceId,
+                                                                    shoppingList.id,
+                                                                ],
                                                             });
                                                         }}
                                                     />
@@ -386,9 +386,7 @@ function ShoppingListRow({
                 >
                     {item.name}
                 </span>
-                <span className='ml-2 text-xs tabular-nums text-muted-foreground'>
-                    {item.displayText}
-                </span>
+                <span className='ml-2 text-xs tabular-nums text-muted-foreground'>{item.displayText}</span>
                 {item.sourceNames.length > 0 && (
                     <span
                         className={`mt-0.5 block text-xs ${item.isChecked ? 'text-muted-foreground/80' : 'text-muted-foreground'}`}

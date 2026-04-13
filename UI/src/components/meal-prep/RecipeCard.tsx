@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { BookOpen, Users } from 'lucide-react';
 import type { RecipeListItem } from '@/models/meal-prep';
+import { formatRecipeTagLabel } from '@/lib/meal-prep';
 import { motion } from 'framer-motion';
 import { RecipeCoverImage } from '@/components/meal-prep/RecipeCoverImage';
 
@@ -46,7 +47,7 @@ export function RecipeCard({ workspaceId, recipe, index }: RecipeCardProps) {
                                 key={tag}
                                 className='rounded-full bg-primary/8 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider text-primary'
                             >
-                                {tag}
+                                {formatRecipeTagLabel(tag)}
                             </span>
                         ))}
                     </div>

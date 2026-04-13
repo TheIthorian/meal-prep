@@ -12,8 +12,7 @@ internal static class UsersHandlers
 {
     [Authorize]
     [HttpGet]
-    public static async Task<JsonHttpResult<UserResponse>> GetUser(ApiDbContext db, Guid userId)
-    {
+    public static async Task<JsonHttpResult<UserResponse>> GetUser(ApiDbContext db, Guid userId) {
         var user = await db.Users
             .Include(u => u.Workspaces)
             .ThenInclude(uw => uw.Workspace)

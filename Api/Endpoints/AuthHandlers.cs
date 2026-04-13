@@ -21,8 +21,7 @@ internal static class AuthHandlers
         UserManager<AppUser> userManager,
         ApiDbContext db,
         [FromBody] RegisterRequest body
-    )
-    {
+    ) {
         var displayName = string.IsNullOrWhiteSpace(body.DisplayName) ? body.Email : body.DisplayName;
         var user = new AppUser { UserName = body.Email, Email = body.Email, DisplayName = displayName };
         var result = await userManager.CreateAsync(user, body.Password);
@@ -43,8 +42,7 @@ internal static class AuthHandlers
 
     [Authorize]
     [HttpPost]
-    public static async Task<IResult> PostLogout(UserManager<AppUser> userManager, HttpContext ctx)
-    {
+    public static async Task<IResult> PostLogout(UserManager<AppUser> userManager, HttpContext ctx) {
         var user = await userManager.GetUserAsync(ctx.User);
         if (user is null) return Results.Unauthorized();
 
@@ -60,8 +58,7 @@ internal static class AuthHandlers
     public static async Task<JsonHttpResult<UserResponse>> GetMe(
         CurrentUserService currentUserService,
         ApiDbContext db
-    )
-    {
+    ) {
         var userId = currentUserService.UserId;
         if (userId is null) throw new UnauthorizedException();
 
@@ -80,8 +77,7 @@ internal static class AuthHandlers
         CurrentUserService currentUserService,
         ApiDbContext db,
         [FromBody] PatchUserRequest body
-    )
-    {
+    ) {
         var userId = currentUserService.UserId;
         if (userId is null) throw new UnauthorizedException();
 
@@ -104,8 +100,7 @@ internal static class AuthHandlers
         UserManager<AppUser> userManager,
         SignInManager<AppUser> signInManager,
         ApiDbContext db
-    )
-    {
+    ) {
         var userId = currentUserService.UserId;
         if (userId is null) throw new UnauthorizedException();
 

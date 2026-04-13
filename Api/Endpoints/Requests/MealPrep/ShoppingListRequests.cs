@@ -24,7 +24,8 @@ public class GenerateShoppingListRequestValidator : AbstractValidator<GenerateSh
 {
     public GenerateShoppingListRequestValidator() {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(255);
-        RuleFor(x => x).Must(x => x.RecipeIds.Length > 0 || x.MealPlanEntryIds.Length > 0)
+        RuleFor(x => x)
+            .Must(x => x.RecipeIds.Length > 0 || x.MealPlanEntryIds.Length > 0)
             .WithMessage("Select at least one recipe or meal-plan entry.");
     }
 }
@@ -49,6 +50,8 @@ public class SaveShoppingListItemRequestValidator : AbstractValidator<SaveShoppi
         RuleForEach(x => x.SourceNames ?? Array.Empty<string>())
             .MaximumLength(255)
             .OverridePropertyName(nameof(SaveShoppingListItemRequest.SourceNames));
-        RuleFor(x => x.SourceNames).Must(names => names is null || names.Length <= 64).WithMessage("At most 64 source names.");
+        RuleFor(x => x.SourceNames)
+            .Must(names => names is null || names.Length <= 64)
+            .WithMessage("At most 64 source names.");
     }
 }

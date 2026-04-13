@@ -5,7 +5,10 @@ namespace Api.Services.MealPrep;
 /// <summary>
 ///     Builds shopping lists from recipes or meal-plan entries while consolidating compatible ingredients.
 /// </summary>
-public class ShoppingListGenerationService(MeasurementService measurementService, IIngredientCategoryResolver ingredientCategoryResolver)
+public class ShoppingListGenerationService(
+    MeasurementService measurementService,
+    IIngredientCategoryResolver ingredientCategoryResolver
+)
 {
     public async Task<ShoppingList> BuildFromSourcesAsync(
         Workspace workspace,
@@ -13,8 +16,7 @@ public class ShoppingListGenerationService(MeasurementService measurementService
         string? notes,
         IReadOnlyCollection<ShoppingListGenerationSource> sources,
         CancellationToken cancellationToken = default
-    )
-    {
+    ) {
         var shoppingList = ShoppingList.CreateNew(workspace, name);
         shoppingList.UpdateDetails(name, notes);
         shoppingList.MarkGenerated(DateTime.UtcNow);
@@ -23,8 +25,7 @@ public class ShoppingListGenerationService(MeasurementService measurementService
         var rawIngredients = new List<AggregatedIngredient>();
 
         foreach (var source in sources)
-        foreach (var ingredient in source.Ingredients)
-        {
+        foreach (var ingredient in source.Ingredients) {
             var scaledAmount = measurementService.ScaleAmount(
                 ingredient.Amount,
                 source.BaseServings <= 0m ? 1m : source.BaseServings,
@@ -35,8 +36,7 @@ public class ShoppingListGenerationService(MeasurementService measurementService
                                  ?? measurementService.NormalizeIngredientName(ingredient.Name);
             var normalizedUnit = measurementService.Normalize(ingredient.Unit);
 
-            if (scaledAmount is null || normalizedUnit.FactorToCanonical is null || normalizedUnit.Kind is null)
-            {
+            if (scaledAmount is null || normalizedUnit.FactorToCanonical is null || normalizedUnit.Kind is null) {
                 rawIngredients.Add(
                     new AggregatedIngredient(
                         ingredient.Name,
@@ -55,8 +55,7 @@ public class ShoppingListGenerationService(MeasurementService measurementService
             var canonicalAmount = scaledAmount.Value * normalizedUnit.FactorToCanonical.Value;
             var key = $"{normalizedName}|{normalizedUnit.Kind}|{normalizedUnit.CanonicalUnit}";
 
-            if (!groupedIngredients.TryGetValue(key, out var existing))
-            {
+            if (!groupedIngredients.TryGetValue(key, out var existing)) {
                 groupedIngredients[key] = new AggregatedIngredient(
                     ingredient.Name,
                     normalizedName,
@@ -84,10 +83,10 @@ public class ShoppingListGenerationService(MeasurementService measurementService
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
-        var categoryMap = await ingredientCategoryResolver.ResolveAsync(categoryKeys, cancellationToken).ConfigureAwait(false);
+        var categoryMap = await ingredientCategoryResolver.ResolveAsync(categoryKeys, cancellationToken)
+            .ConfigureAwait(false);
 
-        string? ResolveCategory(AggregatedIngredient item)
-        {
+        string? ResolveCategory(AggregatedIngredient item) {
             if (categoryMap.TryGetValue(item.NormalizedName, out var c) && !string.IsNullOrWhiteSpace(c))
                 return c;
 
@@ -103,22 +102,23 @@ public class ShoppingListGenerationService(MeasurementService measurementService
 
         shoppingList.ReplaceItems(combined);
         shoppingList.ReplaceSources(
-            sources.Select(source =>
-                ShoppingListSource.CreateNew(source.RecipeId, source.MealPlanEntryId, source.SourceName)
+            sources.Select(source => ShoppingListSource.CreateNew(
+                    source.RecipeId,
+                    source.MealPlanEntryId,
+                    source.SourceName
+                )
             )
         );
 
         return shoppingList;
     }
 
-    private ShoppingListItem CreateGeneratedItem(int sortOrder, AggregatedIngredient item, string? category)
-    {
+    private ShoppingListItem CreateGeneratedItem(int sortOrder, AggregatedIngredient item, string? category) {
         decimal? amount = item.Amount;
         string? unit = item.Unit;
         var isApproximate = item.IsApproximate;
 
-        if (amount is not null && !string.IsNullOrWhiteSpace(unit))
-        {
+        if (amount is not null && !string.IsNullOrWhiteSpace(unit)) {
             var displayAmount = measurementService.ConvertForDisplay(amount.Value, unit, isApproximate);
             amount = displayAmount.Amount;
             unit = displayAmount.Unit;
@@ -141,8 +141,7 @@ public class ShoppingListGenerationService(MeasurementService measurementService
         );
     }
 
-    private static string[] AddSourceName(string[] existing, string sourceName)
-    {
+    private static string[] AddSourceName(string[] existing, string sourceName) {
         if (string.IsNullOrWhiteSpace(sourceName))
             return existing;
 

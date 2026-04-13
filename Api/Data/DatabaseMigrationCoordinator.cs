@@ -10,27 +10,24 @@ public static class DatabaseMigrationCoordinator
 {
     private const long MigrationLockId = 583014270184512391;
 
-    public static async Task MigrateWithLockAsync(ApiDbContext db, CancellationToken cancellationToken = default)
-    {
+    public static async Task MigrateWithLockAsync(ApiDbContext db, CancellationToken cancellationToken = default) {
         await EnsureDatabaseExistsAsync(db, cancellationToken);
 
         await db.Database.OpenConnectionAsync(cancellationToken);
-        try
-        {
+        try {
             await AcquireLockAsync(db, cancellationToken);
             await db.Database.MigrateAsync(cancellationToken);
-        }
-        finally
-        {
+        } finally {
             await ReleaseLockAsync(db, cancellationToken);
             await db.Database.CloseConnectionAsync();
         }
     }
 
-    private static async Task EnsureDatabaseExistsAsync(ApiDbContext db, CancellationToken cancellationToken)
-    {
+    private static async Task EnsureDatabaseExistsAsync(ApiDbContext db, CancellationToken cancellationToken) {
         var targetConnectionString = db.Database.GetConnectionString()
-                                     ?? throw new InvalidOperationException("Database connection string was not configured.");
+                                     ?? throw new InvalidOperationException(
+                                         "Database connection string was not configured."
+                                     );
         var targetConnectionBuilder = new NpgsqlConnectionStringBuilder(targetConnectionString);
 
         if (string.IsNullOrWhiteSpace(targetConnectionBuilder.Database))
@@ -39,41 +36,34 @@ public static class DatabaseMigrationCoordinator
         await using var adminConnection = CreateAdminConnection(targetConnectionBuilder);
         await adminConnection.OpenAsync(cancellationToken);
 
-        try
-        {
+        try {
             await AcquireLockAsync(adminConnection, cancellationToken);
 
             if (await DatabaseExistsAsync(adminConnection, targetConnectionBuilder.Database, cancellationToken))
                 return;
 
             await CreateDatabaseAsync(adminConnection, targetConnectionBuilder.Database, cancellationToken);
-        }
-        finally
-        {
+        } finally {
             await ReleaseLockAsync(adminConnection, cancellationToken);
         }
     }
 
-    private static async Task AcquireLockAsync(ApiDbContext db, CancellationToken cancellationToken)
-    {
+    private static async Task AcquireLockAsync(ApiDbContext db, CancellationToken cancellationToken) {
         await using var command = CreateLockCommand(db, "pg_advisory_lock");
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private static async Task ReleaseLockAsync(ApiDbContext db, CancellationToken cancellationToken)
-    {
+    private static async Task ReleaseLockAsync(ApiDbContext db, CancellationToken cancellationToken) {
         await using var command = CreateLockCommand(db, "pg_advisory_unlock");
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private static async Task AcquireLockAsync(NpgsqlConnection connection, CancellationToken cancellationToken)
-    {
+    private static async Task AcquireLockAsync(NpgsqlConnection connection, CancellationToken cancellationToken) {
         await using var command = CreateLockCommand(connection, "pg_advisory_lock");
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private static async Task ReleaseLockAsync(NpgsqlConnection connection, CancellationToken cancellationToken)
-    {
+    private static async Task ReleaseLockAsync(NpgsqlConnection connection, CancellationToken cancellationToken) {
         await using var command = CreateLockCommand(connection, "pg_advisory_unlock");
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -82,8 +72,7 @@ public static class DatabaseMigrationCoordinator
         NpgsqlConnection connection,
         string databaseName,
         CancellationToken cancellationToken
-    )
-    {
+    ) {
         await using var command = connection.CreateCommand();
         command.CommandText = "SELECT 1 FROM pg_database WHERE datname = @databaseName";
         command.Parameters.AddWithValue("databaseName", databaseName);
@@ -94,34 +83,29 @@ public static class DatabaseMigrationCoordinator
         NpgsqlConnection connection,
         string databaseName,
         CancellationToken cancellationToken
-    )
-    {
+    ) {
         await using var command = connection.CreateCommand();
         command.CommandText = $"CREATE DATABASE {QuoteIdentifier(databaseName)}";
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private static NpgsqlConnection CreateAdminConnection(NpgsqlConnectionStringBuilder targetConnectionBuilder)
-    {
+    private static NpgsqlConnection CreateAdminConnection(NpgsqlConnectionStringBuilder targetConnectionBuilder) {
         var adminConnectionBuilder = new NpgsqlConnectionStringBuilder(targetConnectionBuilder.ConnectionString) {
             Database = "postgres"
         };
         return new NpgsqlConnection(adminConnectionBuilder.ConnectionString);
     }
 
-    private static string QuoteIdentifier(string identifier)
-    {
+    private static string QuoteIdentifier(string identifier) {
         return $"\"{identifier.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
     }
 
-    private static NpgsqlCommand CreateLockCommand(ApiDbContext db, string functionName)
-    {
+    private static NpgsqlCommand CreateLockCommand(ApiDbContext db, string functionName) {
         var connection = (NpgsqlConnection)db.Database.GetDbConnection();
         return CreateLockCommand(connection, functionName);
     }
 
-    private static NpgsqlCommand CreateLockCommand(NpgsqlConnection connection, string functionName)
-    {
+    private static NpgsqlCommand CreateLockCommand(NpgsqlConnection connection, string functionName) {
         var command = connection.CreateCommand();
         command.CommandText = $"SELECT {functionName}(@lockId)";
         command.Parameters.AddWithValue("lockId", MigrationLockId);

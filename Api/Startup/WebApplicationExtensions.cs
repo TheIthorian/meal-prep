@@ -11,20 +11,17 @@ public static class WebApplicationExtensions
 {
     extension(WebApplication app)
     {
-        public async Task ApplyMigrationsAsync(CancellationToken cancellationToken = default)
-        {
+        public async Task ApplyMigrationsAsync(CancellationToken cancellationToken = default) {
             await using var scope = app.Services.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
             await DatabaseMigrationCoordinator.MigrateWithLockAsync(db, cancellationToken);
         }
 
-        public void UseGlobalExceptionHandler()
-        {
+        public void UseGlobalExceptionHandler() {
             app.UseExceptionHandler();
         }
 
-        public void UseApiPipeline()
-        {
+        public void UseApiPipeline() {
             var cookieSameSite = app.Environment.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.None;
             var cookieSecurePolicy = app.Environment.IsDevelopment()
                 ? CookieSecurePolicy.SameAsRequest
@@ -42,13 +39,11 @@ public static class WebApplicationExtensions
             app.UseWebSockets();
             app.UseMiddleware<AppTelemetryMiddleware>();
 
-            if (app.Environment.IsDevelopment())
-            {
+            if (app.Environment.IsDevelopment()) {
                 app.MapSwagger();
                 app.UseSwagger();
-                app.UseSwaggerUI(options => {
-                    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Meal Prep API v1");
-                });
+                app.UseSwaggerUI(options => { options.SwaggerEndpoint("/swagger/v1/swagger.json", "Meal Prep API v1"); }
+                );
             }
         }
     }

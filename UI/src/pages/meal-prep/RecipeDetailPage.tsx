@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Clock, ExternalLink, Flame, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Clock, ExternalLink, Flame, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { recipesApi } from '@/lib/api';
 import { analyticsEvents, useAnalytics, withWorkspaceProperties } from '@/lib/analytics';
@@ -17,7 +17,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { getNutrientAmount, safeHttpUrlHref, scaleRecipeIngredients } from '@/lib/meal-prep';
+import { formatRecipeTagLabel, getNutrientAmount, safeHttpUrlHref, scaleRecipeIngredients } from '@/lib/meal-prep';
 import { InstructionWithInlineAmounts } from '@/components/recipes/InstructionWithInlineAmounts';
 import { RecipeIngredientListRow } from '@/components/recipes/RecipeIngredientListRow';
 import { RecipeYieldScale } from '@/components/recipes/RecipeYieldScale';
@@ -25,6 +25,15 @@ import type { Recipe, RecipeListItem } from '@/models/meal-prep';
 import { MealPlanEntryDialog } from '@/components/planner/MealPlanEntryDialog';
 import { LoadingState } from '@/components/common/LoadingState';
 import { RecipePhotoSection } from '@/components/meal-prep/RecipePhotoSection';
+
+function shouldSuppressRecipeArrowNavigation(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) return false;
+    const tag = target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (target.isContentEditable) return true;
+    if (target.closest('[role="dialog"]')) return true;
+    return false;
+}
 
 function recipeToListItem(recipe: {
     id: string;
@@ -66,6 +75,63 @@ export default function RecipeDetailPage() {
         enabled: Boolean(workspaceId && recipeId),
     });
 
+    /** Same request as the library with an empty search — order matches prev/next in the grid (title, API default). */
+    const { data: recipesPage } = useQuery({
+        queryKey: ['recipes', workspaceId, ''],
+        queryFn: () =>
+            recipesApi.getAll(workspaceId, {
+                page: 1,
+                pageSize: 100,
+                includeArchived: false,
+            }),
+        enabled: Boolean(workspaceId),
+    });
+
+    const recipeNeighbors = useMemo(() => {
+        const list = recipesPage?.data ?? [];
+        if (list.length < 2)
+            return { showNav: false as const, prevId: null as string | null, nextId: null as string | null };
+        const idx = list.findIndex(r => r.id === recipeId);
+        if (idx < 0) return { showNav: false as const, prevId: null, nextId: null };
+        return {
+            showNav: true as const,
+            prevId: idx > 0 ? list[idx - 1]!.id : null,
+            nextId: idx < list.length - 1 ? list[idx + 1]!.id : null,
+        };
+    }, [recipesPage?.data, recipeId]);
+
+    useEffect(() => {
+        if (!workspaceId || !recipeId) return;
+
+        function onKeyDown(e: KeyboardEvent) {
+            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+            if (deleteDialogOpen) return;
+            if (shouldSuppressRecipeArrowNavigation(e.target)) return;
+            if (!recipeNeighbors.showNav) return;
+
+            if (e.key === 'ArrowLeft' && recipeNeighbors.prevId) {
+                e.preventDefault();
+                navigate(`/workspaces/${workspaceId}/recipe/${recipeNeighbors.prevId}`);
+                return;
+            }
+            if (e.key === 'ArrowRight' && recipeNeighbors.nextId) {
+                e.preventDefault();
+                navigate(`/workspaces/${workspaceId}/recipe/${recipeNeighbors.nextId}`);
+            }
+        }
+
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [
+        workspaceId,
+        recipeId,
+        recipeNeighbors.showNav,
+        recipeNeighbors.prevId,
+        recipeNeighbors.nextId,
+        navigate,
+        deleteDialogOpen,
+    ]);
+
     const deleteRecipe = useMutation({
         mutationFn: () => recipesApi.remove(workspaceId, recipeId),
         onSuccess: () => {
@@ -73,10 +139,7 @@ export default function RecipeDetailPage() {
             queryClient.removeQueries({ queryKey: ['recipe', workspaceId, recipeId] });
             queryClient.invalidateQueries({ queryKey: ['recipes', workspaceId] });
             queryClient.invalidateQueries({ queryKey: ['meal-plan', workspaceId] });
-            capture(
-                analyticsEvents.recipeDeleted,
-                withWorkspaceProperties(currentWorkspace, { recipe_id: recipeId }),
-            );
+            capture(analyticsEvents.recipeDeleted, withWorkspaceProperties(currentWorkspace, { recipe_id: recipeId }));
             toast({
                 title: 'Recipe deleted',
                 description: `"${title}" was removed from your library.`,
@@ -98,7 +161,7 @@ export default function RecipeDetailPage() {
     useEffect(() => {
         if (!recipe) return;
         const base = recipe.servings > 0 ? recipe.servings : 1;
-        setTargetServings(Math.min(99, Math.max(1, Math.round(base))));
+        setTargetServings(Math.min(99, base));
         // Re-sync when navigating to another recipe or the written yield changes — not on refetch.
     }, [recipe?.id, recipe?.servings]); // eslint-disable-line react-hooks/exhaustive-deps -- stable deps; `recipe` omitted to avoid reset on cache refresh
 
@@ -135,13 +198,61 @@ export default function RecipeDetailPage() {
             className='mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10'
         >
             <div className='mb-6 flex flex-wrap items-center justify-between gap-3'>
-                <Link
-                    to={`/workspaces/${workspaceId}/`}
-                    className='inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground'
-                >
-                    <ArrowLeft className='h-4 w-4' />
-                    Back to recipes
-                </Link>
+                <div className='flex flex-wrap items-center gap-2'>
+                    <Link
+                        to={`/workspaces/${workspaceId}/`}
+                        className='inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground'
+                    >
+                        <ArrowLeft className='h-4 w-4' />
+                        Back to recipes
+                    </Link>
+                    {recipeNeighbors.showNav ? (
+                        <div className='flex items-center gap-1 border-l border-border/60 pl-2'>
+                            {recipeNeighbors.prevId ? (
+                                <Button asChild variant='outline' size='icon' className='h-9 w-9 shrink-0'>
+                                    <Link
+                                        to={`/workspaces/${workspaceId}/recipe/${recipeNeighbors.prevId}`}
+                                        aria-label='Previous recipe'
+                                    >
+                                        <ChevronLeft className='h-4 w-4' />
+                                    </Link>
+                                </Button>
+                            ) : (
+                                <Button
+                                    type='button'
+                                    variant='outline'
+                                    size='icon'
+                                    className='h-9 w-9 shrink-0'
+                                    disabled
+                                    aria-label='Previous recipe'
+                                >
+                                    <ChevronLeft className='h-4 w-4' />
+                                </Button>
+                            )}
+                            {recipeNeighbors.nextId ? (
+                                <Button asChild variant='outline' size='icon' className='h-9 w-9 shrink-0'>
+                                    <Link
+                                        to={`/workspaces/${workspaceId}/recipe/${recipeNeighbors.nextId}`}
+                                        aria-label='Next recipe'
+                                    >
+                                        <ChevronRight className='h-4 w-4' />
+                                    </Link>
+                                </Button>
+                            ) : (
+                                <Button
+                                    type='button'
+                                    variant='outline'
+                                    size='icon'
+                                    className='h-9 w-9 shrink-0'
+                                    disabled
+                                    aria-label='Next recipe'
+                                >
+                                    <ChevronRight className='h-4 w-4' />
+                                </Button>
+                            )}
+                        </div>
+                    ) : null}
+                </div>
                 <Button
                     type='button'
                     variant='outline'
@@ -153,6 +264,20 @@ export default function RecipeDetailPage() {
                 </Button>
             </div>
 
+            <div className='mb-6'>
+                <div className='mb-3 flex flex-wrap gap-1.5'>
+                    {recipe.tags.map(tag => (
+                        <span
+                            key={tag}
+                            className='rounded-full bg-primary/8 px-2 py-0.5 text-xs font-medium text-primary'
+                        >
+                            {formatRecipeTagLabel(tag)}
+                        </span>
+                    ))}
+                </div>
+                <h1 className='font-heading text-3xl text-foreground md:text-4xl'>{recipe.title}</h1>
+            </div>
+
             <RecipePhotoSection
                 workspaceId={workspaceId}
                 recipeId={recipe.id}
@@ -162,17 +287,6 @@ export default function RecipeDetailPage() {
             />
 
             <div className='mb-8'>
-                <div className='mb-3 flex flex-wrap gap-1.5'>
-                    {recipe.tags.map(tag => (
-                        <span
-                            key={tag}
-                            className='rounded-full bg-primary/8 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider text-primary'
-                        >
-                            {tag}
-                        </span>
-                    ))}
-                </div>
-                <h1 className='font-heading mb-2 text-3xl text-foreground md:text-4xl'>{recipe.title}</h1>
                 <p className='text-muted-foreground'>{recipe.description ?? '—'}</p>
 
                 {recipe.sourceUrl ? (
@@ -288,7 +402,10 @@ export default function RecipeDetailPage() {
                             { label: 'Fat', value: fat, unit: 'g' },
                         ].map(n =>
                             n.value != null ? (
-                                <div key={n.label} className='rounded-lg border border-border/50 bg-card p-3 text-center'>
+                                <div
+                                    key={n.label}
+                                    className='rounded-lg border border-border/50 bg-card p-3 text-center'
+                                >
                                     <p className='text-lg font-semibold tabular-nums text-foreground'>
                                         {n.value}
                                         <span className='ml-0.5 text-xs text-muted-foreground'>{n.unit}</span>

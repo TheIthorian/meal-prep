@@ -31,8 +31,8 @@ export default function TermsOfService() {
                         <section>
                             <h2 className='text-xl font-semibold mb-3'>2. Use License</h2>
                             <p className='text-muted-foreground'>
-                                Permission is granted to use Meal Prep for personal and internal planning purposes.
-                                This is the grant of a license, not a transfer of title.
+                                Permission is granted to use Meal Prep for personal and internal planning purposes. This
+                                is the grant of a license, not a transfer of title.
                             </p>
                         </section>
 
@@ -47,9 +47,8 @@ export default function TermsOfService() {
                         <section>
                             <h2 className='text-xl font-semibold mb-3'>4. Data Security</h2>
                             <p className='text-muted-foreground'>
-                                We implement appropriate security measures to protect your account and application
-                                data. However, no
-                                method of transmission over the Internet is 100% secure.
+                                We implement appropriate security measures to protect your account and application data.
+                                However, no method of transmission over the Internet is 100% secure.
                             </p>
                         </section>
 

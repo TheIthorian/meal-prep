@@ -99,7 +99,9 @@ export default function WeeklyPlannerPage() {
                                     >
                                         {day.short}
                                         {day.dateStr === todayStr && (
-                                            <span className='mt-0.5 block text-[10px] uppercase tracking-wider'>Today</span>
+                                            <span className='mt-0.5 block text-[10px] uppercase tracking-wider'>
+                                                Today
+                                            </span>
                                         )}
                                     </div>
                                     {mealTypes.map(mt => {
@@ -181,7 +183,9 @@ export default function WeeklyPlannerPage() {
                                             <div
                                                 key={mt}
                                                 className={`flex items-center gap-3 rounded-lg border p-3 transition-colors ${
-                                                    entry ? 'border-border/50 bg-card' : 'border-dashed border-border/60'
+                                                    entry
+                                                        ? 'border-border/50 bg-card'
+                                                        : 'border-dashed border-border/60'
                                                 }`}
                                             >
                                                 <span className='w-16 flex-shrink-0 text-xs text-muted-foreground/60'>
@@ -204,7 +208,9 @@ export default function WeeklyPlannerPage() {
                                                         onSaved={invalidatePlan}
                                                     />
                                                 ) : (
-                                                    <span className='text-xs text-muted-foreground'>Add recipes first</span>
+                                                    <span className='text-xs text-muted-foreground'>
+                                                        Add recipes first
+                                                    </span>
                                                 )}
                                             </div>
                                         );

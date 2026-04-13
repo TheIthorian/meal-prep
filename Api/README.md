@@ -1,6 +1,7 @@
 # API
 
-This backend powers Meal Prep, a web app for collecting recipes, importing recipes from the web, and turning recipe ingredients into shopping lists.
+This backend powers Meal Prep, a web app for collecting recipes, importing recipes from the web, and turning recipe
+ingredients into shopping lists.
 
 ## Features
 
@@ -17,7 +18,9 @@ This backend powers Meal Prep, a web app for collecting recipes, importing recip
 
 ## Setup
 
-For local development from the monorepo root, `docker compose up -d db minio minio-init` starts Postgres and MinIO. On startup, the API creates the configured PostgreSQL database if it does not already exist and then applies EF Core migrations.
+For local development from the monorepo root, `docker compose up -d db minio minio-init` starts Postgres and MinIO. On
+startup, the API creates the configured PostgreSQL database if it does not already exist and then applies EF Core
+migrations.
 
 1. **Configure the database connection string** in `appsettings.json` or `appsettings.Development.json`:
 
@@ -36,8 +39,8 @@ For local development from the monorepo root, `docker compose up -d db minio min
    ```
 
    Supported values:
-   - `Postgres`: stores Data Protection keys in PostgreSQL
-   - `Redis`: stores Data Protection keys in Redis (requires `ConnectionStrings:Redis`)
+    - `Postgres`: stores Data Protection keys in PostgreSQL
+    - `Redis`: stores Data Protection keys in Redis (requires `ConnectionStrings:Redis`)
 
 3. **Run database migrations**:
 

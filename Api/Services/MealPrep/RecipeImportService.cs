@@ -25,13 +25,13 @@ public class RecipeImportService(
 {
     public const string RecipeImageImportHttpClientName = "RecipeImageImport";
     private const int MaxResponseBytes = 2 * 1024 * 1024;
+
     private static readonly Regex JsonLdScriptPattern = new(
         "<script[^>]*type=[\"']application/ld\\+json[\"'][^>]*>(?<json>.*?)</script>",
         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled
     );
 
-    public Task<RecipeImportPreview> PreviewAsync(string url, CancellationToken cancellationToken = default)
-    {
+    public Task<RecipeImportPreview> PreviewAsync(string url, CancellationToken cancellationToken = default) {
         return PreviewAsync(url, null, null, cancellationToken);
     }
 
@@ -40,8 +40,7 @@ public class RecipeImportService(
         Guid? workspaceId,
         Guid? userId,
         CancellationToken cancellationToken = default
-    )
-    {
+    ) {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var parsedUrl))
             throw new InvalidFormatException("Recipe import failed", "The provided URL is not valid.");
 
@@ -74,8 +73,7 @@ public class RecipeImportService(
         var heuristic = TryExtractHeuristicRecipe(html, url);
         if (heuristic is not null) return heuristic;
 
-        using (logger.BeginPropertyScope(("sourceUrl", url)))
-        {
+        using (logger.BeginPropertyScope(("sourceUrl", url))) {
             logger.LogInformation("Recipe import using LLM fallback.");
         }
 
@@ -106,8 +104,7 @@ public class RecipeImportService(
         string imageUrl,
         string sourcePageUrl,
         CancellationToken cancellationToken = default
-    )
-    {
+    ) {
         if (!RecipeImportImagePolicy.AreHostsCompatibleForImportedImage(sourcePageUrl, imageUrl)) return null;
 
         if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri)) return null;
@@ -115,8 +112,7 @@ public class RecipeImportService(
         var imageClient = httpClientFactory.CreateClient(RecipeImageImportHttpClientName);
         var currentUri = uri;
 
-        for (var hop = 0; hop < 8; hop++)
-        {
+        for (var hop = 0; hop < 8; hop++) {
             using var request = new HttpRequestMessage(HttpMethod.Get, currentUri);
 
             using var response = await imageClient.SendAsync(
@@ -125,16 +121,14 @@ public class RecipeImportService(
                 cancellationToken
             );
 
-            if (IsRecipeImageRedirect(response.StatusCode))
-            {
+            if (IsRecipeImageRedirect(response.StatusCode)) {
                 if (response.Headers.Location is null) return null;
 
                 currentUri = response.Headers.Location.IsAbsoluteUri
                     ? response.Headers.Location
                     : new Uri(currentUri, response.Headers.Location);
 
-                if (string.Equals(currentUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase))
-                {
+                if (string.Equals(currentUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)) {
                     currentUri = new UriBuilder(currentUri) { Scheme = Uri.UriSchemeHttps, Port = -1 }.Uri;
                 }
 
@@ -146,7 +140,10 @@ public class RecipeImportService(
             if (response.Content.Headers.ContentLength is > RecipeImageUploadConstants.MaxBytes) return null;
 
             var declaredType = response.Content.Headers.ContentType?.MediaType;
-            var mediaType = RecipeImageUploadConstants.ResolveImportedImageContentType(declaredType, currentUri.AbsolutePath);
+            var mediaType = RecipeImageUploadConstants.ResolveImportedImageContentType(
+                declaredType,
+                currentUri.AbsolutePath
+            );
             if (mediaType is null) return null;
 
             await using var networkStream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -155,8 +152,7 @@ public class RecipeImportService(
             long total = 0;
 
             int read;
-            while ((read = await networkStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
-            {
+            while ((read = await networkStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0) {
                 total += read;
                 if (total > RecipeImageUploadConstants.MaxBytes) return null;
 
@@ -164,7 +160,10 @@ public class RecipeImportService(
             }
 
             var bytes = memory.ToArray();
-            var fileName = RecipeImageUploadConstants.FileNameForUpload(Path.GetFileName(currentUri.LocalPath), mediaType);
+            var fileName = RecipeImageUploadConstants.FileNameForUpload(
+                Path.GetFileName(currentUri.LocalPath),
+                mediaType
+            );
 
             return new ImportedRecipeImagePayload(bytes, mediaType, fileName);
         }
@@ -186,10 +185,8 @@ public class RecipeImportService(
         string sourceUrl,
         RecipeImportLlmInvocationResult invocation,
         CancellationToken cancellationToken
-    )
-    {
-        try
-        {
+    ) {
+        try {
             var row = new RecipeImportAiLog {
                 WorkspaceId = workspaceId,
                 UserId = userId,
@@ -205,9 +202,7 @@ public class RecipeImportService(
 
             await db.RecipeImportAiLogs.AddAsync(row, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             using var scope = logger.BeginPropertyScope(
                 ("workspaceId", workspaceId),
                 ("sourceUrl", sourceUrl)
@@ -217,17 +212,18 @@ public class RecipeImportService(
         }
     }
 
-    private RecipeImportPreview MapLlmStructuredPreview(RecipeImportLlmStructuredDto dto, string sourceUrl, string html)
-    {
+    private RecipeImportPreview MapLlmStructuredPreview(
+        RecipeImportLlmStructuredDto dto,
+        string sourceUrl,
+        string html
+    ) {
         var servings = dto.Servings > 0 ? dto.Servings : 1m;
         var title = string.IsNullOrWhiteSpace(dto.Title) ? BuildFallbackTitle(sourceUrl, html) : dto.Title.Trim();
         var description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim();
 
-        var tags = dto.Tags
-            .Where(tag => !string.IsNullOrWhiteSpace(tag))
-            .Select(tag => tag.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(tag => tag, StringComparer.OrdinalIgnoreCase)
+        var tags = RecipeTagWhitelist.NormalizeToWhitelist(
+                dto.Tags.Where(tag => !string.IsNullOrWhiteSpace(tag)).Select(tag => tag.Trim())
+            )
             .ToList();
 
         var ingredientLines = dto.IngredientLines.Where(line => !string.IsNullOrWhiteSpace(line)).ToList();
@@ -266,15 +262,13 @@ public class RecipeImportService(
         );
     }
 
-    private static string BuildFallbackTitle(string sourceUrl, string html)
-    {
+    private static string BuildFallbackTitle(string sourceUrl, string html) {
         var htmlTitleMatch = Regex.Match(
             html,
             "<title[^>]*>(?<title>.*?)</title>",
             RegexOptions.IgnoreCase | RegexOptions.Singleline
         );
-        if (htmlTitleMatch.Success)
-        {
+        if (htmlTitleMatch.Success) {
             var decoded = WebUtility.HtmlDecode(htmlTitleMatch.Groups["title"].Value);
             var normalized = Regex.Replace(decoded, "\\s+", " ").Trim();
             if (!string.IsNullOrWhiteSpace(normalized))
@@ -287,12 +281,13 @@ public class RecipeImportService(
         return "Imported recipe";
     }
 
-    private RecipeImportPreviewNutrition? BuildNutritionPreviewFromLlm(RecipeImportLlmNutritionDto nutrition, decimal servingBasis)
-    {
+    private RecipeImportPreviewNutrition? BuildNutritionPreviewFromLlm(
+        RecipeImportLlmNutritionDto nutrition,
+        decimal servingBasis
+    ) {
         var nutrients = new List<RecipeImportPreviewNutrient>();
 
-        void TryAdd(string nutrientType, decimal? amount)
-        {
+        void TryAdd(string nutrientType, decimal? amount) {
             if (amount is not null) nutrients.Add(new RecipeImportPreviewNutrient(nutrientType, amount.Value));
         }
 
@@ -309,8 +304,7 @@ public class RecipeImportService(
             : new RecipeImportPreviewNutrition(servingBasis, nutrients);
     }
 
-    private static void EnsureImportUrlIsAllowed(Uri parsedUrl)
-    {
+    private static void EnsureImportUrlIsAllowed(Uri parsedUrl) {
         if (!parsedUrl.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
             && !parsedUrl.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
             throw new InvalidFormatException(
@@ -331,8 +325,7 @@ public class RecipeImportService(
             );
     }
 
-    private static bool IsBlockedHost(string host)
-    {
+    private static bool IsBlockedHost(string host) {
         if (string.IsNullOrWhiteSpace(host)) return true;
 
         if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
@@ -344,8 +337,7 @@ public class RecipeImportService(
 
         if (IPAddress.IsLoopback(ipAddress)) return true;
 
-        if (ipAddress.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
-        {
+        if (ipAddress.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6) {
             if (ipAddress.IsIPv6LinkLocal || ipAddress.IsIPv6Multicast || ipAddress.IsIPv6SiteLocal)
                 return true;
 
@@ -363,16 +355,17 @@ public class RecipeImportService(
                || (ipv4Bytes[0] == 192 && ipv4Bytes[1] == 168);
     }
 
-    private static async Task<string> ReadContentWithLimitAsync(HttpContent content, CancellationToken cancellationToken)
-    {
+    private static async Task<string> ReadContentWithLimitAsync(
+        HttpContent content,
+        CancellationToken cancellationToken
+    ) {
         await using var stream = await content.ReadAsStreamAsync(cancellationToken);
         using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
         var buffer = new char[8192];
         var totalCharsRead = 0;
         var builder = new StringBuilder();
 
-        while (true)
-        {
+        while (true) {
             var charsRead = await reader.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken);
             if (charsRead == 0) break;
 
@@ -389,19 +382,14 @@ public class RecipeImportService(
         return builder.ToString();
     }
 
-    private RecipeImportPreview? TryExtractStructuredRecipe(string html, string sourceUrl)
-    {
-        foreach (Match match in JsonLdScriptPattern.Matches(html))
-        {
+    private RecipeImportPreview? TryExtractStructuredRecipe(string html, string sourceUrl) {
+        foreach (Match match in JsonLdScriptPattern.Matches(html)) {
             var rawJson = WebUtility.HtmlDecode(match.Groups["json"].Value);
             JsonNode? rootNode;
 
-            try
-            {
+            try {
                 rootNode = JsonNode.Parse(rawJson);
-            }
-            catch (JsonException)
-            {
+            } catch (JsonException) {
                 continue;
             }
 
@@ -416,7 +404,7 @@ public class RecipeImportService(
             var servings = ParseServings(recipeObject["recipeYield"]);
             var prepMinutes = ParseDurationMinutes(recipeObject["prepTime"]?.GetValue<string>());
             var cookMinutes = ParseDurationMinutes(recipeObject["cookTime"]?.GetValue<string>());
-            var tags = ReadTags(recipeObject);
+            var tags = RecipeTagWhitelist.NormalizeToWhitelist(ReadTags(recipeObject));
 
             var ingredients = ingredientTexts
                 .Select((text, index) => ParseIngredient(text, index))
@@ -425,7 +413,8 @@ public class RecipeImportService(
             var nutritionObject = recipeObject["nutrition"] as JsonObject;
             var nutrition = nutritionObject is null ? null : BuildNutritionPreview(nutritionObject, servings);
 
-            var imageUrl = TryExtractRecipeImageUrl(recipeObject, sourceUrl) ?? TryExtractOgImageFromHtml(html, sourceUrl);
+            var imageUrl = TryExtractRecipeImageUrl(recipeObject, sourceUrl)
+                           ?? TryExtractOgImageFromHtml(html, sourceUrl);
 
             return new RecipeImportPreview(
                 title,
@@ -436,7 +425,8 @@ public class RecipeImportService(
                 cookMinutes,
                 tags,
                 ingredients,
-                steps.Select((step, index) => new RecipeImportPreviewStep(index, step, ParseTimerSeconds(step))).ToArray(),
+                steps.Select((step, index) => new RecipeImportPreviewStep(index, step, ParseTimerSeconds(step)))
+                    .ToArray(),
                 nutrition,
                 imageUrl
             );
@@ -445,8 +435,7 @@ public class RecipeImportService(
         return null;
     }
 
-    private RecipeImportPreview? TryExtractHeuristicRecipe(string html, string sourceUrl)
-    {
+    private RecipeImportPreview? TryExtractHeuristicRecipe(string html, string sourceUrl) {
         var title = ReadMetaContent(html, "property", "og:title")
                     ?? ReadMetaContent(html, "name", "twitter:title")
                     ?? ReadTitleTag(html);
@@ -473,32 +462,25 @@ public class RecipeImportService(
         );
     }
 
-    private JsonNode? FindRecipeNode(JsonNode? node)
-    {
-        if (node is JsonObject jsonObject)
-        {
+    private JsonNode? FindRecipeNode(JsonNode? node) {
+        if (node is JsonObject jsonObject) {
             if (NodeIsRecipe(jsonObject)) return jsonObject;
 
-            if (jsonObject["@graph"] is JsonArray graphArray)
-            {
-                foreach (var item in graphArray)
-                {
+            if (jsonObject["@graph"] is JsonArray graphArray) {
+                foreach (var item in graphArray) {
                     var graphRecipe = FindRecipeNode(item);
                     if (graphRecipe is not null) return graphRecipe;
                 }
             }
 
-            foreach (var child in jsonObject)
-            {
+            foreach (var child in jsonObject) {
                 var recipe = FindRecipeNode(child.Value);
                 if (recipe is not null) return recipe;
             }
         }
 
-        if (node is JsonArray jsonArray)
-        {
-            foreach (var item in jsonArray)
-            {
+        if (node is JsonArray jsonArray) {
+            foreach (var item in jsonArray) {
                 var recipe = FindRecipeNode(item);
                 if (recipe is not null) return recipe;
             }
@@ -507,8 +489,7 @@ public class RecipeImportService(
         return null;
     }
 
-    private static bool NodeIsRecipe(JsonObject jsonObject)
-    {
+    private static bool NodeIsRecipe(JsonObject jsonObject) {
         if (jsonObject["@type"] is JsonValue typeValue)
             return string.Equals(typeValue.GetValue<string>(), "Recipe", StringComparison.OrdinalIgnoreCase);
 
@@ -520,8 +501,7 @@ public class RecipeImportService(
         return false;
     }
 
-    private RecipeImportPreviewIngredient ParseIngredient(string text, int index)
-    {
+    private RecipeImportPreviewIngredient ParseIngredient(string text, int index) {
         var trimmed = WebUtility.HtmlDecode(text).Trim();
         var match = Regex.Match(
             trimmed,
@@ -544,46 +524,46 @@ public class RecipeImportService(
         );
     }
 
-    private static List<string> ReadStringList(JsonNode? node)
-    {
+    private static List<string> ReadStringList(JsonNode? node) {
         var values = new List<string>();
         if (node is JsonArray array)
-            values.AddRange(array.OfType<JsonValue>().Select(value => value.GetValue<string>()).Where(value => !string.IsNullOrWhiteSpace(value)));
+            values.AddRange(
+                array.OfType<JsonValue>()
+                    .Select(value => value.GetValue<string>())
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+            );
 
         return values;
     }
 
-    private static List<string> ReadInstructionList(JsonNode? node)
-    {
+    private static List<string> ReadInstructionList(JsonNode? node) {
         var steps = new List<string>();
 
-        switch (node)
-        {
+        switch (node) {
             case JsonValue jsonValue:
                 steps.Add(jsonValue.GetValue<string>());
                 break;
             case JsonArray jsonArray:
-                foreach (var child in jsonArray)
-                {
+                foreach (var child in jsonArray) {
                     if (child is JsonValue childValue)
                         steps.Add(childValue.GetValue<string>());
-                    else if (child is JsonObject childObject)
-                    {
-                        if (childObject["text"]?.GetValue<string>() is string stepText && !string.IsNullOrWhiteSpace(stepText))
+                    else if (child is JsonObject childObject) {
+                        if (childObject["text"]?.GetValue<string>() is string stepText
+                            && !string.IsNullOrWhiteSpace(stepText))
                             steps.Add(stepText.Trim());
 
                         if (childObject["itemListElement"] is JsonArray itemList)
                             steps.AddRange(ReadInstructionList(itemList));
                     }
                 }
+
                 break;
         }
 
         return steps.Where(step => !string.IsNullOrWhiteSpace(step)).ToList();
     }
 
-    private static List<string> ReadTags(JsonObject recipeObject)
-    {
+    private static List<string> ReadTags(JsonObject recipeObject) {
         var tags = new List<string>();
 
         if (recipeObject["keywords"]?.GetValue<string>() is string keywords)
@@ -601,8 +581,7 @@ public class RecipeImportService(
             .ToList();
     }
 
-    private static decimal? ParseServings(JsonNode? node)
-    {
+    private static decimal? ParseServings(JsonNode? node) {
         if (node is null) return null;
 
         if (node is JsonArray jsonArray)
@@ -630,8 +609,7 @@ public class RecipeImportService(
         return match.Success && decimal.TryParse(match.Value, out var servings) ? servings : null;
     }
 
-    private static int? ParseDurationMinutes(string? isoDuration)
-    {
+    private static int? ParseDurationMinutes(string? isoDuration) {
         if (string.IsNullOrWhiteSpace(isoDuration)) return null;
 
         var hoursMatch = Regex.Match(isoDuration, "(?<hours>[0-9]+)H", RegexOptions.IgnoreCase);
@@ -642,15 +620,12 @@ public class RecipeImportService(
         return hours == 0 && minutes == 0 ? null : (hours * 60) + minutes;
     }
 
-    private static decimal? ParseNumber(JsonNode? node)
-    {
+    private static decimal? ParseNumber(JsonNode? node) {
         if (node is null) return null;
 
-        if (node is JsonValue jsonValue)
-        {
+        if (node is JsonValue jsonValue) {
             if (jsonValue.TryGetValue<decimal>(out var decimalValue)) return decimalValue;
-            if (jsonValue.TryGetValue<string>(out var stringValue))
-            {
+            if (jsonValue.TryGetValue<string>(out var stringValue)) {
                 var match = Regex.Match(stringValue, "[0-9]+(?:\\.[0-9]+)?");
                 return match.Success && decimal.TryParse(match.Value, out var parsed) ? parsed : null;
             }
@@ -659,8 +634,10 @@ public class RecipeImportService(
         return null;
     }
 
-    private static RecipeImportPreviewNutrition? BuildNutritionPreview(JsonObject nutritionObject, decimal? servingBasis)
-    {
+    private static RecipeImportPreviewNutrition? BuildNutritionPreview(
+        JsonObject nutritionObject,
+        decimal? servingBasis
+    ) {
         var nutrients = new List<RecipeImportPreviewNutrient>();
 
         TryAddNutrient(nutrients, RecipeNutrientTypes.Calories, nutritionObject["calories"]);
@@ -676,14 +653,16 @@ public class RecipeImportService(
             : new RecipeImportPreviewNutrition(servingBasis, nutrients);
     }
 
-    private static void TryAddNutrient(List<RecipeImportPreviewNutrient> nutrients, string nutrientType, JsonNode? node)
-    {
+    private static void TryAddNutrient(
+        List<RecipeImportPreviewNutrient> nutrients,
+        string nutrientType,
+        JsonNode? node
+    ) {
         var amount = ParseNumber(node);
         if (amount is not null) nutrients.Add(new RecipeImportPreviewNutrient(nutrientType, amount.Value));
     }
 
-    private static int? ParseTimerSeconds(string step)
-    {
+    private static int? ParseTimerSeconds(string step) {
         var minuteMatch = Regex.Match(step, "(?<minutes>[0-9]+)\\s*(minutes|minute|min)", RegexOptions.IgnoreCase);
         if (minuteMatch.Success) return int.Parse(minuteMatch.Groups["minutes"].Value) * 60;
 
@@ -708,8 +687,7 @@ public class RecipeImportService(
 
         var candidates = new List<string>();
 
-        switch (imageNode)
-        {
+        switch (imageNode) {
             case JsonValue jsonValue:
                 if (jsonValue.TryGetValue<string>(out var single)) candidates.Add(single.Trim());
 
@@ -724,8 +702,7 @@ public class RecipeImportService(
                 break;
         }
 
-        foreach (var raw in candidates.Where(value => !string.IsNullOrWhiteSpace(value)))
-        {
+        foreach (var raw in candidates.Where(value => !string.IsNullOrWhiteSpace(value))) {
             var resolved = ResolveToAbsoluteUri(raw, sourceUrl);
             if (resolved is not null) return resolved;
         }
@@ -734,16 +711,16 @@ public class RecipeImportService(
     }
 
     private static void CollectImageUrlsFromNode(JsonNode? node, List<string> candidates) {
-        switch (node)
-        {
+        switch (node) {
             case JsonValue jsonValue:
                 if (jsonValue.TryGetValue<string>(out var s) && !string.IsNullOrWhiteSpace(s)) candidates.Add(s.Trim());
 
                 break;
             case JsonObject jsonObject:
-                foreach (var key in new[] { "url", "contentUrl" })
-                {
-                    if (jsonObject[key] is JsonValue urlValue && urlValue.TryGetValue<string>(out var url) && !string.IsNullOrWhiteSpace(url))
+                foreach (var key in new[] { "url", "contentUrl" }) {
+                    if (jsonObject[key] is JsonValue urlValue
+                        && urlValue.TryGetValue<string>(out var url)
+                        && !string.IsNullOrWhiteSpace(url))
                         candidates.Add(url.Trim());
                 }
 
@@ -759,8 +736,7 @@ public class RecipeImportService(
         return ResolveToAbsoluteUri(raw, sourceUrl);
     }
 
-    private static string? ReadMetaContent(string html, string attributeName, string attributeValue)
-    {
+    private static string? ReadMetaContent(string html, string attributeName, string attributeValue) {
         var match = Regex.Match(
             html,
             $"<meta[^>]*{attributeName}=[\"']{Regex.Escape(attributeValue)}[\"'][^>]*content=[\"'](?<content>[^\"']+)[\"'][^>]*>",
@@ -770,14 +746,16 @@ public class RecipeImportService(
         return match.Success ? WebUtility.HtmlDecode(match.Groups["content"].Value).Trim() : null;
     }
 
-    private static string? ReadTitleTag(string html)
-    {
-        var match = Regex.Match(html, "<title>(?<title>.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+    private static string? ReadTitleTag(string html) {
+        var match = Regex.Match(
+            html,
+            "<title>(?<title>.*?)</title>",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline
+        );
         return match.Success ? WebUtility.HtmlDecode(match.Groups["title"].Value).Trim() : null;
     }
 
-    private static List<string> ReadItemPropList(string html, string itemProp)
-    {
+    private static List<string> ReadItemPropList(string html, string itemProp) {
         var matches = Regex.Matches(
             html,
             $"<[^>]*itemprop=[\"']{Regex.Escape(itemProp)}[\"'][^>]*>(?<content>.*?)</[^>]+>",
@@ -790,8 +768,7 @@ public class RecipeImportService(
             .ToList();
     }
 
-    private static List<string> ReadInstructionElements(string html)
-    {
+    private static List<string> ReadInstructionElements(string html) {
         var values = ReadItemPropList(html, "recipeInstructions");
         return values.Count > 0
             ? values
@@ -806,8 +783,7 @@ public class RecipeImportService(
                 .ToList();
     }
 
-    private static string StripHtml(string html)
-    {
+    private static string StripHtml(string html) {
         var noTags = Regex.Replace(html, "<[^>]+>", " ");
         return WebUtility.HtmlDecode(Regex.Replace(noTags, "\\s+", " ")).Trim();
     }

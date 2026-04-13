@@ -53,6 +53,7 @@ public sealed class MealPrepMcpTools(
                 continue;
             query[key] = value;
         }
+
         var parsed = new QueryCollection(query);
         ctx.Request.Query = parsed;
         return ctx;
@@ -65,10 +66,9 @@ public sealed class MealPrepMcpTools(
         throw new UnauthorizedException();
     }
 
-    private async Task ValidateRequestAsync<TRequest>(TRequest request, CancellationToken cancellationToken)
-    {
+    private async Task ValidateRequestAsync<TRequest>(TRequest request, CancellationToken cancellationToken) {
         var services = httpContextAccessor.HttpContext?.RequestServices
-            ?? throw new InvalidOperationException("MCP request has no service provider.");
+                       ?? throw new InvalidOperationException("MCP request has no service provider.");
         var validator = services.GetRequiredService<IValidator<TRequest>>();
         var result = await validator.ValidateAsync(request, cancellationToken);
         if (result.IsValid)
@@ -76,8 +76,7 @@ public sealed class MealPrepMcpTools(
         throw new RequestValidationException(result.ToDictionary());
     }
 
-    private static string BuildValidationErrorResponse(string field, string message)
-    {
+    private static string BuildValidationErrorResponse(string field, string message) {
         var errors = new Dictionary<string, string[]> { [field] = [message] };
         var body = new ExtendedProblemDetail(
             new ProblemDetails {
@@ -91,13 +90,11 @@ public sealed class MealPrepMcpTools(
         return JsonSerializer.Serialize(body, McpJson.SerializerOptions);
     }
 
-    private static string SerializeAppException(AppException exception)
-    {
+    private static string SerializeAppException(AppException exception) {
         return JsonSerializer.Serialize(exception.Details, McpJson.SerializerOptions);
     }
 
-    private static string BuildUnhandledErrorResponse(string toolName, string? errorDetail = null)
-    {
+    private static string BuildUnhandledErrorResponse(string toolName, string? errorDetail = null) {
         var body = new ProblemDetails {
             Title = "MCP tool execution failed",
             Type = "https://localhost:5000/errors/McpToolExecutionException",
@@ -107,24 +104,16 @@ public sealed class MealPrepMcpTools(
         return JsonSerializer.Serialize(body, McpJson.SerializerOptions);
     }
 
-    private async Task<string> ExecuteToolWithErrorLoggingAsync(string toolName, Func<Task<string>> action)
-    {
-        try
-        {
+    private async Task<string> ExecuteToolWithErrorLoggingAsync(string toolName, Func<Task<string>> action) {
+        try {
             return await action();
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             logger.LogWarning("MCP tool {ToolName} was canceled.", toolName);
             throw;
-        }
-        catch (AppException appException)
-        {
+        } catch (AppException appException) {
             logger.LogWarning(appException, "MCP tool {ToolName} failed with an application error.", toolName);
             return SerializeAppException(appException);
-        }
-        catch (Exception exception)
-        {
+        } catch (Exception exception) {
             logger.LogError(exception, "MCP tool {ToolName} failed.", toolName);
             return BuildUnhandledErrorResponse(toolName, $"{toolName} failed: {exception.Message}");
         }
@@ -178,8 +167,7 @@ public sealed class MealPrepMcpTools(
             new("includeArchived", includeArchived?.ToString().ToLowerInvariant()),
         };
         var httpContext = BuildQueryHttpContext(queryParams);
-        try
-        {
+        try {
             var result = await RecipesHandlers.GetRecipes(
                 currentUserService,
                 db,
@@ -189,9 +177,7 @@ public sealed class MealPrepMcpTools(
                 cancellationToken
             );
             return Serialize(result);
-        }
-        catch (AppException appException)
-        {
+        } catch (AppException appException) {
             return SerializeAppException(appException);
         }
     }
@@ -208,8 +194,7 @@ public sealed class MealPrepMcpTools(
     [McpServerTool]
     [Description("Creates a recipe.")]
     public async Task<string> CreateRecipe(
-        [Description("Recipe title.")]
-        string title,
+        [Description("Recipe title.")] string title,
         [Description("Optional recipe description.")]
         string? description,
         [Description("Number of servings this recipe makes.")]
@@ -224,10 +209,11 @@ public sealed class MealPrepMcpTools(
         int? cookMinutes,
         [Description("Whether the recipe should be archived.")]
         bool isArchived,
-        [Description("Recipe tags.")]
+        [Description(
+            "Recipe tags from the app whitelist only (kebab-case), e.g. dinner, breakfast, eggs, spicy, dessert, quick, vegetarian."
+        )]
         string[] tags,
-        [Description("Recipe ingredients.")]
-        SaveRecipeIngredientRequest[] ingredients,
+        [Description("Recipe ingredients.")] SaveRecipeIngredientRequest[] ingredients,
         [Description("Recipe instructions/steps.")]
         SaveRecipeStepRequest[] steps,
         [Description("Optional nutrition block.")]
@@ -238,8 +224,7 @@ public sealed class MealPrepMcpTools(
     ) {
         return await ExecuteToolWithErrorLoggingAsync(
             nameof(CreateRecipe),
-            async () =>
-            {
+            async () => {
                 var workspaceId = RequireMcpWorkspaceId();
                 var recipe = new SaveRecipeRequest(
                     title,
@@ -274,10 +259,8 @@ public sealed class MealPrepMcpTools(
     [McpServerTool]
     [Description("Updates a recipe by id.")]
     public async Task<string> UpdateRecipe(
-        [Description("Recipe id to update.")]
-        Guid recipeId,
-        [Description("Recipe title.")]
-        string title,
+        [Description("Recipe id to update.")] Guid recipeId,
+        [Description("Recipe title.")] string title,
         [Description("Optional recipe description.")]
         string? description,
         [Description("Number of servings this recipe makes.")]
@@ -292,10 +275,11 @@ public sealed class MealPrepMcpTools(
         int? cookMinutes,
         [Description("Whether the recipe should be archived.")]
         bool isArchived,
-        [Description("Recipe tags.")]
+        [Description(
+            "Recipe tags from the app whitelist only (kebab-case), e.g. dinner, breakfast, eggs, spicy, dessert, quick, vegetarian."
+        )]
         string[] tags,
-        [Description("Recipe ingredients.")]
-        SaveRecipeIngredientRequest[] ingredients,
+        [Description("Recipe ingredients.")] SaveRecipeIngredientRequest[] ingredients,
         [Description("Recipe instructions/steps.")]
         SaveRecipeStepRequest[] steps,
         [Description("Optional nutrition block.")]
@@ -306,8 +290,7 @@ public sealed class MealPrepMcpTools(
     ) {
         return await ExecuteToolWithErrorLoggingAsync(
             nameof(UpdateRecipe),
-            async () =>
-            {
+            async () => {
                 var workspaceId = RequireMcpWorkspaceId();
                 var recipe = new SaveRecipeRequest(
                     title,
@@ -345,16 +328,14 @@ public sealed class MealPrepMcpTools(
     [McpServerTool]
     [Description("Sets a recipe image from a public image URL.")]
     public async Task<string> SetRecipeImageFromUrl(
-        [Description("Recipe id to update.")]
-        Guid recipeId,
+        [Description("Recipe id to update.")] Guid recipeId,
         [Description("Public image URL to import for this recipe.")]
         string imageUrl,
         CancellationToken cancellationToken
     ) {
         return await ExecuteToolWithErrorLoggingAsync(
             nameof(SetRecipeImageFromUrl),
-            async () =>
-            {
+            async () => {
                 var workspaceId = RequireMcpWorkspaceId();
                 var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
                 if (workspaceUser is null)
@@ -370,9 +351,16 @@ public sealed class MealPrepMcpTools(
                     throw new EntityNotFoundException("Recipe not found", null);
 
                 var sourceForPolicy = string.IsNullOrWhiteSpace(recipe.SourceUrl) ? imageUrl : recipe.SourceUrl;
-                var payload = await recipeImportService.TryDownloadImportImageAsync(imageUrl, sourceForPolicy!, cancellationToken);
+                var payload = await recipeImportService.TryDownloadImportImageAsync(
+                    imageUrl,
+                    sourceForPolicy!,
+                    cancellationToken
+                );
                 if (payload is null)
-                    throw new InvalidFormatException("Image import failed", "Could not download a valid image from the provided URL.");
+                    throw new InvalidFormatException(
+                        "Image import failed",
+                        "Could not download a valid image from the provided URL."
+                    );
 
                 if (!string.IsNullOrEmpty(recipe.ImageObjectKey))
                     await s3StorageService.DeleteFileAsync(recipe.ImageObjectKey);
@@ -415,8 +403,7 @@ public sealed class MealPrepMcpTools(
     ) {
         return await ExecuteToolWithErrorLoggingAsync(
             nameof(ImportRecipe),
-            async () =>
-            {
+            async () => {
                 var workspaceId = RequireMcpWorkspaceId();
                 var body = new ImportRecipeRequest(sourceUrl);
                 await ValidateRequestAsync(body, cancellationToken);
@@ -459,7 +446,9 @@ public sealed class MealPrepMcpTools(
     }
 
     [McpServerTool]
-    [Description("Creates or updates a meal-plan entry. Pass mealPlanEntryId to update; otherwise pass null to create.")]
+    [Description(
+        "Creates or updates a meal-plan entry. Pass mealPlanEntryId to update; otherwise pass null to create."
+    )]
     public async Task<string> PutMealPlanEntry(
         [Description("Meal-plan entry id to update. Omit/null to create a new entry.")]
         Guid? mealPlanEntryId,
@@ -471,8 +460,7 @@ public sealed class MealPrepMcpTools(
         string mealType,
         [Description("Optional target servings.")]
         decimal? targetServings,
-        [Description("Optional notes.")]
-        string? notes,
+        [Description("Optional notes.")] string? notes,
         [Description("Status value (must match allowed meal-plan statuses).")]
         string status,
         CancellationToken cancellationToken
@@ -484,9 +472,13 @@ public sealed class MealPrepMcpTools(
         var entry = new SaveMealPlanEntryRequest(recipeId, parsedPlannedDate, mealType, targetServings, notes, status);
         await ValidateRequestAsync(entry, cancellationToken);
 
-        if (mealPlanEntryId is null)
-        {
-            var createResult = await MealPlanEntriesHandlers.PostMealPlanEntry(currentUserService, db, workspaceId, entry);
+        if (mealPlanEntryId is null) {
+            var createResult = await MealPlanEntriesHandlers.PostMealPlanEntry(
+                currentUserService,
+                db,
+                workspaceId,
+                entry
+            );
             return Serialize(createResult);
         }
 
@@ -530,15 +522,19 @@ public sealed class MealPrepMcpTools(
             return BuildValidationErrorResponse(nameof(shoppingListId), "Must be a valid UUID.");
 
         var workspaceId = RequireMcpWorkspaceId();
-        var result = await ShoppingListsHandlers.GetShoppingList(currentUserService, db, workspaceId, parsedShoppingListId);
+        var result = await ShoppingListsHandlers.GetShoppingList(
+            currentUserService,
+            db,
+            workspaceId,
+            parsedShoppingListId
+        );
         return Serialize(result);
     }
 
     [McpServerTool]
     [Description("Generates a shopping list from selected recipes and/or meal-plan entries.")]
     public async Task<string> GenerateShoppingList(
-        [Description("Shopping list name.")]
-        string name,
+        [Description("Shopping list name.")] string name,
         [Description("Optional shopping list notes.")]
         string? notes,
         [Description("Recipe ids to include.")]
@@ -567,8 +563,7 @@ public sealed class MealPrepMcpTools(
     public async Task<string> UpdateShoppingList(
         [Description("Shopping list id to update.")]
         Guid shoppingListId,
-        [Description("Shopping list name.")]
-        string name,
+        [Description("Shopping list name.")] string name,
         [Description("Optional shopping list notes.")]
         string? notes,
         CancellationToken cancellationToken
@@ -617,8 +612,7 @@ public sealed class MealPrepMcpTools(
         bool isManual,
         [Description("Optional category, e.g. Produce.")]
         string? category,
-        [Description("Optional note.")]
-        string? note,
+        [Description("Optional note.")] string? note,
         [Description("Primary display text for the item.")]
         string displayText,
         [Description("Optional source names that contributed to this item.")]
@@ -675,8 +669,7 @@ public sealed class MealPrepMcpTools(
         bool isManual,
         [Description("Optional category, e.g. Produce.")]
         string? category,
-        [Description("Optional note.")]
-        string? note,
+        [Description("Optional note.")] string? note,
         [Description("Primary display text for the item.")]
         string displayText,
         [Description("Optional source names that contributed to this item.")]

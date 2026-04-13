@@ -47,36 +47,49 @@ public class MeasurementService
             ["units"] = new("count", "item", 1m, false)
         };
 
-    public decimal? ScaleAmount(decimal? amount, decimal originalServings, decimal targetServings)
-    {
+    public decimal? ScaleAmount(decimal? amount, decimal originalServings, decimal targetServings) {
         if (amount is null || originalServings <= 0m) return amount;
         var scaled = amount.Value * (targetServings / originalServings);
         return decimal.Round(scaled, 3, MidpointRounding.AwayFromZero);
     }
 
-    public MeasurementParseResult Normalize(string? unit)
-    {
+    public MeasurementParseResult Normalize(string? unit) {
         if (string.IsNullOrWhiteSpace(unit)) return new MeasurementParseResult(null, null, null, false);
 
         var compact = Regex.Replace(unit.Trim().ToLowerInvariant(), "\\s+", " ");
         return Units.TryGetValue(compact, out var definition)
-            ? new MeasurementParseResult(definition.Kind, definition.CanonicalUnit, definition.FactorToCanonical, definition.IsApproximate)
+            ? new MeasurementParseResult(
+                definition.Kind,
+                definition.CanonicalUnit,
+                definition.FactorToCanonical,
+                definition.IsApproximate
+            )
             : new MeasurementParseResult(null, compact, null, false);
     }
 
-    public IngredientDisplayAmount ConvertForDisplay(decimal amount, string canonicalUnit, bool isApproximate)
-    {
+    public IngredientDisplayAmount ConvertForDisplay(decimal amount, string canonicalUnit, bool isApproximate) {
         if (canonicalUnit == "g" && amount >= 1000m)
-            return new IngredientDisplayAmount(decimal.Round(amount / 1000m, 2, MidpointRounding.AwayFromZero), "kg", isApproximate);
+            return new IngredientDisplayAmount(
+                decimal.Round(amount / 1000m, 2, MidpointRounding.AwayFromZero),
+                "kg",
+                isApproximate
+            );
 
         if (canonicalUnit == "ml" && amount >= 1000m)
-            return new IngredientDisplayAmount(decimal.Round(amount / 1000m, 2, MidpointRounding.AwayFromZero), "l", isApproximate);
+            return new IngredientDisplayAmount(
+                decimal.Round(amount / 1000m, 2, MidpointRounding.AwayFromZero),
+                "l",
+                isApproximate
+            );
 
-        return new IngredientDisplayAmount(decimal.Round(amount, 2, MidpointRounding.AwayFromZero), canonicalUnit, isApproximate);
+        return new IngredientDisplayAmount(
+            decimal.Round(amount, 2, MidpointRounding.AwayFromZero),
+            canonicalUnit,
+            isApproximate
+        );
     }
 
-    public decimal? ParseDecimal(string? value)
-    {
+    public decimal? ParseDecimal(string? value) {
         if (string.IsNullOrWhiteSpace(value)) return null;
 
         var normalized = value.Trim()
@@ -87,8 +100,7 @@ public class MeasurementService
         if (decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed))
             return parsed;
 
-        if (normalized.Contains('/'))
-        {
+        if (normalized.Contains('/')) {
             var parts = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if (parts.Length == 2 && decimal.TryParse(parts[0], CultureInfo.InvariantCulture, out var whole))
                 return whole + ParseFraction(parts[1]);
@@ -99,15 +111,19 @@ public class MeasurementService
         var spaceParts = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (spaceParts.Length == 2
             && decimal.TryParse(spaceParts[0], NumberStyles.Number, CultureInfo.InvariantCulture, out var wholePart)
-            && decimal.TryParse(spaceParts[1], NumberStyles.Number, CultureInfo.InvariantCulture, out var fractionalPart)
+            && decimal.TryParse(
+                spaceParts[1],
+                NumberStyles.Number,
+                CultureInfo.InvariantCulture,
+                out var fractionalPart
+            )
             && fractionalPart is > 0 and < 1)
             return wholePart + fractionalPart;
 
         return null;
     }
 
-    public string BuildDisplayText(decimal? amount, string? unit, string name, string? note)
-    {
+    public string BuildDisplayText(decimal? amount, string? unit, string name, string? note) {
         var segments = new List<string>();
         if (amount is not null) segments.Add(FormatAmount(amount.Value));
         if (!string.IsNullOrWhiteSpace(unit)) segments.Add(unit.Trim());
@@ -116,21 +132,18 @@ public class MeasurementService
         return string.IsNullOrWhiteSpace(note) ? baseText : $"{baseText}, {note}";
     }
 
-    public string NormalizeIngredientName(string name)
-    {
+    public string NormalizeIngredientName(string name) {
         var normalized = Regex.Replace(name.Trim().ToLowerInvariant(), "[^a-z0-9\\s]", " ");
         normalized = Regex.Replace(normalized, "\\s+", " ").Trim();
         return normalized;
     }
 
-    public string FormatAmount(decimal amount)
-    {
+    public string FormatAmount(decimal amount) {
         return decimal.Round(amount, 2, MidpointRounding.AwayFromZero)
             .ToString("0.##", CultureInfo.InvariantCulture);
     }
 
-    private decimal? ParseFraction(string value)
-    {
+    private decimal? ParseFraction(string value) {
         var fractionParts = value.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (fractionParts.Length != 2) return null;
 
@@ -142,8 +155,18 @@ public class MeasurementService
     }
 }
 
-public sealed record MeasurementParseResult(string? Kind, string? CanonicalUnit, decimal? FactorToCanonical, bool IsApproximate);
+public sealed record MeasurementParseResult(
+    string? Kind,
+    string? CanonicalUnit,
+    decimal? FactorToCanonical,
+    bool IsApproximate
+);
 
 public sealed record IngredientDisplayAmount(decimal Amount, string Unit, bool IsApproximate);
 
-internal sealed record MeasurementUnitDefinition(string Kind, string CanonicalUnit, decimal FactorToCanonical, bool IsApproximate);
+internal sealed record MeasurementUnitDefinition(
+    string Kind,
+    string CanonicalUnit,
+    decimal FactorToCanonical,
+    bool IsApproximate
+);

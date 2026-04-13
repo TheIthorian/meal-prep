@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ImageIcon, Loader2, Trash2, Upload } from 'lucide-react';
+import { ImageIcon, Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { recipesApi } from '@/lib/api';
 import { RecipeCoverImage } from '@/components/meal-prep/RecipeCoverImage';
@@ -15,7 +15,13 @@ interface RecipePhotoSectionProps {
 
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif';
 
-export function RecipePhotoSection({ workspaceId, recipeId, hasImage, title, onImageChanged }: RecipePhotoSectionProps) {
+export function RecipePhotoSection({
+    workspaceId,
+    recipeId,
+    hasImage,
+    title,
+    onImageChanged,
+}: RecipePhotoSectionProps) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [busy, setBusy] = useState(false);
     const [imageRevision, setImageRevision] = useState(0);
@@ -52,17 +58,6 @@ export function RecipePhotoSection({ workspaceId, recipeId, hasImage, title, onI
     function onDragOver(e: React.DragEvent) {
         e.preventDefault();
         e.stopPropagation();
-    }
-
-    async function onRemove() {
-        setBusy(true);
-        try {
-            await recipesApi.deleteImage(workspaceId, recipeId);
-            setImageRevision(r => r + 1);
-            onImageChanged(false);
-        } finally {
-            setBusy(false);
-        }
     }
 
     function onPaste(e: React.ClipboardEvent) {
@@ -132,21 +127,9 @@ export function RecipePhotoSection({ workspaceId, recipeId, hasImage, title, onI
                         {busy ? <Loader2 className='h-4 w-4 animate-spin' /> : <Upload className='h-4 w-4' />}
                         Upload
                     </Button>
-                    {hasImage ? (
-                        <Button
-                            type='button'
-                            variant='outline'
-                            size='sm'
-                            disabled={busy}
-                            onClick={() => void onRemove()}
-                            className='gap-1.5 text-destructive hover:text-destructive'
-                        >
-                            <Trash2 className='h-4 w-4' />
-                            Remove
-                        </Button>
-                    ) : null}
                     <p className='ml-auto max-w-[min(100%,18rem)] text-right text-xs text-muted-foreground'>
-                        Drop a file here, or click Upload. Click this area, then paste (⌘V / Ctrl+V) to add from the clipboard.
+                        Drop a file here, or click Upload. Click this area, then paste (⌘V / Ctrl+V) to add from the
+                        clipboard.
                     </p>
                 </div>
             </div>

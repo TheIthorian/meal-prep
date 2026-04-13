@@ -22,15 +22,13 @@ public partial class ApiDbContext : IdentityDbContext<AppUser, IdentityRole<Guid
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) {
         if (!optionsBuilder.IsConfigured)
             optionsBuilder.AddInterceptors(new TimestampInterceptor())
                 .UseNpgsql(Environment.GetEnvironmentVariable("POSTGRES_CONNECTIONSTRING"));
     }
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
+    protected override void OnModelCreating(ModelBuilder modelBuilder) {
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.Ignore<Entity>();
@@ -39,8 +37,7 @@ public partial class ApiDbContext : IdentityDbContext<AppUser, IdentityRole<Guid
         // Assign Entity properties
         foreach (var entityType in modelBuilder.Model
                      .GetEntityTypes()
-                     .Where(t => typeof(Entity).IsAssignableFrom(t.ClrType)))
-        {
+                     .Where(t => typeof(Entity).IsAssignableFrom(t.ClrType))) {
             var builder = modelBuilder.Entity(entityType.ClrType);
 
             builder.HasKey(nameof(Entity.Id));
@@ -53,8 +50,7 @@ public partial class ApiDbContext : IdentityDbContext<AppUser, IdentityRole<Guid
         // Assign WorkspaceEntity properties
         foreach (var entityType in modelBuilder.Model
                      .GetEntityTypes()
-                     .Where(t => typeof(WorkspaceEntity).IsAssignableFrom(t.ClrType)))
-        {
+                     .Where(t => typeof(WorkspaceEntity).IsAssignableFrom(t.ClrType))) {
             var builder = modelBuilder.Entity(entityType.ClrType);
 
             builder.HasOne(nameof(WorkspaceEntity.Workspace));

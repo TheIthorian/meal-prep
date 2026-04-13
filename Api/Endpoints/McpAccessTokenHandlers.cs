@@ -49,13 +49,14 @@ internal static class McpAccessTokenHandlers
             .Where(t => t.UserId == userId)
             .OrderByDescending(t => t.CreatedAt)
             .Select(t => new McpAccessTokenListItemResponse(
-                t.Id,
-                t.WorkspaceId,
-                t.Name,
-                t.CreatedAt,
-                t.LastUsedAt,
-                t.RevokedAt
-            ))
+                    t.Id,
+                    t.WorkspaceId,
+                    t.Name,
+                    t.CreatedAt,
+                    t.LastUsedAt,
+                    t.RevokedAt
+                )
+            )
             .ToArrayAsync();
 
         return TypedResults.Json(rows);

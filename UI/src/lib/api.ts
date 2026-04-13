@@ -8,7 +8,10 @@ import {
     Recipe,
     RecipeListItem,
     SaveMealPlanEntryRequest,
+    RecipeTagListResponse,
     SaveRecipeRequest,
+    SuggestRecipeTagsRequest,
+    SuggestRecipeTagsResponse,
     SaveShoppingListItemRequest,
     SaveShoppingListRequest,
     ShoppingList,
@@ -54,7 +57,14 @@ export const mcpAccessTokensApi = {
 export const recipesApi = {
     getAll: (
         workspaceId: string,
-        params?: { q?: string; page?: number; pageSize?: number; includeArchived?: boolean; orderBy?: string; direction?: 'asc' | 'desc' },
+        params?: {
+            q?: string;
+            page?: number;
+            pageSize?: number;
+            includeArchived?: boolean;
+            orderBy?: string;
+            direction?: 'asc' | 'desc';
+        },
     ) => httpClient.get<PaginatedResponse<RecipeListItem>>(`/api/v1/workspaces/${workspaceId}/recipes`, { params }),
     getById: (workspaceId: string, recipeId: string) =>
         httpClient.get<Recipe>(`/api/v1/workspaces/${workspaceId}/recipes/${recipeId}`),
@@ -69,13 +79,14 @@ export const recipesApi = {
     uploadImage: (workspaceId: string, recipeId: string, file: File) => {
         const formData = new FormData();
         formData.append('file', file);
-        return httpClient.postFormData<Recipe>(
-            `/api/v1/workspaces/${workspaceId}/recipes/${recipeId}/image`,
-            formData,
-        );
+        return httpClient.postFormData<Recipe>(`/api/v1/workspaces/${workspaceId}/recipes/${recipeId}/image`, formData);
     },
     deleteImage: (workspaceId: string, recipeId: string) =>
         httpClient.delete<Recipe>(`/api/v1/workspaces/${workspaceId}/recipes/${recipeId}/image`),
+    getTagWhitelist: (workspaceId: string) =>
+        httpClient.get<RecipeTagListResponse>(`/api/v1/workspaces/${workspaceId}/recipe-tags`),
+    suggestTags: (workspaceId: string, data: SuggestRecipeTagsRequest) =>
+        httpClient.post<SuggestRecipeTagsResponse>(`/api/v1/workspaces/${workspaceId}/recipes/suggest-tags`, data),
 };
 
 export const mealPlanApi = {
@@ -101,7 +112,10 @@ export const shoppingListsApi = {
     remove: (workspaceId: string, shoppingListId: string) =>
         httpClient.delete<void>(`/api/v1/workspaces/${workspaceId}/shopping-lists/${shoppingListId}`),
     createItem: (workspaceId: string, shoppingListId: string, data: SaveShoppingListItemRequest) =>
-        httpClient.post<ShoppingListItem>(`/api/v1/workspaces/${workspaceId}/shopping-lists/${shoppingListId}/items`, data),
+        httpClient.post<ShoppingListItem>(
+            `/api/v1/workspaces/${workspaceId}/shopping-lists/${shoppingListId}/items`,
+            data,
+        ),
     updateItem: (workspaceId: string, shoppingListId: string, itemId: string, data: SaveShoppingListItemRequest) =>
         httpClient.patch<ShoppingListItem>(
             `/api/v1/workspaces/${workspaceId}/shopping-lists/${shoppingListId}/items/${itemId}`,

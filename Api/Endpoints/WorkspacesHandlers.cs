@@ -18,8 +18,7 @@ public class WorkspacesHandlers
         CurrentUserService currentUserService,
         ApiDbContext db,
         [FromBody] PostWorkspaceRequest body
-    )
-    {
+    ) {
         var currentUser = await currentUserService.GetCurrentUserAsync();
         if (currentUser is null) throw new UnauthorizedException();
 
@@ -36,8 +35,7 @@ public class WorkspacesHandlers
     public static async Task<JsonHttpResult<IEnumerable<WorkspaceResponse>>> GetWorkspaces(
         CurrentUserService currentUserService,
         ApiDbContext db
-    )
-    {
+    ) {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -57,8 +55,7 @@ public class WorkspacesHandlers
         CurrentUserService currentUserService,
         ApiDbContext db,
         Guid workspaceId
-    )
-    {
+    ) {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -80,8 +77,7 @@ public class WorkspacesHandlers
         ApiDbContext db,
         Guid workspaceId,
         [FromBody] PostWorkspaceUserRequest body
-    )
-    {
+    ) {
         var currentUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         var workspace = await db.Workspaces
             .Include(w => w.Members)
@@ -117,8 +113,7 @@ public class WorkspacesHandlers
         Guid workspaceId,
         Guid userId,
         [FromBody] PatchWorkspaceUserRoleRequest body
-    )
-    {
+    ) {
         var currentUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (currentUser is null) throw new UnauthorizedException();
 
@@ -127,8 +122,7 @@ public class WorkspacesHandlers
         if (currentUserId == userId)
             throw new InvalidOperationException("Cannot edit your own role");
 
-        if (!CanUserModifyWorkspace(currentUser))
-        {
+        if (!CanUserModifyWorkspace(currentUser)) {
             logger.LogError("Current user role is {Role}", currentUser.Role);
             throw new ForbiddenActionException(
                 "You do not have permission to change this role",
@@ -147,8 +141,7 @@ public class WorkspacesHandlers
         var member = workspace?.Members.FirstOrDefault(m => m.UserId == userId);
         if (member is null) throw new EntityNotFoundException("Member not found", null);
 
-        if (member.Role == WorkspaceUser.Roles.Owner && currentUser.Role != WorkspaceUser.Roles.Owner)
-        {
+        if (member.Role == WorkspaceUser.Roles.Owner && currentUser.Role != WorkspaceUser.Roles.Owner) {
             logger.LogError("Cannot change role of owner. Current user role is {Role}", WorkspaceUser.Roles.Owner);
             throw new ForbiddenActionException(
                 "You do not have permission to change this role",
@@ -170,8 +163,7 @@ public class WorkspacesHandlers
         ApiDbContext db,
         Guid workspaceId,
         Guid userId
-    )
-    {
+    ) {
         var currentUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         var workspace = await db.Workspaces
             .Include(w => w.Members)
@@ -209,8 +201,7 @@ public class WorkspacesHandlers
         ApiDbContext db,
         Guid workspaceId,
         [FromBody] PostWorkspaceRequest body
-    )
-    {
+    ) {
         var currentUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (currentUser is null) throw new UnauthorizedException();
 
@@ -240,8 +231,7 @@ public class WorkspacesHandlers
         CurrentUserService currentUserService,
         ApiDbContext db,
         Guid workspaceId
-    )
-    {
+    ) {
         var currentUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (currentUser is null) throw new UnauthorizedException();
 
@@ -266,8 +256,7 @@ public class WorkspacesHandlers
         return TypedResults.Ok();
     }
 
-    private static bool CanUserModifyWorkspace(WorkspaceUser user)
-    {
+    private static bool CanUserModifyWorkspace(WorkspaceUser user) {
         return user.Role == WorkspaceUser.Roles.Admin || user.Role == WorkspaceUser.Roles.Owner;
     }
 }

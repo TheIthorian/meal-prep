@@ -8,8 +8,7 @@ namespace Api.Endpoints.Middleware;
 // @todo - is this still used??
 public class SeedUserDataFilter(IServiceProvider services, UserManager<AppUser> userManager) : IEndpointFilter
 {
-    public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
-    {
+    public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next) {
         // Run the identity endpoint first
         var result = await next(context);
 

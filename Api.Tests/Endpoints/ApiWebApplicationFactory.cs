@@ -20,22 +20,19 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
 {
     private const string TestOrIdentityScheme = "TestOrIdentity";
 
-    public new HttpClient CreateClient()
-    {
+    public new HttpClient CreateClient() {
         var client = base.CreateClient();
         AddDefaultForwardedForHeader(client);
         return client;
     }
 
-    public new HttpClient CreateClient(WebApplicationFactoryClientOptions options)
-    {
+    public new HttpClient CreateClient(WebApplicationFactoryClientOptions options) {
         var client = base.CreateClient(options);
         AddDefaultForwardedForHeader(client);
         return client;
     }
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
-    {
+    protected override void ConfigureWebHost(IWebHostBuilder builder) {
         builder.UseEnvironment("Testing");
 
         Environment.SetEnvironmentVariable("AppRoles", "api");
@@ -59,93 +56,87 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
         );
 
         builder.ConfigureLogging(logging => {
-            logging.ClearProviders();
-            logging.AddConsole();
-            logging.SetMinimumLevel(LogLevel.Warning);
-            logging.AddFilter("Microsoft", LogLevel.Warning);
-            logging.AddFilter("System", LogLevel.Warning);
-            logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
-        });
-
-        builder.ConfigureAppConfiguration((_, configBuilder) =>
-        {
-            var connectionString = TestEnvironment.GetDatabaseConnectionString();
-            var config = new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:DefaultConnection"] = connectionString,
-                ["ConnectionStrings__DefaultConnection"] = connectionString,
-                ["POSTGRES_CONNECTIONSTRING"] = connectionString,
-                ["AppRoles"] = "api",
-                ["AuthStateStore:Provider"] = "Postgres",
-                ["AuthStateStore__Provider"] = "Postgres",
-                ["OpenAI:ApiKey"] = TestEnvironment.GetOpenAiApiKey(),
-                ["OpenAI:BaseUrl"] = "https://api.openai.com/v1",
-                ["OpenAI:Model"] = "gpt-4o-mini",
-                ["Test:DisableOpenTelemetry"] = "true",
-                ["S3:ServiceUrl"] = TestEnvironment.GetS3ServiceUrl(),
-                ["S3:AccessKey"] = TestEnvironment.GetS3AccessKey(),
-                ["S3:SecretKey"] = TestEnvironment.GetS3SecretKey(),
-                ["S3:BucketName"] = TestEnvironment.GetS3Bucket(),
-                ["S3:Region"] = TestEnvironment.GetS3Region(),
-                ["CORS_ORIGINS"] = "http://localhost:8080,http://localhost:5000",
-                ["Logging:LogLevel:Default"] = Environment.GetEnvironmentVariable("Logging__LogLevel__Default")
-                                               ?? "Warning",
-                ["Logging:LogLevel:Microsoft"] = Environment.GetEnvironmentVariable("Logging__LogLevel__Microsoft")
-                                                 ?? "Warning",
-                ["Logging:LogLevel:System"] = Environment.GetEnvironmentVariable("Logging__LogLevel__System")
-                                              ?? "Warning"
-            };
-
-            configBuilder.AddInMemoryCollection(config);
-        }
+                logging.ClearProviders();
+                logging.AddConsole();
+                logging.SetMinimumLevel(LogLevel.Warning);
+                logging.AddFilter("Microsoft", LogLevel.Warning);
+                logging.AddFilter("System", LogLevel.Warning);
+                logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
+            }
         );
 
-        builder.ConfigureTestServices(services =>
-        {
-            services.AddMemoryCache();
-            services.RemoveAll<IS3StorageService>();
-            services.AddSingleton<IS3StorageService, InMemoryS3StorageService>();
+        builder.ConfigureAppConfiguration((_, configBuilder) => {
+                var connectionString = TestEnvironment.GetDatabaseConnectionString();
+                var config = new Dictionary<string, string?> {
+                    ["ConnectionStrings:DefaultConnection"] = connectionString,
+                    ["ConnectionStrings__DefaultConnection"] = connectionString,
+                    ["POSTGRES_CONNECTIONSTRING"] = connectionString,
+                    ["AppRoles"] = "api",
+                    ["AuthStateStore:Provider"] = "Postgres",
+                    ["AuthStateStore__Provider"] = "Postgres",
+                    ["OpenAI:ApiKey"] = TestEnvironment.GetOpenAiApiKey(),
+                    ["OpenAI:BaseUrl"] = "https://api.openai.com/v1",
+                    ["OpenAI:Model"] = "gpt-4o-mini",
+                    ["Test:DisableOpenTelemetry"] = "true",
+                    ["S3:ServiceUrl"] = TestEnvironment.GetS3ServiceUrl(),
+                    ["S3:AccessKey"] = TestEnvironment.GetS3AccessKey(),
+                    ["S3:SecretKey"] = TestEnvironment.GetS3SecretKey(),
+                    ["S3:BucketName"] = TestEnvironment.GetS3Bucket(),
+                    ["S3:Region"] = TestEnvironment.GetS3Region(),
+                    ["CORS_ORIGINS"] = "http://localhost:8080,http://localhost:5000",
+                    ["Logging:LogLevel:Default"] = Environment.GetEnvironmentVariable("Logging__LogLevel__Default")
+                                                   ?? "Warning",
+                    ["Logging:LogLevel:Microsoft"] = Environment.GetEnvironmentVariable("Logging__LogLevel__Microsoft")
+                                                     ?? "Warning",
+                    ["Logging:LogLevel:System"] = Environment.GetEnvironmentVariable("Logging__LogLevel__System")
+                                                  ?? "Warning"
+                };
 
-            services.AddAuthentication()
-                .AddPolicyScheme(
-                    TestOrIdentityScheme,
-                    "Test auth or identity",
-                    options =>
-                    {
-                        options.ForwardDefaultSelector = context =>
-                            context.Request.Headers.ContainsKey(TestAuthHandler.UserIdHeaderName)
-                                ? TestAuthHandler.Scheme
-                                : "Identity.Combined";
-                    }
-                )
-                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.Scheme, _ => { });
-
-            services.PostConfigure<AuthenticationOptions>(options =>
-            {
-                options.DefaultAuthenticateScheme = TestOrIdentityScheme;
-                options.DefaultChallengeScheme = TestOrIdentityScheme;
+                configBuilder.AddInMemoryCollection(config);
             }
-            );
-        });
+        );
+
+        builder.ConfigureTestServices(services => {
+                services.AddMemoryCache();
+                services.RemoveAll<IS3StorageService>();
+                services.AddSingleton<IS3StorageService, InMemoryS3StorageService>();
+
+                services.AddAuthentication()
+                    .AddPolicyScheme(
+                        TestOrIdentityScheme,
+                        "Test auth or identity",
+                        options => {
+                            options.ForwardDefaultSelector = context =>
+                                context.Request.Headers.ContainsKey(TestAuthHandler.UserIdHeaderName)
+                                    ? TestAuthHandler.Scheme
+                                    : "Identity.Combined";
+                        }
+                    )
+                    .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.Scheme, _ => { });
+
+                services.PostConfigure<AuthenticationOptions>(options => {
+                        options.DefaultAuthenticateScheme = TestOrIdentityScheme;
+                        options.DefaultChallengeScheme = TestOrIdentityScheme;
+                    }
+                );
+            }
+        );
     }
 
-    public HttpClient CreateAuthenticatedClient(Guid userId)
-    {
+    public HttpClient CreateAuthenticatedClient(Guid userId) {
         var client = CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         client.DefaultRequestHeaders.TryAddWithoutValidation(TestAuthHandler.UserIdHeaderName, userId.ToString());
         return client;
     }
 
-    public async Task<(Guid UserId, Guid WorkspaceId)> SeedUserWithWorkspaceAsync(string workspaceName)
-    {
+    public async Task<(Guid UserId, Guid WorkspaceId)> SeedUserWithWorkspaceAsync(string workspaceName) {
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
 
         var userId = Guid.NewGuid();
         var email = $"endpoint-{userId:N}@tests.local";
 
-        var user = new AppUser
-        {
+        var user = new AppUser {
             Id = userId,
             UserName = email,
             NormalizedUserName = email.ToUpperInvariant(),
@@ -168,8 +159,7 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
     public async Task<(Guid UserId, Guid WorkspaceId, string Email)> SeedIdentityUserWithWorkspaceAsync(
         string workspaceName,
         string password
-    )
-    {
+    ) {
         using var scope = Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
         var db = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
@@ -197,8 +187,7 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
     {
         private readonly Dictionary<string, byte[]> files = new(StringComparer.Ordinal);
 
-        public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType)
-        {
+        public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType) {
             using var memory = new MemoryStream();
             await fileStream.CopyToAsync(memory);
 
@@ -207,8 +196,7 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
             return key;
         }
 
-        public Task<Stream> DownloadFileAsync(string s3Key)
-        {
+        public Task<Stream> DownloadFileAsync(string s3Key) {
             if (!files.TryGetValue(s3Key, out var payload))
                 throw new InvalidOperationException($"Test file '{s3Key}' was not found.");
 
@@ -216,14 +204,13 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
             return Task.FromResult(stream);
         }
 
-        public Task DeleteFileAsync(string s3Key)
-        {
+        public Task DeleteFileAsync(string s3Key) {
             files.Remove(s3Key);
             return Task.CompletedTask;
         }
     }
-    private static void AddDefaultForwardedForHeader(HttpClient client)
-    {
+
+    private static void AddDefaultForwardedForHeader(HttpClient client) {
         client.DefaultRequestHeaders.Remove("X-Forwarded-For");
         client.DefaultRequestHeaders.TryAddWithoutValidation("X-Forwarded-For", "127.0.0.1");
     }

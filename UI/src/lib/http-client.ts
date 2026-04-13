@@ -37,9 +37,7 @@ class AppHttpClient {
     constructor() {
         this.axiosInstance = axios.create({
             // In dev, default to same-origin + Vite proxy (see vite.config.ts). Override with VITE_API_BASE_URL.
-            baseURL:
-                import.meta.env.VITE_API_BASE_URL ||
-                (import.meta.env.DEV ? '' : 'http://localhost:5001'),
+            baseURL: import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '' : 'http://localhost:5001'),
             withCredentials: true,
             headers: { 'Content-Type': 'application/json' },
         });
@@ -157,10 +155,7 @@ export function handleAxiosError(error: AxiosError<unknown>) {
                 variant: 'destructive',
             });
         }
-    } else if (
-        error.response?.status &&
-        [502, 503, 504].includes(error.response.status)
-    ) {
+    } else if (error.response?.status && [502, 503, 504].includes(error.response.status)) {
         // Network error
         toast({
             title: 'Network Error',
@@ -183,8 +178,7 @@ export function handleAxiosError(error: AxiosError<unknown>) {
                 : undefined;
         toast({
             title: error.message || 'Error',
-            description:
-                causeMsg || error.message || 'An unexpected error occurred. Please try again later.',
+            description: causeMsg || error.message || 'An unexpected error occurred. Please try again later.',
             variant: 'destructive',
         });
     }

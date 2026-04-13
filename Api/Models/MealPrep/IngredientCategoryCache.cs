@@ -9,8 +9,7 @@ public class IngredientCategoryCache : Entity
 {
     private IngredientCategoryCache() { }
 
-    public IngredientCategoryCache(string normalizedIngredientName, string category)
-    {
+    public IngredientCategoryCache(string normalizedIngredientName, string category) {
         NormalizedIngredientName = normalizedIngredientName;
         Category = category;
     }

@@ -17,8 +17,7 @@ public sealed class IngredientCategoryResolutionService(
     public async Task<IReadOnlyDictionary<string, string>> ResolveAsync(
         IReadOnlyCollection<string> normalizedIngredientNames,
         CancellationToken cancellationToken = default
-    )
-    {
+    ) {
         var distinct = normalizedIngredientNames
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Select(name => name.Trim())
@@ -28,9 +27,15 @@ public sealed class IngredientCategoryResolutionService(
         if (distinct.Length == 0)
             return new Dictionary<string, string>(StringComparer.Ordinal);
 
-        var fromDb = await db.IngredientCategoryCaches.AsNoTracking()
+        var fromDb = await db.IngredientCategoryCaches
+            .AsNoTracking()
             .Where(row => distinct.Contains(row.NormalizedIngredientName))
-            .ToDictionaryAsync(row => row.NormalizedIngredientName, row => row.Category, StringComparer.Ordinal, cancellationToken)
+            .ToDictionaryAsync(
+                row => row.NormalizedIngredientName,
+                row => row.Category,
+                StringComparer.Ordinal,
+                cancellationToken
+            )
             .ConfigureAwait(false);
 
         var missing = distinct.Where(name => !fromDb.ContainsKey(name)).ToArray();
@@ -38,18 +43,17 @@ public sealed class IngredientCategoryResolutionService(
             return fromDb;
 
         var llmResult = await llm.TryCategorizeAsync(missing, cancellationToken).ConfigureAwait(false);
-        if (llmResult is null || llmResult.Count == 0)
-        {
-            using (logger.BeginPropertyScope(("missingCount", missing.Length)))
-            {
-                logger.LogInformation("Ingredient categories skipped LLM or LLM returned no rows; using recipe sections only for uncached names.");
+        if (llmResult is null || llmResult.Count == 0) {
+            using (logger.BeginPropertyScope(("missingCount", missing.Length))) {
+                logger.LogInformation(
+                    "Ingredient categories skipped LLM or LLM returned no rows; using recipe sections only for uncached names."
+                );
             }
 
             return fromDb;
         }
 
-        foreach (var name in missing)
-        {
+        foreach (var name in missing) {
             if (!llmResult.TryGetValue(name, out var category) || string.IsNullOrWhiteSpace(category))
                 continue;
 
@@ -57,7 +61,8 @@ public sealed class IngredientCategoryResolutionService(
             if (category.Length > 128)
                 category = category[..128];
 
-            await db.IngredientCategoryCaches.AddAsync(
+            await db.IngredientCategoryCaches
+                .AddAsync(
                     new IngredientCategoryCache(name, category),
                     cancellationToken
                 )

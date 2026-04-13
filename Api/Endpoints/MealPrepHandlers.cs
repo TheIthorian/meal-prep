@@ -27,16 +27,17 @@ internal static class RecipesHandlers
         HttpContext httpContext,
         Guid workspaceId,
         CancellationToken cancellationToken
-    )
-    {
+    ) {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
         var paginationOptions = PaginationOptions.FromQueryParams(httpContext.Request.Query);
-        var includeArchived = paginationOptions.FilterOptions.Any(pair =>
-            pair.Key == "includeArchived"
-            && bool.TryParse(pair.Value.ToString(), out var parsedValue)
-            && parsedValue
+        var includeArchived = paginationOptions.FilterOptions.Any(pair => pair.Key == "includeArchived"
+                                                                          && bool.TryParse(
+                                                                              pair.Value.ToString(),
+                                                                              out var parsedValue
+                                                                          )
+                                                                          && parsedValue
         );
         var query = db.Recipes
             .AsNoTracking()
@@ -54,20 +55,65 @@ internal static class RecipesHandlers
         var totalCount = await query.CountAsync(cancellationToken);
         var recipes = await query.ApplyPagination(paginationOptions, nameof(Recipe.Title))
             .Select(recipe => new RecipeListItemResponse(
-                recipe.Id,
-                recipe.Title,
-                recipe.Description,
-                recipe.Servings,
-                recipe.IsArchived,
-                recipe.Tags,
-                recipe.SourceUrl,
-                recipe.Ingredients.Count,
-                recipe.Steps.Count,
-                recipe.ImageObjectKey != null && recipe.ImageObjectKey != ""
-            ))
+                    recipe.Id,
+                    recipe.Title,
+                    recipe.Description,
+                    recipe.Servings,
+                    recipe.IsArchived,
+                    recipe.Tags,
+                    recipe.SourceUrl,
+                    recipe.Ingredients.Count,
+                    recipe.Steps.Count,
+                    recipe.ImageObjectKey != null && recipe.ImageObjectKey != ""
+                )
+            )
             .ToArrayAsync(cancellationToken);
 
-        return TypedResults.Json(PaginatedResponse<RecipeListItemResponse>.ToPaginatedResponse(recipes, paginationOptions, totalCount));
+        return TypedResults.Json(
+            PaginatedResponse<RecipeListItemResponse>.ToPaginatedResponse(recipes, paginationOptions, totalCount)
+        );
+    }
+
+    [Authorize]
+    public static async Task<JsonHttpResult<RecipeTagListResponse>> GetRecipeTagWhitelist(
+        CurrentUserService currentUserService,
+        Guid workspaceId
+    ) {
+        if (await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId) is null)
+            throw new EntityNotFoundException("workspace not found", null);
+
+        return TypedResults.Json(new RecipeTagListResponse(RecipeTagWhitelist.AllSorted));
+    }
+
+    [Authorize]
+    public static async Task<JsonHttpResult<SuggestRecipeTagsResponse>> PostSuggestRecipeTags(
+        CurrentUserService currentUserService,
+        Guid workspaceId,
+        RecipeTagSuggestionService tagSuggestionService,
+        [FromBody] SuggestRecipeTagsRequest body,
+        CancellationToken cancellationToken
+    ) {
+        if (await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId) is null)
+            throw new EntityNotFoundException("workspace not found", null);
+
+        if (!tagSuggestionService.IsConfigured)
+            throw new InvalidFormatException("Recipe tag suggestions are unavailable", "OpenAI API is not configured.");
+
+        var suggested = await tagSuggestionService.TrySuggestTagsAsync(
+            body.Title,
+            body.Description,
+            body.IngredientNames ?? [],
+            body.StepInstructions ?? [],
+            cancellationToken
+        );
+
+        if (suggested is null)
+            throw new InvalidFormatException(
+                "Recipe tag suggestions failed",
+                "The model did not return usable tags. Try again."
+            );
+
+        return TypedResults.Json(new SuggestRecipeTagsResponse(suggested));
     }
 
     [Authorize]
@@ -76,8 +122,7 @@ internal static class RecipesHandlers
         ApiDbContext db,
         Guid workspaceId,
         Guid recipeId
-    )
-    {
+    ) {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -105,8 +150,7 @@ internal static class RecipesHandlers
         Guid workspaceId,
         [FromBody] SaveRecipeRequest body,
         CancellationToken cancellationToken
-    )
-    {
+    ) {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
@@ -140,8 +184,7 @@ internal static class RecipesHandlers
         Guid recipeId,
         [FromBody] SaveRecipeRequest body,
         CancellationToken cancellationToken
-    )
-    {
+    ) {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
@@ -151,17 +194,19 @@ internal static class RecipesHandlers
             .WhereIsNotDeleted()
             .Where(value => value.WorkspaceId == workspaceId && value.Id == recipeId);
 
-        var updatedCount = await recipeQuery.ExecuteUpdateAsync(setters => setters
-            .SetProperty(value => value.Title, body.Title)
-            .SetProperty(value => value.Description, body.Description)
-            .SetProperty(value => value.Servings, body.Servings)
-            .SetProperty(value => value.SourceUrl, body.SourceUrl)
-            .SetProperty(value => value.Notes, body.Notes)
-            .SetProperty(value => value.PrepMinutes, body.PrepMinutes)
-            .SetProperty(value => value.CookMinutes, body.CookMinutes)
-            .SetProperty(value => value.IsArchived, body.IsArchived)
-            .SetProperty(value => value.Tags, body.Tags)
-            .SetProperty(value => value.UpdatedAt, DateTime.UtcNow),
+        var normalizedTags = RecipeTagWhitelist.NormalizeToWhitelist(body.Tags);
+        var updatedCount = await recipeQuery.ExecuteUpdateAsync(
+            setters => setters
+                .SetProperty(value => value.Title, body.Title)
+                .SetProperty(value => value.Description, body.Description)
+                .SetProperty(value => value.Servings, body.Servings)
+                .SetProperty(value => value.SourceUrl, body.SourceUrl)
+                .SetProperty(value => value.Notes, body.Notes)
+                .SetProperty(value => value.PrepMinutes, body.PrepMinutes)
+                .SetProperty(value => value.CookMinutes, body.CookMinutes)
+                .SetProperty(value => value.IsArchived, body.IsArchived)
+                .SetProperty(value => value.Tags, normalizedTags)
+                .SetProperty(value => value.UpdatedAt, DateTime.UtcNow),
             cancellationToken
         );
 
@@ -177,26 +222,30 @@ internal static class RecipesHandlers
             .Where(value => value.RecipeId == recipeId)
             .ExecuteDeleteAsync(cancellationToken);
 
-        var newIngredients = body.Ingredients.Select((ingredient, index) =>
-            RecipeIngredient.CreateNew(
-                index,
-                ingredient.Name,
-                ingredient.DisplayText,
-                ingredient.Amount,
-                ingredient.Unit,
-                ingredient.NormalizedIngredientName,
-                ingredient.PreparationNote,
-                ingredient.Section
+        var newIngredients = body.Ingredients
+            .Select((ingredient, index) => RecipeIngredient.CreateNew(
+                    index,
+                    ingredient.Name,
+                    ingredient.DisplayText,
+                    ingredient.Amount,
+                    ingredient.Unit,
+                    ingredient.NormalizedIngredientName,
+                    ingredient.PreparationNote,
+                    ingredient.Section
+                )
             )
-        ).ToArray();
+            .ToArray();
 
-        var newSteps = body.Steps.Select((step, index) => RecipeStep.CreateNew(index, step.Instruction, step.TimerSeconds)).ToArray();
+        var newSteps = body.Steps
+            .Select((step, index) => RecipeStep.CreateNew(index, step.Instruction, step.TimerSeconds))
+            .ToArray();
 
-        var newNutrition = body.Nutrition?.Nutrients
-            .GroupBy(nutrient => nutrient.NutrientType.Trim(), StringComparer.OrdinalIgnoreCase)
-            .Select(group => RecipeNutrition.CreateNew(group.Key, group.Last().Amount))
-            .ToArray()
-            ?? Array.Empty<RecipeNutrition>();
+        var newNutrition = body.Nutrition
+                               ?.Nutrients
+                               .GroupBy(nutrient => nutrient.NutrientType.Trim(), StringComparer.OrdinalIgnoreCase)
+                               .Select(group => RecipeNutrition.CreateNew(group.Key, group.Last().Amount))
+                               .ToArray()
+                           ?? Array.Empty<RecipeNutrition>();
 
         foreach (var ingredient in newIngredients)
             db.Entry(ingredient).Property(nameof(RecipeIngredient.RecipeId)).CurrentValue = recipeId;
@@ -210,20 +259,26 @@ internal static class RecipesHandlers
         await db.RecipeNutrition.AddRangeAsync(newNutrition, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
-        if (!string.IsNullOrWhiteSpace(body.ImportImageUrl) && !string.IsNullOrWhiteSpace(body.SourceUrl))
-        {
-            var payload = await recipeImportService.TryDownloadImportImageAsync(body.ImportImageUrl, body.SourceUrl, cancellationToken);
-            if (payload is not null)
-            {
-                var existingImageKey = await recipeQuery.Select(value => value.ImageObjectKey).FirstOrDefaultAsync(cancellationToken);
+        if (!string.IsNullOrWhiteSpace(body.ImportImageUrl) && !string.IsNullOrWhiteSpace(body.SourceUrl)) {
+            var payload = await recipeImportService.TryDownloadImportImageAsync(
+                body.ImportImageUrl,
+                body.SourceUrl,
+                cancellationToken
+            );
+            if (payload is not null) {
+                var existingImageKey = await recipeQuery.Select(value => value.ImageObjectKey)
+                    .FirstOrDefaultAsync(cancellationToken);
                 if (!string.IsNullOrEmpty(existingImageKey))
                     await s3StorageService.DeleteFileAsync(existingImageKey);
 
                 await using var stream = new MemoryStream(payload.Data);
                 var key = await s3StorageService.UploadFileAsync(stream, payload.FileName, payload.ContentType);
-                await recipeQuery.ExecuteUpdateAsync(setters => setters
-                    .SetProperty(value => value.ImageObjectKey, key)
-                    .SetProperty(value => value.UpdatedAt, DateTime.UtcNow), cancellationToken);
+                await recipeQuery.ExecuteUpdateAsync(
+                    setters => setters
+                        .SetProperty(value => value.ImageObjectKey, key)
+                        .SetProperty(value => value.UpdatedAt, DateTime.UtcNow),
+                    cancellationToken
+                );
             }
         }
 
@@ -247,8 +302,7 @@ internal static class RecipesHandlers
         IS3StorageService s3StorageService,
         Guid workspaceId,
         Guid recipeId
-    )
-    {
+    ) {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
@@ -278,8 +332,7 @@ internal static class RecipesHandlers
         Guid workspaceId,
         Guid recipeId,
         CancellationToken cancellationToken
-    )
-    {
+    ) {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -296,7 +349,8 @@ internal static class RecipesHandlers
         if (string.IsNullOrEmpty(recipe.ImageObjectKey)) return TypedResults.NotFound();
 
         var stream = await s3StorageService.DownloadFileAsync(recipe.ImageObjectKey);
-        var contentType = RecipeImageUploadConstants.ContentTypeFromObjectKey(recipe.ImageObjectKey) ?? "application/octet-stream";
+        var contentType = RecipeImageUploadConstants.ContentTypeFromObjectKey(recipe.ImageObjectKey)
+                          ?? "application/octet-stream";
 
         return TypedResults.File(stream, contentType);
     }
@@ -310,8 +364,7 @@ internal static class RecipesHandlers
         Guid recipeId,
         IFormFile? file,
         CancellationToken cancellationToken
-    )
-    {
+    ) {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
@@ -330,7 +383,10 @@ internal static class RecipesHandlers
         if (file is null || file.Length == 0) throw new InvalidFormatException("Image file is required", null);
 
         if (file.Length > RecipeImageUploadConstants.MaxBytes) {
-            throw new InvalidFormatException("Image file is too large", $"Maximum size is {RecipeImageUploadConstants.MaxBytes} bytes.");
+            throw new InvalidFormatException(
+                "Image file is too large",
+                $"Maximum size is {RecipeImageUploadConstants.MaxBytes} bytes."
+            );
         }
 
         if (!RecipeImageUploadConstants.IsAllowedContentType(file.ContentType)) {
@@ -359,8 +415,7 @@ internal static class RecipesHandlers
         Guid workspaceId,
         Guid recipeId,
         CancellationToken cancellationToken
-    )
-    {
+    ) {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
@@ -393,12 +448,16 @@ internal static class RecipesHandlers
         RecipeImportService recipeImportService,
         [FromBody] ImportRecipePreviewRequest body,
         CancellationToken cancellationToken
-    )
-    {
+    ) {
         if (await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId) is null)
             throw new EntityNotFoundException("workspace not found", null);
 
-        var preview = await recipeImportService.PreviewAsync(body.Url, workspaceId, currentUserService.UserId, cancellationToken);
+        var preview = await recipeImportService.PreviewAsync(
+            body.Url,
+            workspaceId,
+            currentUserService.UserId,
+            cancellationToken
+        );
         return TypedResults.Json(preview.ToResponse());
     }
 
@@ -411,12 +470,16 @@ internal static class RecipesHandlers
         Guid workspaceId,
         [FromBody] ImportRecipeRequest body,
         CancellationToken cancellationToken
-    )
-    {
+    ) {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
-        var preview = await recipeImportService.PreviewAsync(body.Url, workspaceId, workspaceUser.UserId, cancellationToken);
+        var preview = await recipeImportService.PreviewAsync(
+            body.Url,
+            workspaceId,
+            workspaceUser.UserId,
+            cancellationToken
+        );
         var saveRequest = ToSaveRecipeRequest(preview);
 
         var recipe = Recipe.CreateNew(workspaceUser.Workspace, saveRequest.Title, saveRequest.Servings);
@@ -443,8 +506,7 @@ internal static class RecipesHandlers
         RecipeImportService recipeImportService,
         IS3StorageService s3StorageService,
         CancellationToken cancellationToken
-    )
-    {
+    ) {
         if (string.IsNullOrWhiteSpace(body.ImportImageUrl) || string.IsNullOrWhiteSpace(body.SourceUrl)) return;
 
         var payload = await recipeImportService.TryDownloadImportImageAsync(
@@ -462,8 +524,7 @@ internal static class RecipesHandlers
         recipe.SetImageObjectKey(key);
     }
 
-    private static SaveRecipeRequest ToSaveRecipeRequest(RecipeImportPreview preview)
-    {
+    private static SaveRecipeRequest ToSaveRecipeRequest(RecipeImportPreview preview) {
         return new SaveRecipeRequest(
             preview.Title,
             preview.Description,
@@ -477,14 +538,15 @@ internal static class RecipesHandlers
             preview.Ingredients
                 .OrderBy(ingredient => ingredient.SortOrder)
                 .Select(ingredient => new SaveRecipeIngredientRequest(
-                    ingredient.Name,
-                    ingredient.NormalizedIngredientName,
-                    ingredient.Amount,
-                    ingredient.Unit,
-                    ingredient.PreparationNote,
-                    ingredient.Section,
-                    ingredient.DisplayText
-                ))
+                        ingredient.Name,
+                        ingredient.NormalizedIngredientName,
+                        ingredient.Amount,
+                        ingredient.Unit,
+                        ingredient.PreparationNote,
+                        ingredient.Section,
+                        ingredient.DisplayText
+                    )
+                )
                 .ToArray(),
             preview.Steps
                 .OrderBy(step => step.SortOrder)
@@ -494,7 +556,8 @@ internal static class RecipesHandlers
                 ? null
                 : new SaveRecipeNutritionRequest(
                     preview.Nutrition.ServingBasis,
-                    preview.Nutrition.Nutrients
+                    preview.Nutrition
+                        .Nutrients
                         .Select(nutrient => new SaveRecipeNutrientRequest(nutrient.NutrientType, nutrient.Amount))
                         .ToArray()
                 ),
@@ -502,8 +565,7 @@ internal static class RecipesHandlers
         );
     }
 
-    private static void ApplyRecipe(Recipe recipe, SaveRecipeRequest body)
-    {
+    private static void ApplyRecipe(Recipe recipe, SaveRecipeRequest body) {
         recipe.UpdateDetails(
             body.Title,
             body.Description,
@@ -513,27 +575,31 @@ internal static class RecipesHandlers
             body.PrepMinutes,
             body.CookMinutes,
             body.IsArchived,
-            body.Tags
+            RecipeTagWhitelist.NormalizeToWhitelist(body.Tags)
         );
 
-        recipe.ReplaceIngredients(body.Ingredients.Select((ingredient, index) =>
-            RecipeIngredient.CreateNew(
-                index,
-                ingredient.Name,
-                ingredient.DisplayText,
-                ingredient.Amount,
-                ingredient.Unit,
-                ingredient.NormalizedIngredientName,
-                ingredient.PreparationNote,
-                ingredient.Section
+        recipe.ReplaceIngredients(
+            body.Ingredients.Select((ingredient, index) => RecipeIngredient.CreateNew(
+                    index,
+                    ingredient.Name,
+                    ingredient.DisplayText,
+                    ingredient.Amount,
+                    ingredient.Unit,
+                    ingredient.NormalizedIngredientName,
+                    ingredient.PreparationNote,
+                    ingredient.Section
+                )
             )
-        ));
+        );
 
-        recipe.ReplaceSteps(body.Steps.Select((step, index) => RecipeStep.CreateNew(index, step.Instruction, step.TimerSeconds)));
+        recipe.ReplaceSteps(
+            body.Steps.Select((step, index) => RecipeStep.CreateNew(index, step.Instruction, step.TimerSeconds))
+        );
 
         recipe.SetNutrition(
             body.Nutrition?.ServingBasis,
-            body.Nutrition?.Nutrients
+            body.Nutrition
+                ?.Nutrients
                 .GroupBy(nutrient => nutrient.NutrientType.Trim(), StringComparer.OrdinalIgnoreCase)
                 .Select(group => RecipeNutrition.CreateNew(group.Key, group.Last().Amount))
                 .ToArray()
@@ -551,8 +617,7 @@ internal static class MealPlanEntriesHandlers
         Guid workspaceId,
         DateOnly? from,
         DateOnly? to
-    )
-    {
+    ) {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -579,8 +644,7 @@ internal static class MealPlanEntriesHandlers
         ApiDbContext db,
         Guid workspaceId,
         [FromBody] SaveMealPlanEntryRequest body
-    )
-    {
+    ) {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
@@ -614,8 +678,7 @@ internal static class MealPlanEntriesHandlers
         Guid workspaceId,
         Guid mealPlanEntryId,
         [FromBody] SaveMealPlanEntryRequest body
-    )
-    {
+    ) {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -628,8 +691,7 @@ internal static class MealPlanEntriesHandlers
 
         if (entry is null) throw new EntityNotFoundException("Meal-plan entry not found", null);
 
-        if (entry.RecipeId != body.RecipeId)
-        {
+        if (entry.RecipeId != body.RecipeId) {
             var recipe = await db.Recipes
                 .ForCurrentUser(currentUserId)
                 .WhereIsNotDeleted()
@@ -653,8 +715,7 @@ internal static class MealPlanEntriesHandlers
         ApiDbContext db,
         Guid workspaceId,
         Guid mealPlanEntryId
-    )
-    {
+    ) {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -679,8 +740,7 @@ internal static class ShoppingListsHandlers
         CurrentUserService currentUserService,
         ApiDbContext db,
         Guid workspaceId
-    )
-    {
+    ) {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -703,8 +763,7 @@ internal static class ShoppingListsHandlers
         ApiDbContext db,
         Guid workspaceId,
         Guid shoppingListId
-    )
-    {
+    ) {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -730,8 +789,7 @@ internal static class ShoppingListsHandlers
         Guid workspaceId,
         [FromBody] GenerateShoppingListRequest body,
         CancellationToken cancellationToken
-    )
-    {
+    ) {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
@@ -752,39 +810,53 @@ internal static class ShoppingListsHandlers
             .ToArrayAsync();
 
         var sources = recipes.Select(recipe => new ShoppingListGenerationSource(
-                recipe.Id,
-                null,
-                recipe.Title,
-                recipe.Servings,
-                recipe.Servings,
-                recipe.Ingredients.Select(ingredient => new ShoppingListGenerationIngredient(
-                    ingredient.Name,
-                    ingredient.NormalizedIngredientName,
-                    ingredient.Amount,
-                    ingredient.Unit,
-                    ingredient.PreparationNote,
-                    ingredient.Section
-                )).ToArray()
-            ))
-            .Concat(entries.Select(entry => new ShoppingListGenerationSource(
-                entry.RecipeId,
-                entry.Id,
-                $"{entry.Recipe.Title} ({entry.PlannedDate:yyyy-MM-dd})",
-                entry.Recipe.Servings,
-                entry.TargetServings ?? entry.Recipe.Servings,
-                entry.Recipe.Ingredients.Select(ingredient => new ShoppingListGenerationIngredient(
-                    ingredient.Name,
-                    ingredient.NormalizedIngredientName,
-                    ingredient.Amount,
-                    ingredient.Unit,
-                    ingredient.PreparationNote,
-                    ingredient.Section
-                )).ToArray()
-            )))
+                    recipe.Id,
+                    null,
+                    recipe.Title,
+                    recipe.Servings,
+                    recipe.Servings,
+                    recipe.Ingredients
+                        .Select(ingredient => new ShoppingListGenerationIngredient(
+                                ingredient.Name,
+                                ingredient.NormalizedIngredientName,
+                                ingredient.Amount,
+                                ingredient.Unit,
+                                ingredient.PreparationNote,
+                                ingredient.Section
+                            )
+                        )
+                        .ToArray()
+                )
+            )
+            .Concat(
+                entries.Select(entry => new ShoppingListGenerationSource(
+                        entry.RecipeId,
+                        entry.Id,
+                        $"{entry.Recipe.Title} ({entry.PlannedDate:yyyy-MM-dd})",
+                        entry.Recipe.Servings,
+                        entry.TargetServings ?? entry.Recipe.Servings,
+                        entry.Recipe
+                            .Ingredients
+                            .Select(ingredient => new ShoppingListGenerationIngredient(
+                                    ingredient.Name,
+                                    ingredient.NormalizedIngredientName,
+                                    ingredient.Amount,
+                                    ingredient.Unit,
+                                    ingredient.PreparationNote,
+                                    ingredient.Section
+                                )
+                            )
+                            .ToArray()
+                    )
+                )
+            )
             .ToArray();
 
         if (sources.Length == 0)
-            throw new InvalidFormatException("Shopping list generation failed", "No valid recipes or plan entries were selected.");
+            throw new InvalidFormatException(
+                "Shopping list generation failed",
+                "No valid recipes or plan entries were selected."
+            );
 
         var shoppingList = await shoppingListGenerationService.BuildFromSourcesAsync(
             workspaceUser.Workspace,
@@ -814,8 +886,7 @@ internal static class ShoppingListsHandlers
         Guid workspaceId,
         Guid shoppingListId,
         [FromBody] SaveShoppingListRequest body
-    )
-    {
+    ) {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -840,8 +911,7 @@ internal static class ShoppingListsHandlers
         ApiDbContext db,
         Guid workspaceId,
         Guid shoppingListId
-    )
-    {
+    ) {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -866,8 +936,7 @@ internal static class ShoppingListsHandlers
         Guid workspaceId,
         Guid shoppingListId,
         [FromBody] SaveShoppingListItemRequest body
-    )
-    {
+    ) {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -925,8 +994,7 @@ internal static class ShoppingListsHandlers
         Guid shoppingListId,
         Guid itemId,
         [FromBody] SaveShoppingListItemRequest body
-    )
-    {
+    ) {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -969,8 +1037,7 @@ internal static class ShoppingListsHandlers
         Guid workspaceId,
         Guid shoppingListId,
         Guid itemId
-    )
-    {
+    ) {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 

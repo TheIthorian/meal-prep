@@ -1,9 +1,7 @@
 import type { RecipeIngredient } from '@/models/meal-prep';
 import { formatAmount } from '@/lib/meal-prep';
 
-export type InstructionSegment =
-    | { kind: 'text'; text: string }
-    | { kind: 'bracket'; bracket: string; key: string };
+export type InstructionSegment = { kind: 'text'; text: string } | { kind: 'bracket'; bracket: string; key: string };
 
 function escapeRegExp(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

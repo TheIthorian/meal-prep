@@ -31,7 +31,9 @@ export function MealPlanEntryDialog({
     const [open, setOpen] = useState(false);
     const [isSaving, setSaving] = useState(false);
     const [recipeId, setRecipeId] = useState(entry?.recipeId ?? recipes[0]?.id ?? '');
-    const [plannedDate, setPlannedDate] = useState(entry?.plannedDate ?? selectedDate ?? new Date().toISOString().slice(0, 10));
+    const [plannedDate, setPlannedDate] = useState(
+        entry?.plannedDate ?? selectedDate ?? new Date().toISOString().slice(0, 10),
+    );
     const [mealType, setMealType] = useState(entry?.mealType ?? defaultMealType ?? 'dinner');
     const [targetServings, setTargetServings] = useState<string>(entry?.targetServings?.toString() ?? '');
     const [notes, setNotes] = useState(entry?.notes ?? '');
@@ -112,7 +114,11 @@ export function MealPlanEntryDialog({
                     <div className='grid gap-4 md:grid-cols-2'>
                         <div className='space-y-2'>
                             <label className='text-sm font-medium'>Date</label>
-                            <Input type='date' value={plannedDate} onChange={event => setPlannedDate(event.target.value)} />
+                            <Input
+                                type='date'
+                                value={plannedDate}
+                                onChange={event => setPlannedDate(event.target.value)}
+                            />
                         </div>
                         <div className='space-y-2'>
                             <label className='text-sm font-medium'>Meal Type</label>
@@ -132,7 +138,13 @@ export function MealPlanEntryDialog({
                     <div className='grid gap-4 md:grid-cols-2'>
                         <div className='space-y-2'>
                             <label className='text-sm font-medium'>Target Servings</label>
-                            <Input type='number' min='1' step='0.5' value={targetServings} onChange={event => setTargetServings(event.target.value)} />
+                            <Input
+                                type='number'
+                                min='1'
+                                step='0.5'
+                                value={targetServings}
+                                onChange={event => setTargetServings(event.target.value)}
+                            />
                         </div>
                         <div className='space-y-2'>
                             <label className='text-sm font-medium'>Status</label>
@@ -148,7 +160,11 @@ export function MealPlanEntryDialog({
                     </div>
                     <div className='space-y-2'>
                         <label className='text-sm font-medium'>Notes</label>
-                        <Textarea value={notes} onChange={event => setNotes(event.target.value)} placeholder='Optional notes for this meal.' />
+                        <Textarea
+                            value={notes}
+                            onChange={event => setNotes(event.target.value)}
+                            placeholder='Optional notes for this meal.'
+                        />
                     </div>
                     <div className='flex items-center justify-between gap-3'>
                         {entry && onDeleted ? (

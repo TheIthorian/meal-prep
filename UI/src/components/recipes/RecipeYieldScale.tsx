@@ -1,7 +1,5 @@
-import { Minus, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Slider } from '@/components/ui/slider';
+import { formatAmount } from '@/lib/meal-prep';
 import { cn } from '@/lib/utils';
 
 interface RecipeYieldScaleProps {
@@ -13,9 +11,19 @@ interface RecipeYieldScaleProps {
     className?: string;
 }
 
-function clampServings(value: number): number {
-    if (!Number.isFinite(value)) return 1;
-    return Math.min(99, Math.max(1, Math.round(value)));
+/** Clamp to slider range ×⅛…×8 in servings; allow fractions so ×⅛ works for small base yields. */
+function clampTargetServings(value: number, baseServings: number): number {
+    if (!(baseServings > 0) || !Number.isFinite(value)) return Math.max(1, baseServings);
+    const min = baseServings / 8;
+    const max = Math.min(99, baseServings * 8);
+    const clamped = Math.min(max, Math.max(min, value));
+    return Number(clamped.toFixed(3));
+}
+
+function formatTargetServingsLabel(n: number): string {
+    if (!Number.isFinite(n)) return '—';
+    if (Math.abs(n - Math.round(n)) < 1e-4) return String(Math.round(n));
+    return formatAmount(n);
 }
 
 function formatYieldRatio(targetServings: number, baseServings: number): string {
@@ -26,78 +34,104 @@ function formatYieldRatio(targetServings: number, baseServings: number): string 
     return String(Number(r.toFixed(3)));
 }
 
+/** Maps multiplier ratio r to slider position 0–100; ⅛→0, 1→50, 8→100 on log₈ scale. */
+function ratioToSliderPercent(ratio: number): number {
+    if (!(ratio > 0) || !Number.isFinite(ratio)) return 50;
+    const log8 = Math.log(ratio) / Math.LN2 / 3;
+    const t = (log8 + 1) / 2;
+    const pct = Math.round(t * 100);
+    return Math.min(100, Math.max(0, pct));
+}
+
+function sliderPercentToMultiplier(percent: number): number {
+    const t = percent / 100;
+    return Math.pow(8, 2 * t - 1);
+}
+
 export function RecipeYieldScale({
     baseServings,
     targetServings,
     onTargetServingsChange,
     className,
 }: RecipeYieldScaleProps) {
-    const step = 1;
+    const ratio = baseServings > 0 ? targetServings / baseServings : 1;
+    const sliderPercent = ratioToSliderPercent(ratio);
+    const scaleLabel = formatYieldRatio(targetServings, baseServings);
+    const isScaled = Math.abs(targetServings - baseServings) > 0.001;
 
     return (
-        <div className={cn('flex flex-col gap-1.5', className)}>
-            <div className='flex flex-wrap items-center gap-2'>
-                <span className='text-sm font-medium text-foreground'>Yield</span>
-                <div className='flex items-center gap-1'>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                type='button'
-                                variant='outline'
-                                size='icon'
-                                className='h-8 w-8 shrink-0'
-                                aria-label='Decrease servings'
-                                onClick={() => onTargetServingsChange(clampServings(targetServings - step))}
+        <div
+            className={cn(
+                'rounded-2xl border border-border/60 bg-muted/25 p-4 shadow-sm backdrop-blur-sm dark:border-border/40 dark:bg-muted/15',
+                className,
+            )}
+        >
+            <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6'>
+                <div className='min-w-0 flex-1 space-y-3'>
+                    <div>
+                        <h3 className='text-sm font-semibold tracking-tight text-foreground'>Yield</h3>
+                        <p className='mt-1 text-xs leading-relaxed text-muted-foreground'>
+                            Recipe written for{' '}
+                            <span className='whitespace-nowrap tabular-nums font-medium text-foreground'>
+                                {baseServings}
+                            </span>{' '}
+                            {baseServings === 1 ? 'serving' : 'servings'}
+                            {isScaled ? (
+                                <>
+                                    {' '}
+                                    <span className='text-border'>·</span> ingredients ×
+                                    <span className='whitespace-nowrap tabular-nums font-medium text-foreground'>
+                                        {scaleLabel}
+                                    </span>
+                                </>
+                            ) : null}
+                        </p>
+                    </div>
+
+                    <div className='space-y-2.5'>
+                        <div className='relative px-1 pt-0.5'>
+                            {/* Tick marks aligned to log scale endpoints (⅛, 1, 8). */}
+                            <div
+                                className='pointer-events-none absolute inset-x-0 top-[calc(50%-2px)] flex justify-between px-[7px]'
+                                aria-hidden
                             >
-                                <Minus className='h-4 w-4' />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side='bottom'>Decrease servings</TooltipContent>
-                    </Tooltip>
-                    <Input
-                        type='number'
-                        min={1}
-                        max={99}
-                        step={1}
-                        value={targetServings}
-                        onChange={event => {
-                            const n = Number(event.target.value);
-                            onTargetServingsChange(clampServings(n));
-                        }}
-                        className='h-8 w-[4.5rem] text-center tabular-nums'
-                    />
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                type='button'
-                                variant='outline'
-                                size='icon'
-                                className='h-8 w-8 shrink-0'
-                                aria-label='Increase servings'
-                                onClick={() => onTargetServingsChange(clampServings(targetServings + step))}
-                            >
-                                <Plus className='h-4 w-4' />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side='bottom'>Increase servings</TooltipContent>
-                    </Tooltip>
+                                <span className='h-2 w-px rounded-full bg-muted-foreground/30' />
+                                <span className='h-2 w-px rounded-full bg-muted-foreground/30' />
+                                <span className='h-2 w-px rounded-full bg-muted-foreground/30' />
+                            </div>
+                            <Slider
+                                min={0}
+                                max={100}
+                                step={1}
+                                value={[sliderPercent]}
+                                onValueChange={values => {
+                                    const pct = values[0] ?? 50;
+                                    const m = sliderPercentToMultiplier(pct);
+                                    onTargetServingsChange(clampTargetServings(baseServings * m, baseServings));
+                                }}
+                                aria-label='Scale recipe yield'
+                                trackClassName='h-2.5 border border-border/50 bg-background/80 shadow-inner dark:bg-background/40'
+                                rangeClassName='bg-gradient-to-r from-primary/85 to-primary shadow-[0_0_12px_-2px_hsl(var(--primary)/0.45)]'
+                                thumbClassName='h-[1.375rem] w-[1.375rem] border-primary/90 bg-background shadow-md ring-4 ring-background/80 transition-[box-shadow,transform] hover:scale-105 hover:shadow-lg active:scale-95'
+                            />
+                        </div>
+                        <div className='flex justify-between px-0.5 font-mono text-[11px] font-medium tabular-nums tracking-tight text-muted-foreground'>
+                            <span className='whitespace-nowrap'>×⅛</span>
+                            <span className='whitespace-nowrap text-foreground/80'>×1</span>
+                            <span className='whitespace-nowrap'>×8</span>
+                        </div>
+                    </div>
                 </div>
-                <span className='text-sm text-muted-foreground'>servings</span>
+
+                <div className='flex shrink-0 flex-col items-stretch rounded-xl border border-border/50 bg-background/60 px-4 py-3 text-center shadow-sm dark:bg-background/30 sm:min-w-[7.5rem] sm:items-center sm:py-3.5'>
+                    <span className='text-[10px] font-medium uppercase tracking-widest text-muted-foreground'>
+                        Servings
+                    </span>
+                    <span className='mt-0.5 text-3xl font-semibold leading-none tracking-tight tabular-nums text-foreground'>
+                        {formatTargetServingsLabel(targetServings)}
+                    </span>
+                </div>
             </div>
-            <p className='text-xs text-muted-foreground'>
-                Recipe written for{' '}
-                <span className='whitespace-nowrap tabular-nums font-medium text-foreground'>{baseServings}</span>{' '}
-                {baseServings === 1 ? 'serving' : 'servings'}
-                {Math.abs(targetServings - baseServings) > 0.001 ? (
-                    <>
-                        {' '}
-                        · Ingredients scaled ×
-                        <span className='whitespace-nowrap tabular-nums font-medium text-foreground'>
-                            {formatYieldRatio(targetServings, baseServings)}
-                        </span>
-                    </>
-                ) : null}
-            </p>
         </div>
     );
 }

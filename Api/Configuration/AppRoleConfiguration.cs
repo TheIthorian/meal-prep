@@ -1,8 +1,6 @@
 namespace Api.Configuration;
 
-public static class AppRoles
-{
-}
+public static class AppRoles { }
 
 /// <summary>
 ///     Registers the application role definitions.

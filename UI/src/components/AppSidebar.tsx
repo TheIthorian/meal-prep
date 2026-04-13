@@ -34,9 +34,7 @@ export function AppSidebar() {
     return (
         <Sidebar className={collapsed ? 'w-14' : 'w-[--sidebar-width]'} collapsible='icon'>
             <SidebarContent>
-                <div
-                    className={`flex h-14 items-center px-4 ${collapsed ? 'justify-center' : 'gap-2'}`}
-                >
+                <div className={`flex h-14 items-center px-4 ${collapsed ? 'justify-center' : 'gap-2'}`}>
                     <ChefHat className='h-7 w-7 shrink-0 text-sidebar-foreground' aria-hidden />
                     {!collapsed && <h1 className='text-xl font-bold text-sidebar-foreground'>Meal Prep</h1>}
                 </div>

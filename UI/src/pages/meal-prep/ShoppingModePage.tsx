@@ -154,7 +154,9 @@ export default function ShoppingModePage() {
                                 >
                                     {item.name}
                                 </span>
-                                <span className='ml-2 text-sm tabular-nums text-muted-foreground'>{item.displayText}</span>
+                                <span className='ml-2 text-sm tabular-nums text-muted-foreground'>
+                                    {item.displayText}
+                                </span>
                                 {item.sourceNames.length > 0 && (
                                     <span
                                         className={`mt-1 block text-sm ${

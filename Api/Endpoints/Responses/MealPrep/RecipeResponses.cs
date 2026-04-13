@@ -66,6 +66,10 @@ public record RecipeImportPreviewResponse(
     string? ImageUrl
 );
 
+public record RecipeTagListResponse(string[] Tags);
+
+public record SuggestRecipeTagsResponse(string[] Tags);
+
 /// <summary>
 ///     Maps recipe domain models and import previews to API responses.
 /// </summary>
@@ -80,7 +84,7 @@ public static class RecipeResponseTransforms
                 recipe.Description,
                 recipe.Servings,
                 recipe.IsArchived,
-                recipe.Tags,
+                RecipeTagWhitelist.NormalizeToWhitelist(recipe.Tags),
                 recipe.SourceUrl,
                 recipe.Ingredients.Count,
                 recipe.Steps.Count,
@@ -100,9 +104,12 @@ public static class RecipeResponseTransforms
                 recipe.PrepMinutes,
                 recipe.CookMinutes,
                 recipe.IsArchived,
-                recipe.Tags,
+                RecipeTagWhitelist.NormalizeToWhitelist(recipe.Tags),
                 !string.IsNullOrEmpty(recipe.ImageObjectKey),
-                recipe.Ingredients.OrderBy(ingredient => ingredient.SortOrder).Select(ingredient => ingredient.ToResponse()).ToArray(),
+                recipe.Ingredients
+                    .OrderBy(ingredient => ingredient.SortOrder)
+                    .Select(ingredient => ingredient.ToResponse())
+                    .ToArray(),
                 recipe.Steps.OrderBy(step => step.SortOrder).Select(step => step.ToResponse()).ToArray(),
                 recipe.ToNutritionResponse()
             );
@@ -163,27 +170,44 @@ public static class RecipeResponseTransforms
                 preview.SourceUrl,
                 preview.PrepMinutes,
                 preview.CookMinutes,
-                preview.Tags.ToArray(),
-                preview.Ingredients.Select(ingredient => new RecipeIngredientResponse(
-                    Guid.Empty,
-                    ingredient.SortOrder,
-                    ingredient.Name,
-                    ingredient.NormalizedIngredientName,
-                    ingredient.Amount,
-                    ingredient.Unit,
-                    ingredient.PreparationNote,
-                    ingredient.Section,
-                    ingredient.DisplayText
-                )).ToArray(),
-                preview.Steps.Select(step => new RecipeStepResponse(Guid.Empty, step.SortOrder, step.Instruction, step.TimerSeconds)).ToArray(),
+                RecipeTagWhitelist.NormalizeToWhitelist(preview.Tags),
+                preview.Ingredients
+                    .Select(ingredient => new RecipeIngredientResponse(
+                            Guid.Empty,
+                            ingredient.SortOrder,
+                            ingredient.Name,
+                            ingredient.NormalizedIngredientName,
+                            ingredient.Amount,
+                            ingredient.Unit,
+                            ingredient.PreparationNote,
+                            ingredient.Section,
+                            ingredient.DisplayText
+                        )
+                    )
+                    .ToArray(),
+                preview.Steps
+                    .Select(step => new RecipeStepResponse(
+                            Guid.Empty,
+                            step.SortOrder,
+                            step.Instruction,
+                            step.TimerSeconds
+                        )
+                    )
+                    .ToArray(),
                 preview.Nutrition is null
                     ? null
                     : new RecipeNutritionResponse(
                         preview.Nutrition.ServingBasis,
-                        preview.Nutrition.Nutrients
+                        preview.Nutrition
+                            .Nutrients
                             .OrderBy(nutrient => RecipeNutrientOrdering.GetSortIndex(nutrient.NutrientType))
                             .ThenBy(nutrient => nutrient.NutrientType)
-                            .Select(nutrient => new RecipeNutrientResponse(Guid.Empty, nutrient.NutrientType, nutrient.Amount))
+                            .Select(nutrient => new RecipeNutrientResponse(
+                                    Guid.Empty,
+                                    nutrient.NutrientType,
+                                    nutrient.Amount
+                                )
+                            )
                             .ToArray()
                     ),
                 preview.ImageUrl

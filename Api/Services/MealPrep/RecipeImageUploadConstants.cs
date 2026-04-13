@@ -8,10 +8,7 @@ public static class RecipeImageUploadConstants
     public const long MaxBytes = 15 * 1024 * 1024;
 
     public static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase) {
-        "image/jpeg",
-        "image/png",
-        "image/webp",
-        "image/gif",
+        "image/jpeg", "image/png", "image/webp", "image/gif",
     };
 
     public static bool IsAllowedContentType(string? contentType) {

@@ -10,13 +10,14 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, LogOut, ChevronDown } from 'lucide-react';
+import { User, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { analyticsEvents, useAnalytics, withWorkspaceProperties } from '@/lib/analytics';
+import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher';
 
 export function AppHeader() {
     const { user, logout } = useAuth();
-    const { currentWorkspace, workspaces, setCurrentWorkspaceId } = useWorkspace();
+    const { currentWorkspace } = useWorkspace();
     const navigate = useNavigate();
     const { capture } = useAnalytics();
 
@@ -30,35 +31,7 @@ export function AppHeader() {
         <header className='flex h-14 min-w-0 items-center justify-between gap-2 border-b border-border bg-card px-3 sm:px-4'>
             <div className='flex min-w-0 flex-1 items-center gap-2 sm:gap-4'>
                 <SidebarTrigger className='shrink-0' />
-
-                {workspaces.length > 0 && (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button
-                                variant='outline'
-                                className='min-w-0 max-w-[min(180px,50vw)] gap-1 sm:max-w-none sm:gap-2'
-                            >
-                                <span className='truncate'>{currentWorkspace?.name || 'Select Workspace'}</span>
-                                <ChevronDown className='h-4 w-4 shrink-0' />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align='start'>
-                            <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {workspaces.map(workspace => (
-                                <DropdownMenuItem
-                                    key={workspace.workspaceId}
-                                    onClick={() => {
-                                        setCurrentWorkspaceId(workspace.workspaceId);
-                                        navigate(`/workspaces/${workspace.workspaceId}/`);
-                                    }}
-                                >
-                                    {workspace.name}
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                )}
+                <WorkspaceSwitcher />
             </div>
 
             <DropdownMenu>

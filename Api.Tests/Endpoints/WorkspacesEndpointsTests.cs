@@ -12,14 +12,12 @@ public sealed class WorkspacesEndpointsTests : IClassFixture<ApiWebApplicationFa
 {
     private readonly ApiWebApplicationFactory factory;
 
-    public WorkspacesEndpointsTests(ApiWebApplicationFactory factory)
-    {
+    public WorkspacesEndpointsTests(ApiWebApplicationFactory factory) {
         this.factory = factory;
     }
 
     [Fact]
-    public async Task GetWorkspaces_WithoutAuthHeader_ReturnsUnauthorized()
-    {
+    public async Task GetWorkspaces_WithoutAuthHeader_ReturnsUnauthorized() {
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
         var response = await client.GetAsync("/api/v1/workspaces");
@@ -28,8 +26,7 @@ public sealed class WorkspacesEndpointsTests : IClassFixture<ApiWebApplicationFa
     }
 
     [Fact]
-    public async Task PostWorkspace_WithAuthenticatedUser_CreatesWorkspaceMembership()
-    {
+    public async Task PostWorkspace_WithAuthenticatedUser_CreatesWorkspaceMembership() {
         var (userId, _) = await factory.SeedUserWithWorkspaceAsync("Seeder Workspace");
         using var client = factory.CreateAuthenticatedClient(userId);
 
@@ -53,13 +50,11 @@ public sealed class WorkspacesEndpointsTests : IClassFixture<ApiWebApplicationFa
     }
 
     [Fact]
-    public async Task GetWorkspaces_ReturnsOnlyCurrentUsersWorkspaces()
-    {
+    public async Task GetWorkspaces_ReturnsOnlyCurrentUsersWorkspaces() {
         var (userA, workspaceA1) = await factory.SeedUserWithWorkspaceAsync("User A - Alpha");
         await factory.SeedUserWithWorkspaceAsync("User B - Hidden");
 
-        using (var scope = factory.Services.CreateScope())
-        {
+        using (var scope = factory.Services.CreateScope()) {
             var db = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
             var user = db.Users.First(u => u.Id == userA);
             var secondWorkspace = Workspace.CreateNew("User A - Beta");

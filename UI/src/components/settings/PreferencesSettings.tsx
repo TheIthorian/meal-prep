@@ -64,10 +64,7 @@ export function PreferencesSettings() {
             <CardContent className='space-y-6 pt-6'>
                 <div className='space-y-2'>
                     <Label htmlFor='settings-theme'>Theme</Label>
-                    <Select
-                        value={theme}
-                        onValueChange={(value: 'light' | 'dark' | 'system') => setTheme(value)}
-                    >
+                    <Select value={theme} onValueChange={(value: 'light' | 'dark' | 'system') => setTheme(value)}>
                         <SelectTrigger id='settings-theme' className='max-w-md'>
                             <SelectValue />
                         </SelectTrigger>
@@ -84,10 +81,7 @@ export function PreferencesSettings() {
                 <div className='space-y-4'>
                     <div className='space-y-2'>
                         <Label htmlFor='settings-date-format'>Date format</Label>
-                        <Select
-                            value={dateFormat}
-                            onValueChange={value => setDateFormat(value as DateFormatId)}
-                        >
+                        <Select value={dateFormat} onValueChange={value => setDateFormat(value as DateFormatId)}>
                             <SelectTrigger id='settings-date-format' className='max-w-md'>
                                 <SelectValue />
                             </SelectTrigger>

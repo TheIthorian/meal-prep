@@ -32,8 +32,9 @@ public static class ApplicationServiceCollectionExtensions
             services.AddProblemDetails();
             services.AddExceptionHandler<GlobalExceptionHandler>();
             services.Configure<FormOptions>(options => {
-                options.MultipartBodyLengthLimit = RecipeImageUploadConstants.MaxBytes;
-            });
+                    options.MultipartBodyLengthLimit = RecipeImageUploadConstants.MaxBytes;
+                }
+            );
             services.AddAppRateLimiting();
 
             services.AddSingleton<IFilterConfigurationProvider>(_ => {
@@ -63,13 +64,17 @@ public static class ApplicationServiceCollectionExtensions
             services.AddScoped<ShoppingListGenerationService>();
             services.AddSingleton<RecipeImportLlmParser>();
             services.AddSingleton<IngredientCategoryLlmService>();
+            services.AddSingleton<RecipeTagSuggestionService>();
             services.AddHttpClient<RecipeImportService>();
             services.AddHttpClient(RecipeImportService.RecipeImageImportHttpClientName)
                 .ConfigureHttpClient(client => client.DefaultRequestHeaders.UserAgent.ParseAdd("MealPrepBot/1.0"))
                 .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler {
-                    AllowAutoRedirect = false,
-                    AutomaticDecompression = DecompressionMethods.Brotli | DecompressionMethods.GZip | DecompressionMethods.Deflate,
-                });
+                        AllowAutoRedirect = false,
+                        AutomaticDecompression = DecompressionMethods.Brotli
+                                                 | DecompressionMethods.GZip
+                                                 | DecompressionMethods.Deflate,
+                    }
+                );
         }
     }
 }

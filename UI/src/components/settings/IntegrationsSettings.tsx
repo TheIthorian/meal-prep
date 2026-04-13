@@ -108,9 +108,7 @@ export function IntegrationsSettings() {
         mutationFn: (tokenId: string) => mcpAccessTokensApi.revoke(tokenId),
         onSuccess: (_data, tokenId) => {
             const row = tokens.find(t => t.id === tokenId);
-            const workspaceMeta = row
-                ? user?.workspaces.find(w => w.workspaceId === row.workspaceId)
-                : undefined;
+            const workspaceMeta = row ? user?.workspaces.find(w => w.workspaceId === row.workspaceId) : undefined;
             capture(analyticsEvents.mcpAccessTokenRevoked, withWorkspaceProperties(workspaceMeta));
             queryClient.invalidateQueries({ queryKey: ['mcp-access-tokens'] });
             toast({ title: 'Connection revoked' });
@@ -133,10 +131,7 @@ export function IntegrationsSettings() {
     }
 
     const sortedTokens = useMemo(
-        () =>
-            [...tokens].sort(
-                (a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime(),
-            ),
+        () => [...tokens].sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime()),
         [tokens],
     );
 
@@ -163,8 +158,8 @@ export function IntegrationsSettings() {
                                 <div className='min-w-0'>
                                     <CardTitle className='text-lg'>MCP server</CardTitle>
                                     <CardDescription className='mt-1.5'>
-                                        Connect Cursor, Claude, or other MCP clients to your Meal Prep workspace using
-                                        a personal server URL. Each URL is scoped to one workspace and can be revoked
+                                        Connect Cursor, Claude, or other MCP clients to your Meal Prep workspace using a
+                                        personal server URL. Each URL is scoped to one workspace and can be revoked
                                         anytime.
                                     </CardDescription>
                                 </div>
@@ -297,8 +292,7 @@ export function IntegrationsSettings() {
                                                             {row.name?.trim() || 'Unnamed'}
                                                         </TableCell>
                                                         <TableCell>
-                                                            {workspaceNameById.get(row.workspaceId) ??
-                                                                row.workspaceId}
+                                                            {workspaceNameById.get(row.workspaceId) ?? row.workspaceId}
                                                         </TableCell>
                                                         <TableCell className='whitespace-nowrap'>
                                                             {formatTokenTimestamp(row.createdAt)}
@@ -353,8 +347,8 @@ export function IntegrationsSettings() {
                     <DialogHeader>
                         <DialogTitle>MCP server URL</DialogTitle>
                         <DialogDescription>
-                            Add this URL in your MCP client as the server address. Store it securely; anyone with the URL
-                            can access this workspace through Meal Prep.
+                            Add this URL in your MCP client as the server address. Store it securely; anyone with the
+                            URL can access this workspace through Meal Prep.
                         </DialogDescription>
                     </DialogHeader>
                     <div className='space-y-2'>

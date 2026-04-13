@@ -10,9 +10,7 @@ public class AppRoleConfigurationTests
     public void GetAppRoles_ReadsPluralEnvironmentVariable() {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(
-                new Dictionary<string, string?> {
-                    ["APP_ROLES"] = "api,worker:payments"
-                }
+                new Dictionary<string, string?> { ["APP_ROLES"] = "api,worker:payments" }
             )
             .Build();
 

@@ -31,14 +31,7 @@ export interface RecipeStep {
 }
 
 /** Matches API nutrient type strings (see RecipeNutrientTypes on the server). */
-export type RecipeNutrientType =
-    | 'calories'
-    | 'protein'
-    | 'carbohydrate'
-    | 'fat'
-    | 'fiber'
-    | 'sugar'
-    | 'sodium';
+export type RecipeNutrientType = 'calories' | 'protein' | 'carbohydrate' | 'fat' | 'fiber' | 'sugar' | 'sodium';
 
 export interface RecipeNutrient {
     id: string;
@@ -110,6 +103,21 @@ export interface SaveRecipeRequest {
     steps: SaveRecipeStepRequest[];
     nutrition?: SaveRecipeNutritionRequest | null;
     importImageUrl?: string | null;
+}
+
+export interface RecipeTagListResponse {
+    tags: string[];
+}
+
+export interface SuggestRecipeTagsRequest {
+    title: string;
+    description?: string | null;
+    ingredientNames?: string[];
+    stepInstructions?: string[];
+}
+
+export interface SuggestRecipeTagsResponse {
+    tags: string[];
 }
 
 export interface RecipeImportPreview {

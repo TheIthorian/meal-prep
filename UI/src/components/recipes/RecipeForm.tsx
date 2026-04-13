@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { Recipe } from '@/models/meal-prep';
 import { buildIngredientDisplay, getNutrientAmount, setNutrientAmount, setServingBasis } from '@/lib/meal-prep';
+import { RecipeTagsField } from '@/components/recipes/RecipeTagsField';
 import { Trash2 } from 'lucide-react';
 
 interface RecipeFormProps {
@@ -12,9 +13,11 @@ interface RecipeFormProps {
     onChange: (recipe: Recipe) => void;
     onSubmit: () => void;
     onDelete?: () => void;
+    /** When set, tags are chosen from the server whitelist with optional AI suggestions. */
+    workspaceId?: string;
 }
 
-export function RecipeForm({ recipe, isSaving, onChange, onSubmit, onDelete }: RecipeFormProps) {
+export function RecipeForm({ recipe, isSaving, onChange, onSubmit, onDelete, workspaceId }: RecipeFormProps) {
     const updateRecipe = <K extends keyof Recipe>(key: K, value: Recipe[K]) => {
         onChange({ ...recipe, [key]: value });
     };
@@ -60,7 +63,11 @@ export function RecipeForm({ recipe, isSaving, onChange, onSubmit, onDelete }: R
                     <div className='grid gap-4 md:grid-cols-2'>
                         <div className='space-y-2 md:col-span-2'>
                             <label className='text-sm font-medium'>Title</label>
-                            <Input value={recipe.title} onChange={event => updateRecipe('title', event.target.value)} placeholder='Creamy tomato pasta' />
+                            <Input
+                                value={recipe.title}
+                                onChange={event => updateRecipe('title', event.target.value)}
+                                placeholder='Creamy tomato pasta'
+                            />
                         </div>
                         <div className='space-y-2 md:col-span-2'>
                             <label className='text-sm font-medium'>Description</label>
@@ -82,7 +89,11 @@ export function RecipeForm({ recipe, isSaving, onChange, onSubmit, onDelete }: R
                         </div>
                         <div className='space-y-2'>
                             <label className='text-sm font-medium'>Source URL</label>
-                            <Input value={recipe.sourceUrl ?? ''} onChange={event => updateRecipe('sourceUrl', event.target.value)} placeholder='https://example.com/recipe' />
+                            <Input
+                                value={recipe.sourceUrl ?? ''}
+                                onChange={event => updateRecipe('sourceUrl', event.target.value)}
+                                placeholder='https://example.com/recipe'
+                            />
                         </div>
                         <div className='space-y-2'>
                             <label className='text-sm font-medium'>Prep Minutes</label>
@@ -90,7 +101,12 @@ export function RecipeForm({ recipe, isSaving, onChange, onSubmit, onDelete }: R
                                 type='number'
                                 min='0'
                                 value={recipe.prepMinutes ?? ''}
-                                onChange={event => updateRecipe('prepMinutes', event.target.value === '' ? null : Number(event.target.value))}
+                                onChange={event =>
+                                    updateRecipe(
+                                        'prepMinutes',
+                                        event.target.value === '' ? null : Number(event.target.value),
+                                    )
+                                }
                             />
                         </div>
                         <div className='space-y-2'>
@@ -99,24 +115,43 @@ export function RecipeForm({ recipe, isSaving, onChange, onSubmit, onDelete }: R
                                 type='number'
                                 min='0'
                                 value={recipe.cookMinutes ?? ''}
-                                onChange={event => updateRecipe('cookMinutes', event.target.value === '' ? null : Number(event.target.value))}
+                                onChange={event =>
+                                    updateRecipe(
+                                        'cookMinutes',
+                                        event.target.value === '' ? null : Number(event.target.value),
+                                    )
+                                }
                             />
                         </div>
                         <div className='space-y-2 md:col-span-2'>
-                            <label className='text-sm font-medium'>Tags</label>
-                            <Input
-                                value={tagsValue}
-                                onChange={event =>
-                                    updateRecipe(
-                                        'tags',
-                                        event.target.value
-                                            .split(',')
-                                            .map(value => value.trim())
-                                            .filter(Boolean),
-                                    )
-                                }
-                                placeholder='dinner, quick, vegetarian'
-                            />
+                            {workspaceId ? (
+                                <RecipeTagsField
+                                    workspaceId={workspaceId}
+                                    selectedTags={recipe.tags}
+                                    onChange={tags => updateRecipe('tags', tags)}
+                                    title={recipe.title}
+                                    description={recipe.description}
+                                    ingredientNames={recipe.ingredients.map(i => i.name).filter(Boolean)}
+                                    stepInstructions={recipe.steps.map(s => s.instruction).filter(Boolean)}
+                                />
+                            ) : (
+                                <>
+                                    <label className='text-sm font-medium'>Tags</label>
+                                    <Input
+                                        value={tagsValue}
+                                        onChange={event =>
+                                            updateRecipe(
+                                                'tags',
+                                                event.target.value
+                                                    .split(',')
+                                                    .map(value => value.trim())
+                                                    .filter(Boolean),
+                                            )
+                                        }
+                                        placeholder='dinner, quick, vegetarian (kebab-case from server whitelist)'
+                                    />
+                                </>
+                            )}
                         </div>
                         <div className='space-y-2 md:col-span-2'>
                             <label className='text-sm font-medium'>Notes</label>
@@ -160,7 +195,10 @@ export function RecipeForm({ recipe, isSaving, onChange, onSubmit, onDelete }: R
                 </CardHeader>
                 <CardContent className='space-y-4'>
                     {recipe.ingredients.map((ingredient, index) => (
-                        <div key={ingredient.id || `${ingredient.name}-${index}`} className='rounded-xl border border-border p-4'>
+                        <div
+                            key={ingredient.id || `${ingredient.name}-${index}`}
+                            className='rounded-xl border border-border p-4'
+                        >
                             <div className='grid gap-3 md:grid-cols-12'>
                                 <div className='space-y-2 md:col-span-2'>
                                     <label className='text-sm font-medium'>Amount</label>
@@ -173,17 +211,27 @@ export function RecipeForm({ recipe, isSaving, onChange, onSubmit, onDelete }: R
                                 </div>
                                 <div className='space-y-2 md:col-span-2'>
                                     <label className='text-sm font-medium'>Unit</label>
-                                    <Input value={ingredient.unit ?? ''} onChange={event => updateIngredient(index, 'unit', event.target.value)} placeholder='g, ml, tbsp' />
+                                    <Input
+                                        value={ingredient.unit ?? ''}
+                                        onChange={event => updateIngredient(index, 'unit', event.target.value)}
+                                        placeholder='g, ml, tbsp'
+                                    />
                                 </div>
                                 <div className='space-y-2 md:col-span-4'>
                                     <label className='text-sm font-medium'>Ingredient</label>
-                                    <Input value={ingredient.name} onChange={event => updateIngredient(index, 'name', event.target.value)} placeholder='Cherry tomatoes' />
+                                    <Input
+                                        value={ingredient.name}
+                                        onChange={event => updateIngredient(index, 'name', event.target.value)}
+                                        placeholder='Cherry tomatoes'
+                                    />
                                 </div>
                                 <div className='space-y-2 md:col-span-3'>
                                     <label className='text-sm font-medium'>Preparation Note</label>
                                     <Input
                                         value={ingredient.preparationNote ?? ''}
-                                        onChange={event => updateIngredient(index, 'preparationNote', event.target.value)}
+                                        onChange={event =>
+                                            updateIngredient(index, 'preparationNote', event.target.value)
+                                        }
                                         placeholder='halved'
                                     />
                                 </div>
@@ -194,7 +242,9 @@ export function RecipeForm({ recipe, isSaving, onChange, onSubmit, onDelete }: R
                                         onClick={() =>
                                             onChange({
                                                 ...recipe,
-                                                ingredients: recipe.ingredients.filter((_, ingredientIndex) => ingredientIndex !== index),
+                                                ingredients: recipe.ingredients.filter(
+                                                    (_, ingredientIndex) => ingredientIndex !== index,
+                                                ),
                                             })
                                         }
                                     >
@@ -215,7 +265,15 @@ export function RecipeForm({ recipe, isSaving, onChange, onSubmit, onDelete }: R
                         onClick={() =>
                             onChange({
                                 ...recipe,
-                                steps: [...recipe.steps, { id: crypto.randomUUID(), sortOrder: recipe.steps.length, instruction: '', timerSeconds: null }],
+                                steps: [
+                                    ...recipe.steps,
+                                    {
+                                        id: crypto.randomUUID(),
+                                        sortOrder: recipe.steps.length,
+                                        instruction: '',
+                                        timerSeconds: null,
+                                    },
+                                ],
                             })
                         }
                     >
@@ -305,7 +363,10 @@ export function RecipeForm({ recipe, isSaving, onChange, onSubmit, onDelete }: R
                             value={recipe.nutrition?.servingBasis ?? ''}
                             onChange={event =>
                                 onChange(
-                                    setServingBasis(recipe, event.target.value === '' ? null : Number(event.target.value)),
+                                    setServingBasis(
+                                        recipe,
+                                        event.target.value === '' ? null : Number(event.target.value),
+                                    ),
                                 )
                             }
                         />

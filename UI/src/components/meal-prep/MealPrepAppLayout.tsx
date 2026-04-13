@@ -3,6 +3,7 @@ import { NavLink, Outlet, useParams } from 'react-router-dom';
 import { BookOpen, Calendar, ChefHat, ShoppingCart, Settings } from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import NotFoundError from '@/pages/NotFoundError';
+import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher';
 
 function workspacePath(workspaceId: string, subPath: string) {
     const trimmed = subPath.replace(/^\//, '');
@@ -36,12 +37,15 @@ export function MealPrepAppLayout() {
 
     return (
         <div className='flex min-h-screen flex-col bg-background'>
-            <header className='sticky top-0 z-30 hidden items-center justify-between border-b border-border bg-card/80 px-8 py-4 backdrop-blur-sm md:flex'>
-                <div className='flex items-center gap-2'>
-                    <ChefHat className='h-7 w-7 shrink-0 text-primary' aria-hidden />
-                    <h1 className='font-heading text-xl tracking-tight text-foreground'>Meal Prep</h1>
+            <header className='sticky top-0 z-30 hidden min-w-0 items-center justify-between gap-4 border-b border-border bg-card/80 px-4 py-4 backdrop-blur-sm md:flex lg:px-8'>
+                <div className='flex min-w-0 flex-1 items-center gap-3 lg:gap-4'>
+                    <div className='flex min-w-0 shrink-0 items-center gap-2'>
+                        <ChefHat className='h-7 w-7 shrink-0 text-primary' aria-hidden />
+                        <h1 className='font-heading truncate text-xl tracking-tight text-foreground'>Meal Prep</h1>
+                    </div>
+                    <WorkspaceSwitcher />
                 </div>
-                <nav className='flex items-center gap-1'>
+                <nav className='flex shrink-0 items-center gap-1'>
                     {navItems.map(item => (
                         <NavLink
                             key={item.to}

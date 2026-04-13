@@ -39,7 +39,7 @@ export default function CookingModePage() {
     useEffect(() => {
         if (!recipe) return;
         const base = recipe.servings > 0 ? recipe.servings : 1;
-        setTargetServings(Math.min(99, Math.max(1, Math.round(base))));
+        setTargetServings(Math.min(99, base));
     }, [recipe?.id, recipe?.servings]); // eslint-disable-line react-hooks/exhaustive-deps -- stable deps; `recipe` omitted to avoid reset on cache refresh
 
     const scaledIngredients = useMemo(() => {

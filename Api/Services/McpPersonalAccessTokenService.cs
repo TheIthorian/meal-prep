@@ -21,7 +21,10 @@ public sealed class McpPersonalAccessTokenService(ApiDbContext db)
         return SHA256.HashData(Encoding.UTF8.GetBytes(plainToken));
     }
 
-    public async Task<McpTokenValidationResult?> ValidateAndTouchAsync(string plainToken, CancellationToken cancellationToken) {
+    public async Task<McpTokenValidationResult?> ValidateAndTouchAsync(
+        string plainToken,
+        CancellationToken cancellationToken
+    ) {
         var hash = HashToken(plainToken);
         var row = await db.McpPersonalAccessTokens
             .Include(t => t.User)

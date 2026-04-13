@@ -9,8 +9,7 @@ namespace Api.Data;
 /// </summary>
 public class ApiDbContextFactory : IDesignTimeDbContextFactory<ApiDbContext>
 {
-    public ApiDbContext CreateDbContext(string[] args)
-    {
+    public ApiDbContext CreateDbContext(string[] args) {
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
                                ?? Environment.GetEnvironmentVariable("POSTGRES_CONNECTIONSTRING")
                                ?? "Host=localhost;Port=5432;Database=meal_prep_dev;Username=root;Password=password";

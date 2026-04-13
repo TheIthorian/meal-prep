@@ -100,6 +100,18 @@ public static class EndpointRouteBuilderExtensions
                 .Produces<PaginatedResponse<RecipeListItemResponse>>()
                 .WithName("GetRecipes");
 
+            apiGroup.MapGet("/workspaces/{workspaceId:guid}/recipe-tags", RecipesHandlers.GetRecipeTagWhitelist)
+                .Produces<RecipeTagListResponse>()
+                .WithName("GetRecipeTagWhitelist");
+
+            apiGroup.MapPost(
+                    "/workspaces/{workspaceId:guid}/recipes/suggest-tags",
+                    RecipesHandlers.PostSuggestRecipeTags
+                )
+                .WithBodyValidation<SuggestRecipeTagsRequest>()
+                .Produces<SuggestRecipeTagsResponse>()
+                .WithName("SuggestRecipeTags");
+
             apiGroup.MapPost("/workspaces/{workspaceId:guid}/recipes/import-preview", RecipesHandlers.PostImportPreview)
                 .WithBodyValidation<ImportRecipePreviewRequest>()
                 .Produces<RecipeImportPreviewResponse>()
@@ -128,25 +140,40 @@ public static class EndpointRouteBuilderExtensions
                 .Produces(StatusCodes.Status200OK)
                 .WithName("DeleteRecipe");
 
-            apiGroup.MapGet("/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}/image", RecipesHandlers.GetRecipeImage)
+            apiGroup.MapGet(
+                    "/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}/image",
+                    RecipesHandlers.GetRecipeImage
+                )
                 .Produces(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status404NotFound)
                 .WithName("GetRecipeImage");
 
-            apiGroup.MapPost("/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}/image", RecipesHandlers.PostRecipeImage)
+            apiGroup.MapPost(
+                    "/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}/image",
+                    RecipesHandlers.PostRecipeImage
+                )
                 .DisableAntiforgery()
                 .Produces<RecipeResponse>()
                 .WithName("UploadRecipeImage");
 
-            apiGroup.MapDelete("/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}/image", RecipesHandlers.DeleteRecipeImage)
+            apiGroup.MapDelete(
+                    "/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}/image",
+                    RecipesHandlers.DeleteRecipeImage
+                )
                 .Produces<RecipeResponse>()
                 .WithName("DeleteRecipeImage");
 
-            apiGroup.MapGet("/workspaces/{workspaceId:guid}/meal-plan-entries", MealPlanEntriesHandlers.GetMealPlanEntries)
+            apiGroup.MapGet(
+                    "/workspaces/{workspaceId:guid}/meal-plan-entries",
+                    MealPlanEntriesHandlers.GetMealPlanEntries
+                )
                 .Produces<MealPlanEntryResponse[]>()
                 .WithName("GetMealPlanEntries");
 
-            apiGroup.MapPost("/workspaces/{workspaceId:guid}/meal-plan-entries", MealPlanEntriesHandlers.PostMealPlanEntry)
+            apiGroup.MapPost(
+                    "/workspaces/{workspaceId:guid}/meal-plan-entries",
+                    MealPlanEntriesHandlers.PostMealPlanEntry
+                )
                 .WithBodyValidation<SaveMealPlanEntryRequest>()
                 .Produces<MealPlanEntryResponse>()
                 .WithName("CreateMealPlanEntry");
@@ -170,25 +197,40 @@ public static class EndpointRouteBuilderExtensions
                 .Produces<ShoppingListListItemResponse[]>()
                 .WithName("GetShoppingLists");
 
-            apiGroup.MapGet("/workspaces/{workspaceId:guid}/shopping-lists/{shoppingListId:guid}", ShoppingListsHandlers.GetShoppingList)
+            apiGroup.MapGet(
+                    "/workspaces/{workspaceId:guid}/shopping-lists/{shoppingListId:guid}",
+                    ShoppingListsHandlers.GetShoppingList
+                )
                 .Produces<ShoppingListResponse>()
                 .WithName("GetShoppingList");
 
-            apiGroup.MapPost("/workspaces/{workspaceId:guid}/shopping-lists/generate", ShoppingListsHandlers.PostGenerateShoppingList)
+            apiGroup.MapPost(
+                    "/workspaces/{workspaceId:guid}/shopping-lists/generate",
+                    ShoppingListsHandlers.PostGenerateShoppingList
+                )
                 .WithBodyValidation<GenerateShoppingListRequest>()
                 .Produces<ShoppingListResponse>()
                 .WithName("GenerateShoppingList");
 
-            apiGroup.MapPatch("/workspaces/{workspaceId:guid}/shopping-lists/{shoppingListId:guid}", ShoppingListsHandlers.PatchShoppingList)
+            apiGroup.MapPatch(
+                    "/workspaces/{workspaceId:guid}/shopping-lists/{shoppingListId:guid}",
+                    ShoppingListsHandlers.PatchShoppingList
+                )
                 .WithBodyValidation<SaveShoppingListRequest>()
                 .Produces<ShoppingListResponse>()
                 .WithName("UpdateShoppingList");
 
-            apiGroup.MapDelete("/workspaces/{workspaceId:guid}/shopping-lists/{shoppingListId:guid}", ShoppingListsHandlers.DeleteShoppingList)
+            apiGroup.MapDelete(
+                    "/workspaces/{workspaceId:guid}/shopping-lists/{shoppingListId:guid}",
+                    ShoppingListsHandlers.DeleteShoppingList
+                )
                 .Produces(StatusCodes.Status200OK)
                 .WithName("DeleteShoppingList");
 
-            apiGroup.MapPost("/workspaces/{workspaceId:guid}/shopping-lists/{shoppingListId:guid}/items", ShoppingListsHandlers.PostShoppingListItem)
+            apiGroup.MapPost(
+                    "/workspaces/{workspaceId:guid}/shopping-lists/{shoppingListId:guid}/items",
+                    ShoppingListsHandlers.PostShoppingListItem
+                )
                 .WithBodyValidation<SaveShoppingListItemRequest>()
                 .Produces<ShoppingListItemResponse>()
                 .WithName("CreateShoppingListItem");

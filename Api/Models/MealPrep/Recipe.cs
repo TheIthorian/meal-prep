@@ -32,7 +32,8 @@ public class Recipe : DeletableWorkspaceEntity
     /// <summary>
     ///     S3 object key for the recipe cover image, when set.
     /// </summary>
-    [MaxLength(512)] public string? ImageObjectKey { get; private set; }
+    [MaxLength(512)]
+    public string? ImageObjectKey { get; private set; }
 
     public static Recipe CreateNew(Workspace workspace, string title, decimal servings) {
         return new Recipe(workspace, title, servings);

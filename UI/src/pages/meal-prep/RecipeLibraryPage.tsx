@@ -9,6 +9,7 @@ import { RecipeImportDialog } from '@/components/recipes/RecipeImportDialog';
 import type { Recipe } from '@/models/meal-prep';
 import { LoadingState } from '@/components/common/LoadingState';
 import { EmptyState } from '@/components/common/EmptyState';
+import { formatRecipeTagLabel } from '@/lib/meal-prep';
 
 export default function RecipeLibraryPage() {
     const { workspaceId = '' } = useParams<{ workspaceId: string }>();
@@ -30,7 +31,10 @@ export default function RecipeLibraryPage() {
 
     const recipes = useMemo(() => data?.data ?? [], [data?.data]);
 
-    const allTags = useMemo(() => Array.from(new Set(recipes.flatMap(r => r.tags))), [recipes]);
+    const allTags = useMemo(
+        () => Array.from(new Set(recipes.flatMap(r => r.tags))).sort((a, b) => a.localeCompare(b)),
+        [recipes],
+    );
 
     const filtered = useMemo(() => {
         if (!activeTag) return recipes;
@@ -94,7 +98,7 @@ export default function RecipeLibraryPage() {
                                         : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
                                 }`}
                             >
-                                {tag}
+                                {formatRecipeTagLabel(tag)}
                             </button>
                         ))}
                     </div>

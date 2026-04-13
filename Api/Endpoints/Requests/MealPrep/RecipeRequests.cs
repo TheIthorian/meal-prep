@@ -39,6 +39,13 @@ public record ImportRecipeRequest(string Url);
 
 public record ImportRecipePreviewRequest(string Url);
 
+public record SuggestRecipeTagsRequest(
+    string Title,
+    string? Description,
+    string[]? IngredientNames,
+    string[]? StepInstructions
+);
+
 public class SaveRecipeRequestValidator : AbstractValidator<SaveRecipeRequest>
 {
     public SaveRecipeRequestValidator() {
@@ -46,12 +53,18 @@ public class SaveRecipeRequestValidator : AbstractValidator<SaveRecipeRequest>
         RuleFor(x => x.Servings).GreaterThan(0);
         RuleFor(x => x.PrepMinutes).GreaterThanOrEqualTo(0).When(x => x.PrepMinutes.HasValue);
         RuleFor(x => x.CookMinutes).GreaterThanOrEqualTo(0).When(x => x.CookMinutes.HasValue);
-        RuleForEach(x => x.Tags).MaximumLength(64);
+        RuleForEach(x => x.Tags)
+            .MaximumLength(64)
+            .Must(tag => RecipeTagWhitelist.TryNormalize(tag, out _))
+            .WithMessage("'{PropertyValue}' is not an allowed recipe tag.");
         RuleFor(x => x.Ingredients).NotEmpty();
         RuleFor(x => x.Steps).NotEmpty();
         RuleForEach(x => x.Ingredients).SetValidator(new SaveRecipeIngredientRequestValidator());
         RuleForEach(x => x.Steps).SetValidator(new SaveRecipeStepRequestValidator());
-        When(x => x.Nutrition is not null, () => { RuleFor(x => x.Nutrition!).SetValidator(new SaveRecipeNutritionRequestValidator()); });
+        When(
+            x => x.Nutrition is not null,
+            () => { RuleFor(x => x.Nutrition!).SetValidator(new SaveRecipeNutritionRequestValidator()); }
+        );
         RuleFor(x => x.ImportImageUrl).MaximumLength(2048);
         When(
             x => !string.IsNullOrWhiteSpace(x.ImportImageUrl),
@@ -59,11 +72,15 @@ public class SaveRecipeRequestValidator : AbstractValidator<SaveRecipeRequest>
                 RuleFor(x => x.ImportImageUrl!)
                     .Must(uri => Uri.TryCreate(uri, UriKind.Absolute, out var u)
                                  && (string.Equals(u.Scheme, "https", StringComparison.OrdinalIgnoreCase)
-                                     || string.Equals(u.Scheme, "http", StringComparison.OrdinalIgnoreCase)))
+                                     || string.Equals(u.Scheme, "http", StringComparison.OrdinalIgnoreCase))
+                    )
                     .WithMessage("Import image URL must be an absolute http(s) URL.");
-                RuleFor(x => x).Must(x =>
-                        !string.IsNullOrWhiteSpace(x.SourceUrl)
-                        && RecipeImportImagePolicy.AreHostsCompatibleForImportedImage(x.SourceUrl!, x.ImportImageUrl!)
+                RuleFor(x => x)
+                    .Must(x => !string.IsNullOrWhiteSpace(x.SourceUrl)
+                               && RecipeImportImagePolicy.AreHostsCompatibleForImportedImage(
+                                   x.SourceUrl!,
+                                   x.ImportImageUrl!
+                               )
                     )
                     .WithMessage("Import image must use the same site as the recipe source URL.");
             }
@@ -119,5 +136,15 @@ public class ImportRecipeRequestValidator : AbstractValidator<ImportRecipeReques
 {
     public ImportRecipeRequestValidator() {
         RuleFor(x => x.Url).NotEmpty().Must(url => Uri.TryCreate(url, UriKind.Absolute, out _));
+    }
+}
+
+public class SuggestRecipeTagsRequestValidator : AbstractValidator<SuggestRecipeTagsRequest>
+{
+    public SuggestRecipeTagsRequestValidator() {
+        RuleFor(x => x.Title).NotEmpty().MaximumLength(255);
+        RuleFor(x => x.Description).MaximumLength(4000).When(x => x.Description is not null);
+        When(x => x.IngredientNames is not null, () => { RuleForEach(x => x.IngredientNames!).MaximumLength(255); });
+        When(x => x.StepInstructions is not null, () => { RuleForEach(x => x.StepInstructions!).MaximumLength(4000); });
     }
 }

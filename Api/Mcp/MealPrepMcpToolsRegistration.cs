@@ -13,25 +13,20 @@ namespace Api.Mcp;
 /// </summary>
 internal static class MealPrepMcpToolsRegistration
 {
-    internal static IEnumerable<McpServerTool> CreateTools()
-    {
+    internal static IEnumerable<McpServerTool> CreateTools() {
         const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly;
         var serializerOptions = McpJson.SerializerOptions;
-        var transformOptions = new AIJsonSchemaTransformOptions
-        {
-            DisallowAdditionalProperties = true,
-            RequireAllProperties = false,
+        var transformOptions = new AIJsonSchemaTransformOptions {
+            DisallowAdditionalProperties = true, RequireAllProperties = false,
         };
 
         var schemaCreateOptions = new AIJsonSchemaCreateOptions { TransformOptions = transformOptions };
 
-        foreach (var method in typeof(MealPrepMcpTools).GetMethods(flags))
-        {
+        foreach (var method in typeof(MealPrepMcpTools).GetMethods(flags)) {
             if (method.GetCustomAttribute<McpServerToolAttribute>() is null)
                 continue;
 
-            var opts = new McpServerToolCreateOptions
-            {
+            var opts = new McpServerToolCreateOptions {
                 Name = BuildToolName(method.Name),
                 SerializerOptions = serializerOptions,
                 SchemaCreateOptions = schemaCreateOptions,
@@ -43,16 +38,14 @@ internal static class MealPrepMcpToolsRegistration
 
             yield return McpServerTool.Create(
                 method,
-                static ctx =>
-                    ctx.Services?.GetRequiredService<MealPrepMcpTools>()
-                    ?? throw new InvalidOperationException("MCP request has no service provider."),
+                static ctx => ctx.Services?.GetRequiredService<MealPrepMcpTools>()
+                              ?? throw new InvalidOperationException("MCP request has no service provider."),
                 opts
             );
         }
     }
 
-    private static string BuildToolName(string methodName)
-    {
+    private static string BuildToolName(string methodName) {
         const string mealPrepPrefix = "MealPrep";
         var withoutPrefix = methodName.StartsWith(mealPrepPrefix, StringComparison.Ordinal)
             ? methodName[mealPrepPrefix.Length..]
@@ -61,19 +54,15 @@ internal static class MealPrepMcpToolsRegistration
         return ToSnakeCase(withoutPrefix);
     }
 
-    private static string ToSnakeCase(string value)
-    {
+    private static string ToSnakeCase(string value) {
         if (string.IsNullOrWhiteSpace(value))
             return value;
 
         var builder = new StringBuilder(value.Length + 8);
-        for (var i = 0; i < value.Length; i++)
-        {
+        for (var i = 0; i < value.Length; i++) {
             var current = value[i];
-            if (char.IsUpper(current))
-            {
-                if (i > 0)
-                {
+            if (char.IsUpper(current)) {
+                if (i > 0) {
                     var previous = value[i - 1];
                     var hasNext = i + 1 < value.Length;
                     var next = hasNext ? value[i + 1] : '\0';
@@ -92,16 +81,12 @@ internal static class MealPrepMcpToolsRegistration
         return builder.ToString();
     }
 
-    private static void ApplyToolBehaviorHints(McpServerToolCreateOptions options, string methodName)
-    {
-        var (readOnly, destructive, idempotent, openWorld) = methodName switch
-        {
+    private static void ApplyToolBehaviorHints(McpServerToolCreateOptions options, string methodName) {
+        var (readOnly, destructive, idempotent, openWorld) = methodName switch {
             nameof(MealPrepMcpTools.GetCurrentUser) => (true, false, true, false),
             nameof(MealPrepMcpTools.ListWorkspaces) => (true, false, true, false),
-            
             nameof(MealPrepMcpTools.ListRecipes) => (true, false, true, false),
             nameof(MealPrepMcpTools.GetRecipe) => (true, false, true, false),
-            
             nameof(MealPrepMcpTools.CreateRecipe) => (false, false, false, false),
             nameof(MealPrepMcpTools.UpdateRecipe) => (false, true, false, false),
             nameof(MealPrepMcpTools.SetRecipeImageFromUrl) => (false, true, false, true),
