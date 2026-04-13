@@ -17,7 +17,7 @@ using ModelContextProtocol.Server;
 namespace Api.Mcp;
 
 /// <summary>
-///     MCP tools that delegate to the same minimal-API handlers as the REST surface. Personal access tokens are scoped to one workspace; workspace list/get are read-only within that scope.
+///     MCP tools that delegate to the same minimal-API handlers as the REST surface. Personal access tokens are scoped to one workspace; the workspace is taken from the token, not from tool arguments.
 /// </summary>
 [McpServerToolType]
 public sealed class MealPrepMcpTools(
@@ -49,15 +49,11 @@ public sealed class MealPrepMcpTools(
         return value;
     }
 
-    private Guid? GetMcpScopedWorkspaceIdOrNull() {
+    private Guid RequireMcpWorkspaceId() {
         var raw = httpContextAccessor.HttpContext?.User.FindFirstValue(McpPatClaims.WorkspaceId);
-        return raw is not null && Guid.TryParse(raw, out var id) ? id : null;
-    }
-
-    private void RequireMcpWorkspace(Guid workspaceId) {
-        var allowed = GetMcpScopedWorkspaceIdOrNull();
-        if (allowed is null || allowed.Value != workspaceId)
-            throw new ForbiddenActionException("This MCP token is scoped to a single workspace.", null);
+        if (raw is not null && Guid.TryParse(raw, out var id))
+            return id;
+        throw new UnauthorizedException();
     }
 
     [McpServerTool]
@@ -69,38 +65,29 @@ public sealed class MealPrepMcpTools(
     }
 
     [McpServerTool]
-    [Description("Lists workspaces the user can access (read-only). With a workspace-scoped MCP token, only that workspace is returned.")]
+    [Description("Returns the workspace this MCP token is scoped to (read-only).")]
     public async Task<string> MealPrepListWorkspaces(CancellationToken cancellationToken) {
         _ = cancellationToken;
-        var scoped = GetMcpScopedWorkspaceIdOrNull();
-        if (scoped is not null) {
-            var single = await WorkspacesHandlers.GetWorkspace(currentUserService, db, scoped.Value);
-            return JsonSerializer.Serialize(new[] { single.Value }, McpJson.SerializerOptions);
-        }
-
-        var result = await WorkspacesHandlers.GetWorkspaces(currentUserService, db);
-        return Serialize(result);
+        var workspaceId = RequireMcpWorkspaceId();
+        var single = await WorkspacesHandlers.GetWorkspace(currentUserService, db, workspaceId);
+        return JsonSerializer.Serialize(new[] { single.Value }, McpJson.SerializerOptions);
     }
 
     [McpServerTool]
-    [Description("Gets a single workspace by id (read-only). Must match the workspace this MCP token is scoped to.")]
-    public async Task<string> MealPrepGetWorkspace(Guid workspaceId, CancellationToken cancellationToken) {
+    [Description("Gets the workspace this MCP token is scoped to (read-only).")]
+    public async Task<string> MealPrepGetWorkspace(CancellationToken cancellationToken) {
         _ = cancellationToken;
-        RequireMcpWorkspace(workspaceId);
+        var workspaceId = RequireMcpWorkspaceId();
         var result = await WorkspacesHandlers.GetWorkspace(currentUserService, db, workspaceId);
         return Serialize(result);
     }
 
     [McpServerTool]
     [Description(
-        "Lists recipes in a workspace. Optional listQuery uses the same query parameters as the REST API (e.g. page, pageSize, orderBy, direction, includeArchived, filters)."
+        "Lists recipes in the token's workspace. Optional listQuery uses the same query parameters as the REST API (e.g. page, pageSize, orderBy, direction, includeArchived, filters)."
     )]
-    public async Task<string> MealPrepListRecipes(
-        Guid workspaceId,
-        string? listQuery,
-        CancellationToken cancellationToken
-    ) {
-        RequireMcpWorkspace(workspaceId);
+    public async Task<string> MealPrepListRecipes(string? listQuery, CancellationToken cancellationToken) {
+        var workspaceId = RequireMcpWorkspaceId();
         var httpContext = BuildQueryHttpContext(listQuery);
         var result = await RecipesHandlers.GetRecipes(
             currentUserService,
@@ -115,18 +102,18 @@ public sealed class MealPrepMcpTools(
 
     [McpServerTool]
     [Description("Gets a recipe by id.")]
-    public async Task<string> MealPrepGetRecipe(Guid workspaceId, Guid recipeId, CancellationToken cancellationToken) {
+    public async Task<string> MealPrepGetRecipe(Guid recipeId, CancellationToken cancellationToken) {
         _ = cancellationToken;
-        RequireMcpWorkspace(workspaceId);
+        var workspaceId = RequireMcpWorkspaceId();
         var result = await RecipesHandlers.GetRecipe(currentUserService, db, workspaceId, recipeId);
         return Serialize(result);
     }
 
     [McpServerTool]
     [Description("Creates a recipe. recipeJson must match the SaveRecipeRequest schema used by the REST API.")]
-    public async Task<string> MealPrepCreateRecipe(Guid workspaceId, string recipeJson, CancellationToken cancellationToken) {
+    public async Task<string> MealPrepCreateRecipe(string recipeJson, CancellationToken cancellationToken) {
         _ = cancellationToken;
-        RequireMcpWorkspace(workspaceId);
+        var workspaceId = RequireMcpWorkspaceId();
         var body = DeserializeBody<SaveRecipeRequest>(recipeJson);
         var result = await RecipesHandlers.PostRecipe(
             currentUserService,
@@ -142,14 +129,9 @@ public sealed class MealPrepMcpTools(
 
     [McpServerTool]
     [Description("Updates a recipe. recipeJson must match the SaveRecipeRequest schema.")]
-    public async Task<string> MealPrepUpdateRecipe(
-        Guid workspaceId,
-        Guid recipeId,
-        string recipeJson,
-        CancellationToken cancellationToken
-    ) {
+    public async Task<string> MealPrepUpdateRecipe(Guid recipeId, string recipeJson, CancellationToken cancellationToken) {
         _ = cancellationToken;
-        RequireMcpWorkspace(workspaceId);
+        var workspaceId = RequireMcpWorkspaceId();
         var body = DeserializeBody<SaveRecipeRequest>(recipeJson);
         var result = await RecipesHandlers.PatchRecipe(
             currentUserService,
@@ -166,17 +148,17 @@ public sealed class MealPrepMcpTools(
 
     [McpServerTool]
     [Description("Soft-deletes a recipe.")]
-    public async Task<string> MealPrepDeleteRecipe(Guid workspaceId, Guid recipeId, CancellationToken cancellationToken) {
+    public async Task<string> MealPrepDeleteRecipe(Guid recipeId, CancellationToken cancellationToken) {
         _ = cancellationToken;
-        RequireMcpWorkspace(workspaceId);
+        var workspaceId = RequireMcpWorkspaceId();
         await RecipesHandlers.DeleteRecipe(currentUserService, db, s3StorageService, workspaceId, recipeId);
         return """{"ok":true}""";
     }
 
     [McpServerTool]
     [Description("Previews importing a recipe from a URL (same as REST import-preview).")]
-    public async Task<string> MealPrepPreviewRecipeImport(Guid workspaceId, string sourceUrl, CancellationToken cancellationToken) {
-        RequireMcpWorkspace(workspaceId);
+    public async Task<string> MealPrepPreviewRecipeImport(string sourceUrl, CancellationToken cancellationToken) {
+        var workspaceId = RequireMcpWorkspaceId();
         var body = new ImportRecipePreviewRequest(sourceUrl);
         var result = await RecipesHandlers.PostImportPreview(
             currentUserService,
@@ -193,13 +175,12 @@ public sealed class MealPrepMcpTools(
         "Lists meal-plan entries for a date range. Pass optionalPlannedFrom and optionalPlannedTo as yyyy-MM-dd (UTC) or omit for the default week window."
     )]
     public async Task<string> MealPrepListMealPlanEntries(
-        Guid workspaceId,
         string? optionalPlannedFrom,
         string? optionalPlannedTo,
         CancellationToken cancellationToken
     ) {
         _ = cancellationToken;
-        RequireMcpWorkspace(workspaceId);
+        var workspaceId = RequireMcpWorkspaceId();
         DateOnly? from = null;
         DateOnly? to = null;
         if (!string.IsNullOrWhiteSpace(optionalPlannedFrom) && DateOnly.TryParse(optionalPlannedFrom, out var f))
@@ -213,13 +194,9 @@ public sealed class MealPrepMcpTools(
 
     [McpServerTool]
     [Description("Creates a meal-plan entry. entryJson matches SaveMealPlanEntryRequest.")]
-    public async Task<string> MealPrepCreateMealPlanEntry(
-        Guid workspaceId,
-        string entryJson,
-        CancellationToken cancellationToken
-    ) {
+    public async Task<string> MealPrepCreateMealPlanEntry(string entryJson, CancellationToken cancellationToken) {
         _ = cancellationToken;
-        RequireMcpWorkspace(workspaceId);
+        var workspaceId = RequireMcpWorkspaceId();
         var body = DeserializeBody<SaveMealPlanEntryRequest>(entryJson);
         var result = await MealPlanEntriesHandlers.PostMealPlanEntry(currentUserService, db, workspaceId, body);
         return Serialize(result);
@@ -228,13 +205,12 @@ public sealed class MealPrepMcpTools(
     [McpServerTool]
     [Description("Updates a meal-plan entry. entryJson matches SaveMealPlanEntryRequest.")]
     public async Task<string> MealPrepUpdateMealPlanEntry(
-        Guid workspaceId,
         Guid mealPlanEntryId,
         string entryJson,
         CancellationToken cancellationToken
     ) {
         _ = cancellationToken;
-        RequireMcpWorkspace(workspaceId);
+        var workspaceId = RequireMcpWorkspaceId();
         var body = DeserializeBody<SaveMealPlanEntryRequest>(entryJson);
         var result = await MealPlanEntriesHandlers.PatchMealPlanEntry(
             currentUserService,
@@ -248,48 +224,36 @@ public sealed class MealPrepMcpTools(
 
     [McpServerTool]
     [Description("Deletes a meal-plan entry.")]
-    public async Task<string> MealPrepDeleteMealPlanEntry(
-        Guid workspaceId,
-        Guid mealPlanEntryId,
-        CancellationToken cancellationToken
-    ) {
+    public async Task<string> MealPrepDeleteMealPlanEntry(Guid mealPlanEntryId, CancellationToken cancellationToken) {
         _ = cancellationToken;
-        RequireMcpWorkspace(workspaceId);
+        var workspaceId = RequireMcpWorkspaceId();
         await MealPlanEntriesHandlers.DeleteMealPlanEntry(currentUserService, db, workspaceId, mealPlanEntryId);
         return """{"ok":true}""";
     }
 
     [McpServerTool]
-    [Description("Lists shopping lists in a workspace.")]
-    public async Task<string> MealPrepListShoppingLists(Guid workspaceId, CancellationToken cancellationToken) {
+    [Description("Lists shopping lists in the token's workspace.")]
+    public async Task<string> MealPrepListShoppingLists(CancellationToken cancellationToken) {
         _ = cancellationToken;
-        RequireMcpWorkspace(workspaceId);
+        var workspaceId = RequireMcpWorkspaceId();
         var result = await ShoppingListsHandlers.GetShoppingLists(currentUserService, db, workspaceId);
         return Serialize(result);
     }
 
     [McpServerTool]
     [Description("Gets a shopping list with items and sources.")]
-    public async Task<string> MealPrepGetShoppingList(
-        Guid workspaceId,
-        Guid shoppingListId,
-        CancellationToken cancellationToken
-    ) {
+    public async Task<string> MealPrepGetShoppingList(Guid shoppingListId, CancellationToken cancellationToken) {
         _ = cancellationToken;
-        RequireMcpWorkspace(workspaceId);
+        var workspaceId = RequireMcpWorkspaceId();
         var result = await ShoppingListsHandlers.GetShoppingList(currentUserService, db, workspaceId, shoppingListId);
         return Serialize(result);
     }
 
     [McpServerTool]
     [Description("Generates a shopping list from recipes and/or meal-plan entries. requestJson matches GenerateShoppingListRequest.")]
-    public async Task<string> MealPrepGenerateShoppingList(
-        Guid workspaceId,
-        string requestJson,
-        CancellationToken cancellationToken
-    ) {
+    public async Task<string> MealPrepGenerateShoppingList(string requestJson, CancellationToken cancellationToken) {
         _ = cancellationToken;
-        RequireMcpWorkspace(workspaceId);
+        var workspaceId = RequireMcpWorkspaceId();
         var body = DeserializeBody<GenerateShoppingListRequest>(requestJson);
         var result = await ShoppingListsHandlers.PostGenerateShoppingList(
             currentUserService,
@@ -305,13 +269,12 @@ public sealed class MealPrepMcpTools(
     [McpServerTool]
     [Description("Updates shopping list metadata. requestJson matches SaveShoppingListRequest.")]
     public async Task<string> MealPrepUpdateShoppingList(
-        Guid workspaceId,
         Guid shoppingListId,
         string requestJson,
         CancellationToken cancellationToken
     ) {
         _ = cancellationToken;
-        RequireMcpWorkspace(workspaceId);
+        var workspaceId = RequireMcpWorkspaceId();
         var body = DeserializeBody<SaveShoppingListRequest>(requestJson);
         var result = await ShoppingListsHandlers.PatchShoppingList(
             currentUserService,
@@ -325,13 +288,9 @@ public sealed class MealPrepMcpTools(
 
     [McpServerTool]
     [Description("Deletes a shopping list.")]
-    public async Task<string> MealPrepDeleteShoppingList(
-        Guid workspaceId,
-        Guid shoppingListId,
-        CancellationToken cancellationToken
-    ) {
+    public async Task<string> MealPrepDeleteShoppingList(Guid shoppingListId, CancellationToken cancellationToken) {
         _ = cancellationToken;
-        RequireMcpWorkspace(workspaceId);
+        var workspaceId = RequireMcpWorkspaceId();
         await ShoppingListsHandlers.DeleteShoppingList(currentUserService, db, workspaceId, shoppingListId);
         return """{"ok":true}""";
     }
@@ -339,13 +298,12 @@ public sealed class MealPrepMcpTools(
     [McpServerTool]
     [Description("Adds an item to a shopping list. itemJson matches SaveShoppingListItemRequest.")]
     public async Task<string> MealPrepCreateShoppingListItem(
-        Guid workspaceId,
         Guid shoppingListId,
         string itemJson,
         CancellationToken cancellationToken
     ) {
         _ = cancellationToken;
-        RequireMcpWorkspace(workspaceId);
+        var workspaceId = RequireMcpWorkspaceId();
         var body = DeserializeBody<SaveShoppingListItemRequest>(itemJson);
         var result = await ShoppingListsHandlers.PostShoppingListItem(
             currentUserService,
@@ -361,14 +319,13 @@ public sealed class MealPrepMcpTools(
     [McpServerTool]
     [Description("Updates a shopping list item. itemJson matches SaveShoppingListItemRequest.")]
     public async Task<string> MealPrepUpdateShoppingListItem(
-        Guid workspaceId,
         Guid shoppingListId,
         Guid itemId,
         string itemJson,
         CancellationToken cancellationToken
     ) {
         _ = cancellationToken;
-        RequireMcpWorkspace(workspaceId);
+        var workspaceId = RequireMcpWorkspaceId();
         var body = DeserializeBody<SaveShoppingListItemRequest>(itemJson);
         var result = await ShoppingListsHandlers.PatchShoppingListItem(
             currentUserService,
@@ -385,13 +342,12 @@ public sealed class MealPrepMcpTools(
     [McpServerTool]
     [Description("Deletes an item from a shopping list.")]
     public async Task<string> MealPrepDeleteShoppingListItem(
-        Guid workspaceId,
         Guid shoppingListId,
         Guid itemId,
         CancellationToken cancellationToken
     ) {
         _ = cancellationToken;
-        RequireMcpWorkspace(workspaceId);
+        var workspaceId = RequireMcpWorkspaceId();
         await ShoppingListsHandlers.DeleteShoppingListItem(
             currentUserService,
             db,
