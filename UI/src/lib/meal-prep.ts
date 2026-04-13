@@ -26,6 +26,24 @@ export function buildIngredientDisplay(ingredient: {
     return ingredient.preparationNote?.trim() ? `${baseText}, ${ingredient.preparationNote.trim()}` : baseText;
 }
 
+/** Label for ingredient lists: name plus optional preparation note (e.g. "Tomatoes, diced"). */
+export function getIngredientListLabel(ingredient: Pick<RecipeIngredient, 'name' | 'preparationNote'>): string {
+    const prep = ingredient.preparationNote?.trim();
+    const name = ingredient.name.trim();
+    return prep ? `${name}, ${prep}` : name;
+}
+
+/** Scaled amount + unit for list display, or null when there is no numeric amount. */
+export function getIngredientListAmountText(ingredient: Pick<RecipeIngredient, 'amount' | 'unit'>): string | null {
+    const { amount, unit } = ingredient;
+    if (amount === null || amount === undefined || Number.isNaN(amount)) {
+        return null;
+    }
+    const amountPart = formatAmount(amount);
+    const u = unit?.trim();
+    return u ? `${amountPart} ${u}` : amountPart;
+}
+
 export function scaleRecipeIngredients(
     ingredients: RecipeIngredient[],
     originalServings: number,

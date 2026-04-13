@@ -20,6 +20,7 @@ export function InstructionWithInlineAmounts({ instruction, scaledIngredients }:
                     <span key={`t-${i}`}>{seg.text}</span>
                 ) : (
                     <span key={seg.key} className='whitespace-nowrap font-medium text-muted-foreground'>
+                        {' '}
                         {seg.bracket}
                     </span>
                 ),

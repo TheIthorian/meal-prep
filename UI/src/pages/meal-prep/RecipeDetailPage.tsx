@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { getNutrientAmount, safeHttpUrlHref, scaleRecipeIngredients } from '@/lib/meal-prep';
 import { InstructionWithInlineAmounts } from '@/components/recipes/InstructionWithInlineAmounts';
+import { RecipeIngredientListRow } from '@/components/recipes/RecipeIngredientListRow';
 import { RecipeYieldScale } from '@/components/recipes/RecipeYieldScale';
 import type { Recipe, RecipeListItem } from '@/models/meal-prep';
 import { MealPlanEntryDialog } from '@/components/planner/MealPlanEntryDialog';
@@ -243,7 +244,7 @@ export default function RecipeDetailPage() {
                         <ul className='space-y-2.5'>
                             {scaledIngredients.map(ing => (
                                 <li key={ing.id} className='text-sm text-foreground/90'>
-                                    {ing.displayText}
+                                    <RecipeIngredientListRow ingredient={ing} />
                                 </li>
                             ))}
                         </ul>

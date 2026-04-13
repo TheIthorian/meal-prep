@@ -1,6 +1,7 @@
 import { Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 interface RecipeYieldScaleProps {
@@ -38,16 +39,21 @@ export function RecipeYieldScale({
             <div className='flex flex-wrap items-center gap-2'>
                 <span className='text-sm font-medium text-foreground'>Yield</span>
                 <div className='flex items-center gap-1'>
-                    <Button
-                        type='button'
-                        variant='outline'
-                        size='icon'
-                        className='h-8 w-8 shrink-0'
-                        aria-label='Decrease servings'
-                        onClick={() => onTargetServingsChange(clampServings(targetServings - step))}
-                    >
-                        <Minus className='h-4 w-4' />
-                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                type='button'
+                                variant='outline'
+                                size='icon'
+                                className='h-8 w-8 shrink-0'
+                                aria-label='Decrease servings'
+                                onClick={() => onTargetServingsChange(clampServings(targetServings - step))}
+                            >
+                                <Minus className='h-4 w-4' />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side='bottom'>Decrease servings</TooltipContent>
+                    </Tooltip>
                     <Input
                         type='number'
                         min={1}
@@ -60,16 +66,21 @@ export function RecipeYieldScale({
                         }}
                         className='h-8 w-[4.5rem] text-center tabular-nums'
                     />
-                    <Button
-                        type='button'
-                        variant='outline'
-                        size='icon'
-                        className='h-8 w-8 shrink-0'
-                        aria-label='Increase servings'
-                        onClick={() => onTargetServingsChange(clampServings(targetServings + step))}
-                    >
-                        <Plus className='h-4 w-4' />
-                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                type='button'
+                                variant='outline'
+                                size='icon'
+                                className='h-8 w-8 shrink-0'
+                                aria-label='Increase servings'
+                                onClick={() => onTargetServingsChange(clampServings(targetServings + step))}
+                            >
+                                <Plus className='h-4 w-4' />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side='bottom'>Increase servings</TooltipContent>
+                    </Tooltip>
                 </div>
                 <span className='text-sm text-muted-foreground'>servings</span>
             </div>
