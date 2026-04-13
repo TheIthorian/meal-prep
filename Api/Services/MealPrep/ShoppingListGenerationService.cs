@@ -45,7 +45,8 @@ public class ShoppingListGenerationService(MeasurementService measurementService
                         ingredient.Unit,
                         ingredient.Section,
                         false,
-                        ingredient.PreparationNote
+                        ingredient.PreparationNote,
+                        AddSourceName([], source.SourceName)
                     )
                 );
                 continue;
@@ -63,14 +64,16 @@ public class ShoppingListGenerationService(MeasurementService measurementService
                     normalizedUnit.CanonicalUnit,
                     ingredient.Section,
                     normalizedUnit.IsApproximate,
-                    ingredient.PreparationNote
+                    ingredient.PreparationNote,
+                    AddSourceName([], source.SourceName)
                 );
                 continue;
             }
 
             groupedIngredients[key] = existing with {
                 Amount = (existing.Amount ?? 0m) + canonicalAmount,
-                IsApproximate = existing.IsApproximate || normalizedUnit.IsApproximate
+                IsApproximate = existing.IsApproximate || normalizedUnit.IsApproximate,
+                SourceNames = AddSourceName(existing.SourceNames, source.SourceName)
             };
         }
 
@@ -133,8 +136,27 @@ public class ShoppingListGenerationService(MeasurementService measurementService
             isApproximate,
             false,
             category,
-            item.PreparationNote
+            item.PreparationNote,
+            item.SourceNames
         );
+    }
+
+    private static string[] AddSourceName(string[] existing, string sourceName)
+    {
+        if (string.IsNullOrWhiteSpace(sourceName))
+            return existing;
+
+        if (existing.Length == 0)
+            return [sourceName];
+
+        if (existing.Contains(sourceName, StringComparer.Ordinal))
+            return existing;
+
+        var merged = new string[existing.Length + 1];
+        Array.Copy(existing, merged, existing.Length);
+        merged[^1] = sourceName;
+        Array.Sort(merged, StringComparer.Ordinal);
+        return merged;
     }
 }
 
@@ -163,5 +185,6 @@ internal sealed record AggregatedIngredient(
     string? Unit,
     string? Section,
     bool IsApproximate,
-    string? PreparationNote
+    string? PreparationNote,
+    string[] SourceNames
 );

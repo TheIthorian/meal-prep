@@ -355,6 +355,7 @@ function ShoppingListRow({
                 category: item.category,
                 note: item.note,
                 displayText: item.displayText,
+                sourceNames: item.sourceNames,
             });
             onUpdated();
         } finally {
@@ -388,6 +389,13 @@ function ShoppingListRow({
                 <span className='ml-2 text-xs tabular-nums text-muted-foreground'>
                     {item.displayText}
                 </span>
+                {item.sourceNames.length > 0 && (
+                    <span
+                        className={`mt-0.5 block text-xs ${item.isChecked ? 'text-muted-foreground/80' : 'text-muted-foreground'}`}
+                    >
+                        For {item.sourceNames.join(' · ')}
+                    </span>
+                )}
             </div>
         </motion.button>
     );

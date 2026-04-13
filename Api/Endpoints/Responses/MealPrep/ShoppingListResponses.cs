@@ -23,7 +23,8 @@ public record ShoppingListItemResponse(
     bool IsManual,
     string? Category,
     string? Note,
-    string DisplayText
+    string DisplayText,
+    string[] SourceNames
 );
 
 public record ShoppingListSourceResponse(Guid Id, Guid? RecipeId, Guid? MealPlanEntryId, string SourceName);
@@ -84,7 +85,8 @@ public static class ShoppingListResponseTransforms
                 item.IsManual,
                 item.Category,
                 item.Note,
-                item.DisplayText
+                item.DisplayText,
+                item.SourceNames
             );
         }
     }

@@ -16,7 +16,8 @@ public record SaveShoppingListItemRequest(
     bool IsManual,
     string? Category,
     string? Note,
-    string DisplayText
+    string DisplayText,
+    string[]? SourceNames = null
 );
 
 public class GenerateShoppingListRequestValidator : AbstractValidator<GenerateShoppingListRequest>
@@ -45,5 +46,9 @@ public class SaveShoppingListItemRequestValidator : AbstractValidator<SaveShoppi
         RuleFor(x => x.Category).MaximumLength(255);
         RuleFor(x => x.Note).MaximumLength(255);
         RuleFor(x => x.DisplayText).NotEmpty().MaximumLength(1024);
+        RuleForEach(x => x.SourceNames ?? Array.Empty<string>())
+            .MaximumLength(255)
+            .OverridePropertyName(nameof(SaveShoppingListItemRequest.SourceNames));
+        RuleFor(x => x.SourceNames).Must(names => names is null || names.Length <= 64).WithMessage("At most 64 source names.");
     }
 }

@@ -53,6 +53,7 @@ public class ShoppingListGenerationServiceTests
         Assert.Equal(1.5m, item.Amount);
         Assert.Equal("kg", item.Unit);
         Assert.False(item.IsApproximate);
+        Assert.Equal(["Pasta sauce", "Tomato soup"], item.SourceNames);
     }
 
     [Fact]
@@ -79,5 +80,6 @@ public class ShoppingListGenerationServiceTests
         );
 
         Assert.Equal(2, shoppingList.Items.Count);
+        Assert.All(shoppingList.Items, line => Assert.Equal(["Tray bake"], line.SourceNames));
     }
 }

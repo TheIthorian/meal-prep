@@ -739,7 +739,8 @@ internal static class ShoppingListsHandlers
             body.IsApproximate,
             body.IsManual,
             body.Category,
-            body.Note
+            body.Note,
+            body.SourceNames ?? []
         );
 
         item.Update(
@@ -752,7 +753,8 @@ internal static class ShoppingListsHandlers
             body.IsChecked,
             body.IsManual,
             body.Category,
-            body.Note
+            body.Note,
+            body.SourceNames ?? []
         );
 
         shoppingList.Items.Add(item);
@@ -799,7 +801,8 @@ internal static class ShoppingListsHandlers
             body.IsChecked,
             body.IsManual,
             body.Category,
-            body.Note
+            body.Note,
+            body.SourceNames ?? item.SourceNames
         );
 
         await db.SaveChangesAsync();

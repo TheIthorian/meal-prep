@@ -58,6 +58,7 @@ export default function ShoppingModePage() {
                 category: item.category,
                 note: item.note,
                 displayText: item.displayText,
+                sourceNames: item.sourceNames,
             });
             await queryClient.invalidateQueries({ queryKey: ['shopping-list', workspaceId, listId] });
         } finally {
@@ -154,6 +155,15 @@ export default function ShoppingModePage() {
                                     {item.name}
                                 </span>
                                 <span className='ml-2 text-sm tabular-nums text-muted-foreground'>{item.displayText}</span>
+                                {item.sourceNames.length > 0 && (
+                                    <span
+                                        className={`mt-1 block text-sm ${
+                                            item.isChecked ? 'text-muted-foreground/80' : 'text-muted-foreground'
+                                        }`}
+                                    >
+                                        For {item.sourceNames.join(' · ')}
+                                    </span>
+                                )}
                             </div>
                         </motion.button>
                     ))}

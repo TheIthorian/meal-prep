@@ -60,7 +60,8 @@ public class ShoppingListItem : Entity
         bool isApproximate,
         bool isManual,
         string? category,
-        string? note
+        string? note,
+        string[] sourceNames
     ) {
         SortOrder = sortOrder;
         Name = name;
@@ -72,6 +73,7 @@ public class ShoppingListItem : Entity
         IsManual = isManual;
         Category = category;
         Note = note;
+        SourceNames = sourceNames;
     }
 
     public Guid ShoppingListId { get; private set; }
@@ -88,6 +90,8 @@ public class ShoppingListItem : Entity
     [MaxLength(255)] public string? Note { get; private set; }
     [MaxLength(1024)] public string DisplayText { get; private set; } = string.Empty;
 
+    public string[] SourceNames { get; private set; } = [];
+
     public static ShoppingListItem CreateNew(
         int sortOrder,
         string name,
@@ -98,7 +102,8 @@ public class ShoppingListItem : Entity
         bool isApproximate,
         bool isManual,
         string? category,
-        string? note
+        string? note,
+        string[]? sourceNames = null
     ) {
         return new ShoppingListItem(
             sortOrder,
@@ -110,7 +115,8 @@ public class ShoppingListItem : Entity
             isApproximate,
             isManual,
             category,
-            note
+            note,
+            sourceNames ?? []
         );
     }
 
@@ -124,7 +130,8 @@ public class ShoppingListItem : Entity
         bool isChecked,
         bool isManual,
         string? category,
-        string? note
+        string? note,
+        string[] sourceNames
     ) {
         Name = name;
         DisplayText = displayText;
@@ -136,6 +143,7 @@ public class ShoppingListItem : Entity
         IsManual = isManual;
         Category = category;
         Note = note;
+        SourceNames = sourceNames;
     }
 }
 

@@ -56,6 +56,7 @@ public partial class ApiDbContext
         modelBuilder.Entity<ShoppingList>().HasIndex(list => new { list.WorkspaceId, list.IsDeleted });
 
         modelBuilder.Entity<ShoppingListItem>().Property(item => item.Amount).HasPrecision(10, 3);
+        modelBuilder.Entity<ShoppingListItem>().Property(item => item.SourceNames).HasColumnType("text[]");
         modelBuilder.Entity<ShoppingListItem>()
             .HasOne(item => item.ShoppingList)
             .WithMany(list => list.Items)

@@ -170,6 +170,8 @@ export interface ShoppingListItem {
     category?: string | null;
     note?: string | null;
     displayText: string;
+    /** Recipe or meal-plan labels this line was consolidated from (e.g. when one ingredient appears in multiple sources). */
+    sourceNames: string[];
 }
 
 export interface ShoppingListSource {
@@ -212,4 +214,5 @@ export interface SaveShoppingListItemRequest {
     category?: string | null;
     note?: string | null;
     displayText: string;
+    sourceNames?: string[] | null;
 }
