@@ -37,7 +37,8 @@ class AppHttpClient {
     constructor() {
         this.axiosInstance = axios.create({
             // In dev, default to same-origin + Vite proxy (see vite.config.ts). Override with VITE_API_BASE_URL.
-            baseURL: import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '' : 'http://localhost:5001'),
+            baseURL:
+                import.meta.env.VITE_PUBLIC_API_BASE_URL || (import.meta.env.DEV ? '' : 'http://192.168.1.98:5001'),
             withCredentials: true,
             headers: { 'Content-Type': 'application/json' },
         });

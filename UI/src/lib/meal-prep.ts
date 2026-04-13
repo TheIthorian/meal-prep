@@ -289,6 +289,6 @@ export function safeHttpUrlHref(raw: string | null | undefined): string | null {
 /** Full URL for authenticated GET of the recipe cover image (uses session cookies). */
 export function recipeImageRequestUrl(workspaceId: string, recipeId: string) {
     const path = `/api/v1/workspaces/${workspaceId}/recipes/${recipeId}/image`;
-    const base = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '' : 'http://localhost:5001');
+    const base = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '' : 'http://192.168.1.98:5001');
     return `${base}${path}`;
 }
