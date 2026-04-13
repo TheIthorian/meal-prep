@@ -1,13 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, ChevronLeft, ChevronRight, Clock, ExternalLink, Flame, Trash2 } from 'lucide-react';
+import {
+    ArrowLeft,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    ExternalLink,
+    Flame,
+    Sparkles,
+    Star,
+    Trash2,
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import { recipesApi } from '@/lib/api';
 import { analyticsEvents, useAnalytics, withWorkspaceProperties } from '@/lib/analytics';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
     AlertDialog,
     AlertDialogCancel,
@@ -25,6 +36,7 @@ import type { Recipe, RecipeListItem } from '@/models/meal-prep';
 import { MealPlanEntryDialog } from '@/components/planner/MealPlanEntryDialog';
 import { LoadingState } from '@/components/common/LoadingState';
 import { RecipePhotoSection } from '@/components/meal-prep/RecipePhotoSection';
+import { AddToRecipeCollectionMenu } from '@/components/meal-prep/AddToRecipeCollectionMenu';
 
 function shouldSuppressRecipeArrowNavigation(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return false;
@@ -44,6 +56,7 @@ function recipeToListItem(recipe: {
     tags: string[];
     sourceUrl?: string | null;
     hasImage: boolean;
+    isFavorite: boolean;
     ingredients: unknown[];
     steps: unknown[];
 }): RecipeListItem {
@@ -56,6 +69,7 @@ function recipeToListItem(recipe: {
         tags: recipe.tags,
         sourceUrl: recipe.sourceUrl,
         hasImage: recipe.hasImage,
+        isFavorite: recipe.isFavorite,
         ingredientCount: recipe.ingredients.length,
         stepCount: recipe.steps.length,
     };
@@ -131,6 +145,55 @@ export default function RecipeDetailPage() {
         navigate,
         deleteDialogOpen,
     ]);
+
+    const setFavoriteRecipe = useMutation({
+        mutationFn: (next: boolean) => recipesApi.setFavorite(workspaceId, recipeId, next),
+        onSuccess: updated => {
+            queryClient.setQueryData<Recipe>(['recipe', workspaceId, recipeId], updated);
+            void queryClient.invalidateQueries({ queryKey: ['recipes', workspaceId] });
+            if (currentWorkspace) {
+                capture(
+                    analyticsEvents.recipeFavoriteUpdated,
+                    withWorkspaceProperties(currentWorkspace, {
+                        recipe_id: recipeId,
+                        is_favorite: updated.isFavorite,
+                    }),
+                );
+            }
+        },
+    });
+
+    const autotagRecipe = useMutation({
+        mutationFn: () => recipesApi.autotag(workspaceId, recipeId),
+        onSuccess: updated => {
+            queryClient.setQueryData<Recipe>(['recipe', workspaceId, recipeId], updated);
+            void queryClient.invalidateQueries({ queryKey: ['recipes', workspaceId] });
+            void queryClient.invalidateQueries({ queryKey: ['recipe-tag-usage', workspaceId] });
+            if (currentWorkspace) {
+                capture(
+                    analyticsEvents.recipeAutotagged,
+                    withWorkspaceProperties(currentWorkspace, {
+                        recipe_id: recipeId,
+                        tag_count: updated.tags.length,
+                    }),
+                );
+            }
+            toast({
+                title: 'Tags updated',
+                description:
+                    updated.tags.length > 0
+                        ? `Saved ${updated.tags.length} tag${updated.tags.length === 1 ? '' : 's'} from the allowed list.`
+                        : 'No matching tags were applied.',
+            });
+        },
+        onError: () => {
+            toast({
+                title: 'Auto-tag failed',
+                description: 'Check that AI is configured, or try again in a moment.',
+                variant: 'destructive',
+            });
+        },
+    });
 
     const deleteRecipe = useMutation({
         mutationFn: () => recipesApi.remove(workspaceId, recipeId),
@@ -253,27 +316,79 @@ export default function RecipeDetailPage() {
                         </div>
                     ) : null}
                 </div>
-                <Button
-                    type='button'
-                    variant='outline'
-                    className='border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive'
-                    onClick={() => setDeleteDialogOpen(true)}
-                >
-                    <Trash2 className='mr-1.5 h-4 w-4' />
-                    Delete
-                </Button>
+                <div className='flex flex-wrap items-center gap-2'>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                type='button'
+                                variant='outline'
+                                size='icon'
+                                className='h-9 w-9 shrink-0 text-amber-600'
+                                disabled={setFavoriteRecipe.isPending}
+                                aria-label={recipe.isFavorite ? 'Remove from favourites' : 'Add to favourites'}
+                                aria-pressed={recipe.isFavorite}
+                                onClick={() => void setFavoriteRecipe.mutateAsync(!recipe.isFavorite)}
+                            >
+                                <Star
+                                    className={`h-4 w-4 ${recipe.isFavorite ? 'fill-amber-400 text-amber-500' : ''}`}
+                                />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side='bottom'>
+                            {recipe.isFavorite ? 'Remove from favourites' : 'Add to favourites'}
+                        </TooltipContent>
+                    </Tooltip>
+                    <AddToRecipeCollectionMenu
+                        workspaceId={workspaceId}
+                        recipeId={recipeId}
+                        variant='compact'
+                    />
+                    <Button
+                        type='button'
+                        variant='outline'
+                        className='border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive'
+                        onClick={() => setDeleteDialogOpen(true)}
+                    >
+                        <Trash2 className='mr-1.5 h-4 w-4' />
+                        Delete
+                    </Button>
+                </div>
             </div>
 
             <div className='mb-6'>
-                <div className='mb-3 flex flex-wrap gap-1.5'>
-                    {recipe.tags.map(tag => (
-                        <span
-                            key={tag}
-                            className='rounded-full bg-primary/8 px-2 py-0.5 text-xs font-medium text-primary'
-                        >
-                            {formatRecipeTagLabel(tag)}
-                        </span>
-                    ))}
+                <div className='mb-3 flex flex-wrap items-center gap-2'>
+                    <div className='flex min-w-0 flex-1 flex-wrap gap-1.5'>
+                        {recipe.tags.length === 0 ? (
+                            <span className='text-sm text-muted-foreground'>No tags yet</span>
+                        ) : (
+                            recipe.tags.map(tag => (
+                                <span
+                                    key={tag}
+                                    className='rounded-full bg-primary/8 px-2 py-0.5 text-xs font-medium text-primary'
+                                >
+                                    {formatRecipeTagLabel(tag)}
+                                </span>
+                            ))
+                        )}
+                    </div>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                type='button'
+                                variant='outline'
+                                size='icon'
+                                className='h-9 w-9 shrink-0'
+                                disabled={autotagRecipe.isPending}
+                                aria-label='Auto-tag with AI'
+                                onClick={() => void autotagRecipe.mutateAsync()}
+                            >
+                                <Sparkles className='h-4 w-4' />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side='bottom'>
+                            Auto-tag with AI (uses title, description, ingredients, and steps)
+                        </TooltipContent>
+                    </Tooltip>
                 </div>
                 <h1 className='font-heading text-3xl text-foreground md:text-4xl'>{recipe.title}</h1>
             </div>

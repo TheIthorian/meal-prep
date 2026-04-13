@@ -70,6 +70,17 @@ public class Recipe : DeletableWorkspaceEntity
         ImageObjectKey = objectKey;
     }
 
+    /// <summary>
+    ///     Removes tag values that match the given strings exactly (ordinal). Used for workspace tag cleanup.
+    /// </summary>
+    public void RemoveTags(IReadOnlyCollection<string> exactTagsToRemove) {
+        if (exactTagsToRemove.Count == 0)
+            return;
+
+        var remove = new HashSet<string>(exactTagsToRemove, StringComparer.Ordinal);
+        Tags = Tags.Where(tag => !remove.Contains(tag)).OrderBy(tag => tag, StringComparer.Ordinal).ToArray();
+    }
+
     public void ReplaceIngredients(IEnumerable<RecipeIngredient> ingredients) {
         Ingredients.Clear();
         foreach (var ingredient in ingredients) Ingredients.Add(ingredient);

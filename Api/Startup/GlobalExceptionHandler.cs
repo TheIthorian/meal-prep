@@ -45,7 +45,7 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
 
         LogException(context, exception, problemDetails, context.Response.StatusCode);
 
-        return context.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+        return context.Response.WriteAsJsonAsync(problemDetails, problemDetails.GetType(), cancellationToken);
     }
 
     private Task WriteBadRequestAsync(

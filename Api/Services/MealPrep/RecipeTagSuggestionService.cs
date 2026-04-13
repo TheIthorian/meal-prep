@@ -17,7 +17,8 @@ public sealed class RecipeTagSuggestionService
     private const string SystemPrompt = """
                                         You assign recipe tags for search and filtering. Output only tags that fit the recipe content.
                                         Each tag must be copied exactly from the allowed list provided in the user message.
-                                        Prefer 3–8 tags. Omit tags you are unsure about. Do not invent tags outside the list.
+                                        Prefer 3–10 tags. Omit tags you are unsure about. Do not invent tags outside the list.
+                                        When the user lists current tags on the recipe, return the full recommended tag set: keep current tags that still fit, add other fitting allowed tags, and drop current tags that are not a good match.
                                         """;
 
     private static readonly BinaryData TagSuggestionJsonSchema = BinaryData.FromString(
@@ -74,7 +75,8 @@ public sealed class RecipeTagSuggestionService
         string? description,
         IReadOnlyList<string> ingredientNames,
         IReadOnlyList<string> stepInstructions,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        IReadOnlyList<string>? currentCanonicalTags = null
     ) {
         if (_chatClient is null)
             return null;
@@ -92,9 +94,18 @@ public sealed class RecipeTagSuggestionService
                 .Select((s, i) => $"{i + 1}. {s}")
         );
 
+        var currentTagsSection = currentCanonicalTags is { Count: > 0 }
+            ? $"""
+
+               Current tags already on this recipe (canonical allowed values only):
+               {string.Join(", ", currentCanonicalTags)}
+               """
+            : "";
+
         var userContent = $"""
                            Allowed tags (copy exactly, use only these strings):
                            {RecipeTagWhitelist.FormatForPrompt()}
+                           {currentTagsSection}
 
                            Title: {title}
 

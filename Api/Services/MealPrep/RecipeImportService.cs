@@ -98,15 +98,12 @@ public class RecipeImportService(
     }
 
     /// <summary>
-    ///     Downloads a recipe image from a URL that belongs to the same site as <paramref name="sourcePageUrl" />.
+    ///     Downloads a recipe image from an absolute http(s) URL (redirects followed, size and content-type enforced).
     /// </summary>
     public async Task<ImportedRecipeImagePayload?> TryDownloadImportImageAsync(
         string imageUrl,
-        string sourcePageUrl,
         CancellationToken cancellationToken = default
     ) {
-        if (!RecipeImportImagePolicy.AreHostsCompatibleForImportedImage(sourcePageUrl, imageUrl)) return null;
-
         if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri)) return null;
 
         var imageClient = httpClientFactory.CreateClient(RecipeImageImportHttpClientName);

@@ -9,6 +9,7 @@ export interface RecipeListItem {
     ingredientCount: number;
     stepCount: number;
     hasImage: boolean;
+    isFavorite: boolean;
 }
 
 export interface RecipeIngredient {
@@ -57,6 +58,7 @@ export interface Recipe {
     isArchived: boolean;
     tags: string[];
     hasImage: boolean;
+    isFavorite: boolean;
     /** Set when saving after URL import; server downloads and stores the image once. */
     importImageUrl?: string | null;
     ingredients: RecipeIngredient[];
@@ -118,6 +120,66 @@ export interface SuggestRecipeTagsRequest {
 
 export interface SuggestRecipeTagsResponse {
     tags: string[];
+}
+
+export interface RecipeTagUsageItem {
+    tag: string;
+    recipeCount: number;
+}
+
+export interface RecipeTagUsageListResponse {
+    items: RecipeTagUsageItem[];
+}
+
+export interface BulkRemoveRecipeTagsResponse {
+    recipesUpdated: number;
+    tagsProcessed: string[];
+}
+
+export interface RecipeCollectionListItem {
+    id: string;
+    name: string;
+    description?: string | null;
+    recipeCount: number;
+    ownerWorkspaceId: string;
+    isOwnedByViewerWorkspace: boolean;
+}
+
+export interface RecipeCollectionSharedWorkspace {
+    workspaceId: string;
+    workspaceName: string;
+}
+
+export interface RecipeCollectionDetail {
+    id: string;
+    name: string;
+    description?: string | null;
+    ownerWorkspaceId: string;
+    canEdit: boolean;
+    recipes: RecipeListItem[];
+    sharedWithWorkspaces: RecipeCollectionSharedWorkspace[];
+}
+
+export interface CreateRecipeCollectionRequest {
+    name: string;
+    description?: string | null;
+}
+
+export interface PatchRecipeCollectionRequest {
+    name: string;
+    description?: string | null;
+}
+
+export interface RecipeCollectionExportRecipe {
+    title: string;
+    payload: SaveRecipeRequest;
+}
+
+export interface RecipeCollectionExport {
+    collectionName: string;
+    description?: string | null;
+    exportedAtUtc: string;
+    recipes: RecipeCollectionExportRecipe[];
 }
 
 export interface RecipeImportPreview {

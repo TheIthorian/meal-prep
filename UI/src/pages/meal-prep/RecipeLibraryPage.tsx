@@ -41,6 +41,9 @@ export default function RecipeLibraryPage() {
         return recipes.filter(r => r.tags.includes(activeTag));
     }, [recipes, activeTag]);
 
+    const favourites = useMemo(() => filtered.filter(r => r.isFavorite), [filtered]);
+    const otherRecipes = useMemo(() => filtered.filter(r => !r.isFavorite), [filtered]);
+
     async function handleImported(recipe: Recipe) {
         navigate(`recipe/${recipe.id}`);
     }
@@ -114,12 +117,28 @@ export default function RecipeLibraryPage() {
                 />
             )}
 
-            {!isLoading && filtered.length > 0 && (
-                <div className='grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'>
-                    {filtered.map((recipe, i) => (
-                        <RecipeCard key={recipe.id} workspaceId={workspaceId} recipe={recipe} index={i} />
-                    ))}
-                </div>
+            {!isLoading && favourites.length > 0 && (
+                <section className='mb-10'>
+                    <h2 className='mb-4 font-heading text-lg text-foreground'>Favourites</h2>
+                    <div className='grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'>
+                        {favourites.map((recipe, i) => (
+                            <RecipeCard key={recipe.id} workspaceId={workspaceId} recipe={recipe} index={i} />
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {!isLoading && otherRecipes.length > 0 && (
+                <section>
+                    {favourites.length > 0 ? (
+                        <h2 className='mb-4 font-heading text-lg text-foreground'>All recipes</h2>
+                    ) : null}
+                    <div className='grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'>
+                        {otherRecipes.map((recipe, i) => (
+                            <RecipeCard key={recipe.id} workspaceId={workspaceId} recipe={recipe} index={i} />
+                        ))}
+                    </div>
+                </section>
             )}
         </div>
     );

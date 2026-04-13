@@ -1,18 +1,20 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, Cable, SlidersHorizontal, UserRound } from 'lucide-react';
+import { Building2, Cable, SlidersHorizontal, Tags, UserRound } from 'lucide-react';
 import { useQueryString } from '@/hooks/use-query-string';
 import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { PreferencesSettings } from '@/components/settings/PreferencesSettings';
 import { WorkspaceSettings } from '@/components/settings/WorkspaceSettings';
 import { IntegrationsSettings } from '@/components/settings/IntegrationsSettings';
+import { RecipeTagsSettings } from '@/components/settings/RecipeTagsSettings';
 import { cn } from '@/lib/utils';
 
 const tabs = [
     { value: 'profile', label: 'Profile', icon: UserRound },
     { value: 'preferences', label: 'Preferences', icon: SlidersHorizontal },
     { value: 'integrations', label: 'Integrations', icon: Cable },
+    { value: 'recipe-tags', label: 'Recipe tags', icon: Tags },
     { value: 'workspaces', label: 'Workspaces', icon: Building2 },
 ] as const;
 
@@ -41,7 +43,7 @@ export default function Settings() {
             >
                 <h1 className='font-heading text-3xl text-foreground md:text-4xl'>Settings</h1>
                 <p className='mt-1.5 max-w-xl text-muted-foreground'>
-                    Your account, how Meal Prep looks, integrations, and workspace access.
+                    Your account, how Meal Prep looks, integrations, recipe tag cleanup, and workspace access.
                 </p>
             </motion.div>
 
@@ -84,6 +86,10 @@ export default function Settings() {
 
                     <TabsContent value='integrations' className='m-0 focus-visible:outline-none'>
                         <IntegrationsSettings />
+                    </TabsContent>
+
+                    <TabsContent value='recipe-tags' className='m-0 focus-visible:outline-none'>
+                        <RecipeTagsSettings />
                     </TabsContent>
 
                     <TabsContent value='workspaces' className='m-0 focus-visible:outline-none'>

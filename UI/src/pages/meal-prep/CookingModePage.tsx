@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Carrot, ExternalLink } from 'lucide-react';
 import { recipesApi } from '@/lib/api';
+import { splitInstructionIntoSentences } from '@/lib/instruction-sentences';
 import { safeHttpUrlHref, scaleRecipeIngredients } from '@/lib/meal-prep';
+import { cn } from '@/lib/utils';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { LoadingState } from '@/components/common/LoadingState';
 import { InstructionWithInlineAmounts } from '@/components/recipes/InstructionWithInlineAmounts';
@@ -12,11 +14,31 @@ import { RecipeIngredientListRow } from '@/components/recipes/RecipeIngredientLi
 import { RecipeYieldScale } from '@/components/recipes/RecipeYieldScale';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
+function cookingSentenceStorageKey(workspaceId: string, recipeId: string): string {
+    return `cooking-mode-sentence-${workspaceId}-${recipeId}`;
+}
+
+function collectCookingSentenceIds(steps: { id: string; instruction: string }[]): Set<string> {
+    const ids = new Set<string>();
+    for (const step of steps) {
+        const sentences = splitInstructionIntoSentences(step.instruction);
+        const blocks =
+            sentences.length > 0 ? sentences : step.instruction.trim() ? [step.instruction] : [''];
+        for (let j = 0; j < blocks.length; j++) {
+            ids.add(`${step.id}-s${j}`);
+        }
+    }
+    return ids;
+}
+
 export default function CookingModePage() {
     const { workspaceId = '', recipeId = '' } = useParams<{ workspaceId: string; recipeId: string }>();
     const { setCurrentWorkspaceId } = useWorkspace();
     const [showIngredients, setShowIngredients] = useState(false);
     const [targetServings, setTargetServings] = useState(1);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const recipeStepsRef = useRef<{ id: string; instruction: string }[] | undefined>(undefined);
+    const [activeSentenceId, setActiveSentenceId] = useState<string | null>(null);
 
     useEffect(() => {
         if (workspaceId) {
@@ -34,6 +56,8 @@ export default function CookingModePage() {
         enabled: Boolean(workspaceId && recipeId),
     });
 
+    recipeStepsRef.current = recipe?.steps;
+
     const baseServings = recipe ? (recipe.servings > 0 ? recipe.servings : 1) : 1;
 
     useEffect(() => {
@@ -46,6 +70,48 @@ export default function CookingModePage() {
         if (!recipe) return [];
         return scaleRecipeIngredients(recipe.ingredients, baseServings, targetServings);
     }, [recipe, baseServings, targetServings]);
+
+    const stepSentenceSignature = useMemo(
+        () => (recipe ? recipe.steps.map(s => `${s.id}:${s.instruction}`).join('\u0001') : ''),
+        [recipe],
+    );
+
+    useLayoutEffect(() => {
+        const root = scrollContainerRef.current;
+        const steps = recipeStepsRef.current;
+        if (!root || !workspaceId || !recipeId || !stepSentenceSignature || !steps?.length) return;
+
+        const key = cookingSentenceStorageKey(workspaceId, recipeId);
+        const validIds = collectCookingSentenceIds(steps);
+        const saved = sessionStorage.getItem(key);
+
+        if (saved && validIds.has(saved)) {
+            setActiveSentenceId(saved);
+            requestAnimationFrame(() => {
+                const escaped =
+                    typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+                        ? CSS.escape(saved)
+                        : saved.replace(/"/g, '\\"');
+                const target = root.querySelector<HTMLElement>(`[data-cooking-sentence="${escaped}"]`);
+                target?.scrollIntoView({ block: 'center', behavior: 'auto' });
+            });
+        } else {
+            setActiveSentenceId(null);
+            if (saved) {
+                sessionStorage.removeItem(key);
+            }
+        }
+    }, [recipeId, workspaceId, stepSentenceSignature]);
+
+    useEffect(() => {
+        if (!workspaceId || !recipeId) return;
+        const key = cookingSentenceStorageKey(workspaceId, recipeId);
+        if (activeSentenceId) {
+            sessionStorage.setItem(key, activeSentenceId);
+        } else {
+            sessionStorage.removeItem(key);
+        }
+    }, [activeSentenceId, workspaceId, recipeId]);
 
     if (isLoading || !recipe) {
         return (
@@ -153,21 +219,56 @@ export default function CookingModePage() {
                 )}
             </AnimatePresence>
 
-            <div className='min-h-0 flex-1 overflow-y-auto px-6 py-8'>
+            <div ref={scrollContainerRef} className='min-h-0 flex-1 overflow-y-auto px-6 py-8'>
                 <div className='mx-auto flex w-full max-w-2xl flex-col gap-10 text-left'>
-                    {recipe.steps.map((step, i) => (
-                        <section key={step.id} className='scroll-mt-28'>
-                            <p className='mb-4 text-xs font-medium uppercase tracking-wider text-primary'>
-                                Step {i + 1} of {totalSteps}
-                            </p>
-                            <p className='font-body text-xl leading-relaxed text-foreground md:text-2xl'>
-                                <InstructionWithInlineAmounts
-                                    instruction={step.instruction}
-                                    scaledIngredients={scaledIngredients}
-                                />
-                            </p>
-                        </section>
-                    ))}
+                    {recipe.steps.map((step, i) => {
+                        const sentences = splitInstructionIntoSentences(step.instruction);
+                        const blocks =
+                            sentences.length > 0
+                                ? sentences
+                                : step.instruction.trim()
+                                  ? [step.instruction]
+                                  : [''];
+
+                        return (
+                            <section key={step.id} className='scroll-mt-28'>
+                                <p className='mb-4 text-xs font-medium uppercase tracking-wider text-primary'>
+                                    Step {i + 1} of {totalSteps}
+                                </p>
+                                <div>
+                                    {blocks.map((sentence, j) => {
+                                        const sentenceId = `${step.id}-s${j}`;
+                                        const isActive = activeSentenceId === sentenceId;
+                                        return (
+                                            <button
+                                                key={sentenceId}
+                                                type='button'
+                                                data-cooking-sentence={sentenceId}
+                                                aria-label={`Mark this instruction as your place (step ${i + 1}, part ${j + 1}). Tap again to clear.`}
+                                                aria-current={isActive ? 'true' : undefined}
+                                                onClick={() =>
+                                                    setActiveSentenceId(current =>
+                                                        current === sentenceId ? null : sentenceId,
+                                                    )
+                                                }
+                                                className={cn(
+                                                    'block w-full scroll-mt-32 rounded-lg px-2 py-2 text-left font-body text-xl leading-relaxed text-foreground transition-colors duration-200 touch-manipulation md:text-2xl',
+                                                    'hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                                                    j < blocks.length - 1 && 'mb-3',
+                                                    isActive && 'bg-primary/12 ring-2 ring-primary/40 ring-offset-2 ring-offset-background',
+                                                )}
+                                            >
+                                                <InstructionWithInlineAmounts
+                                                    instruction={sentence}
+                                                    scaledIngredients={scaledIngredients}
+                                                />
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </section>
+                        );
+                    })}
                 </div>
             </div>
         </div>

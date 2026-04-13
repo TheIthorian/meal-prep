@@ -104,6 +104,25 @@ public static class EndpointRouteBuilderExtensions
                 .Produces<RecipeTagListResponse>()
                 .WithName("GetRecipeTagWhitelist");
 
+            apiGroup.MapGet("/workspaces/{workspaceId:guid}/recipe-tags/usage", RecipesHandlers.GetRecipeTagUsage)
+                .Produces<RecipeTagUsageListResponse>()
+                .WithName("GetRecipeTagUsage");
+
+            apiGroup.MapPost(
+                    "/workspaces/{workspaceId:guid}/recipe-tags/bulk-remove",
+                    RecipesHandlers.PostBulkRemoveRecipeTags
+                )
+                .WithBodyValidation<BulkRemoveRecipeTagsRequest>()
+                .Produces<BulkRemoveRecipeTagsResponse>()
+                .WithName("BulkRemoveRecipeTags");
+
+            apiGroup.MapPost(
+                    "/workspaces/{workspaceId:guid}/recipe-tags/remove-singletons",
+                    RecipesHandlers.PostRemoveSingletonRecipeTags
+                )
+                .Produces<BulkRemoveRecipeTagsResponse>()
+                .WithName("RemoveSingletonRecipeTags");
+
             apiGroup.MapPost(
                     "/workspaces/{workspaceId:guid}/recipes/suggest-tags",
                     RecipesHandlers.PostSuggestRecipeTags
@@ -136,9 +155,98 @@ public static class EndpointRouteBuilderExtensions
                 .Produces<RecipeResponse>()
                 .WithName("UpdateRecipe");
 
+            apiGroup.MapPatch(
+                    "/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}/favorite",
+                    RecipesHandlers.PatchRecipeFavorite
+                )
+                .WithBodyValidation<SetRecipeFavoriteRequest>()
+                .Produces<RecipeResponse>()
+                .WithName("SetRecipeFavorite");
+
+            apiGroup.MapPost(
+                    "/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}/autotag",
+                    RecipesHandlers.PostAutotagRecipe
+                )
+                .Produces<RecipeResponse>()
+                .WithName("AutotagRecipe");
+
             apiGroup.MapDelete("/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}", RecipesHandlers.DeleteRecipe)
                 .Produces(StatusCodes.Status200OK)
                 .WithName("DeleteRecipe");
+
+            apiGroup.MapGet(
+                    "/workspaces/{workspaceId:guid}/recipe-collections",
+                    RecipeCollectionsHandlers.GetRecipeCollections
+                )
+                .Produces<RecipeCollectionListItemResponse[]>()
+                .WithName("GetRecipeCollections");
+
+            apiGroup.MapPost(
+                    "/workspaces/{workspaceId:guid}/recipe-collections",
+                    RecipeCollectionsHandlers.PostRecipeCollection
+                )
+                .WithBodyValidation<CreateRecipeCollectionRequest>()
+                .Produces<RecipeCollectionDetailResponse>()
+                .WithName("CreateRecipeCollection");
+
+            apiGroup.MapGet(
+                    "/workspaces/{workspaceId:guid}/recipe-collections/{collectionId:guid}",
+                    RecipeCollectionsHandlers.GetRecipeCollection
+                )
+                .Produces<RecipeCollectionDetailResponse>()
+                .WithName("GetRecipeCollection");
+
+            apiGroup.MapPatch(
+                    "/workspaces/{workspaceId:guid}/recipe-collections/{collectionId:guid}",
+                    RecipeCollectionsHandlers.PatchRecipeCollection
+                )
+                .WithBodyValidation<PatchRecipeCollectionRequest>()
+                .Produces<RecipeCollectionDetailResponse>()
+                .WithName("UpdateRecipeCollection");
+
+            apiGroup.MapDelete(
+                    "/workspaces/{workspaceId:guid}/recipe-collections/{collectionId:guid}",
+                    RecipeCollectionsHandlers.DeleteRecipeCollection
+                )
+                .Produces(StatusCodes.Status200OK)
+                .WithName("DeleteRecipeCollection");
+
+            apiGroup.MapPost(
+                    "/workspaces/{workspaceId:guid}/recipe-collections/{collectionId:guid}/recipes",
+                    RecipeCollectionsHandlers.PostRecipeToCollection
+                )
+                .WithBodyValidation<AddRecipeToCollectionRequest>()
+                .Produces<RecipeCollectionDetailResponse>()
+                .WithName("AddRecipeToCollection");
+
+            apiGroup.MapDelete(
+                    "/workspaces/{workspaceId:guid}/recipe-collections/{collectionId:guid}/recipes/{recipeId:guid}",
+                    RecipeCollectionsHandlers.DeleteRecipeFromCollection
+                )
+                .Produces<RecipeCollectionDetailResponse>()
+                .WithName("RemoveRecipeFromCollection");
+
+            apiGroup.MapGet(
+                    "/workspaces/{workspaceId:guid}/recipe-collections/{collectionId:guid}/export",
+                    RecipeCollectionsHandlers.GetRecipeCollectionExport
+                )
+                .Produces<RecipeCollectionExportResponse>()
+                .WithName("ExportRecipeCollection");
+
+            apiGroup.MapPost(
+                    "/workspaces/{workspaceId:guid}/recipe-collections/{collectionId:guid}/share",
+                    RecipeCollectionsHandlers.PostShareRecipeCollection
+                )
+                .WithBodyValidation<ShareRecipeCollectionRequest>()
+                .Produces<RecipeCollectionSharedWorkspaceResponse[]>()
+                .WithName("ShareRecipeCollection");
+
+            apiGroup.MapDelete(
+                    "/workspaces/{workspaceId:guid}/recipe-collections/{collectionId:guid}/share/{targetWorkspaceId:guid}",
+                    RecipeCollectionsHandlers.DeleteShareRecipeCollection
+                )
+                .Produces<RecipeCollectionSharedWorkspaceResponse[]>()
+                .WithName("UnshareRecipeCollection");
 
             apiGroup.MapGet(
                     "/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}/image",

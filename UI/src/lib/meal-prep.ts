@@ -109,6 +109,7 @@ export function createEmptyRecipe(workspaceId: string): Recipe {
         isArchived: false,
         tags: [],
         hasImage: false,
+        isFavorite: false,
         importImageUrl: null,
         ingredients: [
             {

@@ -14,6 +14,8 @@ import Settings from './pages/Settings';
 import SettingsRedirectPage from './pages/SettingsRedirectPage';
 import RecipeLibraryPage from './pages/meal-prep/RecipeLibraryPage';
 import RecipeDetailPage from './pages/meal-prep/RecipeDetailPage';
+import RecipeCollectionsListPage from './pages/meal-prep/RecipeCollectionsListPage';
+import RecipeCollectionPage from './pages/meal-prep/RecipeCollectionPage';
 import WeeklyPlannerPage from './pages/meal-prep/WeeklyPlannerPage';
 import ShoppingListPage from './pages/meal-prep/ShoppingListPage';
 import ShoppingModePage from './pages/meal-prep/ShoppingModePage';
@@ -78,6 +80,8 @@ const App = () => (
                                             }
                                         >
                                             <Route index element={<RecipeLibraryPage />} />
+                                            <Route path='collections' element={<RecipeCollectionsListPage />} />
+                                            <Route path='collections/:collectionId' element={<RecipeCollectionPage />} />
                                             <Route path='recipe/:recipeId' element={<RecipeDetailPage />} />
                                             <Route path='planner' element={<WeeklyPlannerPage />} />
                                             <Route path='shopping' element={<ShoppingListPage />} />

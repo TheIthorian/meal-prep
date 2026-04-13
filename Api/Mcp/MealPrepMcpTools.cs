@@ -91,7 +91,9 @@ public sealed class MealPrepMcpTools(
     }
 
     private static string SerializeAppException(AppException exception) {
-        return JsonSerializer.Serialize(exception.Details, McpJson.SerializerOptions);
+        var details = exception.Details;
+        // Serialize using the runtime type so ExtendedProblemDetail.Errors is included (Details is typed as ProblemDetails).
+        return JsonSerializer.Serialize(details, details.GetType(), McpJson.SerializerOptions);
     }
 
     private static string BuildUnhandledErrorResponse(string toolName, string? errorDetail = null) {
@@ -185,9 +187,8 @@ public sealed class MealPrepMcpTools(
     [McpServerTool]
     [Description("Gets a recipe by id.")]
     public async Task<string> GetRecipe(Guid recipeId, CancellationToken cancellationToken) {
-        _ = cancellationToken;
         var workspaceId = RequireMcpWorkspaceId();
-        var result = await RecipesHandlers.GetRecipe(currentUserService, db, workspaceId, recipeId);
+        var result = await RecipesHandlers.GetRecipe(currentUserService, db, workspaceId, recipeId, cancellationToken);
         return Serialize(result);
     }
 
@@ -350,12 +351,7 @@ public sealed class MealPrepMcpTools(
                 if (recipe is null)
                     throw new EntityNotFoundException("Recipe not found", null);
 
-                var sourceForPolicy = string.IsNullOrWhiteSpace(recipe.SourceUrl) ? imageUrl : recipe.SourceUrl;
-                var payload = await recipeImportService.TryDownloadImportImageAsync(
-                    imageUrl,
-                    sourceForPolicy!,
-                    cancellationToken
-                );
+                var payload = await recipeImportService.TryDownloadImportImageAsync(imageUrl, cancellationToken);
                 if (payload is null)
                     throw new InvalidFormatException(
                         "Image import failed",
@@ -380,7 +376,16 @@ public sealed class MealPrepMcpTools(
                     .Where(value => value.WorkspaceId == workspaceId && value.Id == recipeId)
                     .FirstAsync(cancellationToken);
 
-                return JsonSerializer.Serialize(updatedRecipe.ToRecipeResponse(), McpJson.SerializerOptions);
+                var isFavorite = await db.RecipeFavorites.AsNoTracking()
+                    .AnyAsync(
+                        favorite => favorite.UserId == workspaceUser.UserId && favorite.RecipeId == recipeId,
+                        cancellationToken
+                    );
+
+                return JsonSerializer.Serialize(
+                    updatedRecipe.ToRecipeResponse(isFavorite),
+                    McpJson.SerializerOptions
+                );
             }
         );
     }

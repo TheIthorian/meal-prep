@@ -53,7 +53,19 @@ internal static class RecipesHandlers
         );
 
         var totalCount = await query.CountAsync(cancellationToken);
-        var recipes = await query.ApplyPagination(paginationOptions, nameof(Recipe.Title))
+        var userId = currentUserId.Value;
+
+        var orderedQuery = query.OrderByDescending(recipe =>
+            db.RecipeFavorites.Any(favorite => favorite.UserId == userId && favorite.RecipeId == recipe.Id));
+
+        orderedQuery = paginationOptions.Direction == PaginationOptions.OrderDirections.Asc
+            ? orderedQuery.ThenBy(recipe => recipe.Title)
+            : orderedQuery.ThenByDescending(recipe => recipe.Title);
+
+        var skip = (paginationOptions.Page - 1) * paginationOptions.PageSize;
+        var recipes = await orderedQuery
+            .Skip(skip)
+            .Take(paginationOptions.PageSize)
             .Select(recipe => new RecipeListItemResponse(
                     recipe.Id,
                     recipe.Title,
@@ -64,7 +76,8 @@ internal static class RecipesHandlers
                     recipe.SourceUrl,
                     recipe.Ingredients.Count,
                     recipe.Steps.Count,
-                    recipe.ImageObjectKey != null && recipe.ImageObjectKey != ""
+                    recipe.ImageObjectKey != null && recipe.ImageObjectKey != "",
+                    db.RecipeFavorites.Any(favorite => favorite.UserId == userId && favorite.RecipeId == recipe.Id)
                 )
             )
             .ToArrayAsync(cancellationToken);
@@ -117,11 +130,89 @@ internal static class RecipesHandlers
     }
 
     [Authorize]
+    public static async Task<JsonHttpResult<RecipeTagUsageListResponse>> GetRecipeTagUsage(
+        CurrentUserService currentUserService,
+        ApiDbContext db,
+        Guid workspaceId,
+        CancellationToken cancellationToken
+    )
+    {
+        var currentUserId = currentUserService.UserId;
+        if (currentUserId is null) throw new UnauthorizedException();
+
+        if (await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId) is null)
+            throw new EntityNotFoundException("workspace not found", null);
+
+        var items = await LoadRecipeTagUsageAsync(db, currentUserId.Value, workspaceId, cancellationToken);
+
+        return TypedResults.Json(new RecipeTagUsageListResponse(items));
+    }
+
+    [Authorize]
+    public static async Task<JsonHttpResult<BulkRemoveRecipeTagsResponse>> PostBulkRemoveRecipeTags(
+        CurrentUserService currentUserService,
+        ApiDbContext db,
+        Guid workspaceId,
+        [FromBody] BulkRemoveRecipeTagsRequest body,
+        CancellationToken cancellationToken
+    )
+    {
+        var currentUserId = currentUserService.UserId;
+        if (currentUserId is null) throw new UnauthorizedException();
+
+        if (await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId) is null)
+            throw new EntityNotFoundException("workspace not found", null);
+
+        var distinct = body.Tags.Distinct(StringComparer.Ordinal).ToArray();
+        var result = await BulkRemoveTagsFromWorkspaceRecipesAsync(
+            db,
+            currentUserId.Value,
+            workspaceId,
+            distinct,
+            cancellationToken
+        );
+
+        return TypedResults.Json(result);
+    }
+
+    [Authorize]
+    public static async Task<JsonHttpResult<BulkRemoveRecipeTagsResponse>> PostRemoveSingletonRecipeTags(
+        CurrentUserService currentUserService,
+        ApiDbContext db,
+        Guid workspaceId,
+        CancellationToken cancellationToken
+    )
+    {
+        var currentUserId = currentUserService.UserId;
+        if (currentUserId is null) throw new UnauthorizedException();
+
+        if (await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId) is null)
+            throw new EntityNotFoundException("workspace not found", null);
+
+        var usage = await LoadRecipeTagUsageAsync(db, currentUserId.Value, workspaceId, cancellationToken);
+        var singletons = usage.Where(item => item.RecipeCount == 1).Select(item => item.Tag).ToArray();
+
+        if (singletons.Length == 0)
+            return TypedResults.Json(new BulkRemoveRecipeTagsResponse(0, Array.Empty<string>()));
+
+        var result = await BulkRemoveTagsFromWorkspaceRecipesAsync(
+            db,
+            currentUserId.Value,
+            workspaceId,
+            singletons,
+            cancellationToken
+        );
+
+        return TypedResults.Json(result);
+    }
+
+    [Authorize]
     public static async Task<JsonHttpResult<RecipeResponse>> GetRecipe(
         CurrentUserService currentUserService,
         ApiDbContext db,
         Guid workspaceId,
-        Guid recipeId
+        Guid recipeId,
+        CancellationToken cancellationToken
     ) {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
@@ -134,11 +225,90 @@ internal static class RecipesHandlers
             .ForCurrentUser(currentUserId)
             .WhereIsNotDeleted()
             .Where(value => value.WorkspaceId == workspaceId && value.Id == recipeId)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
-        return recipe is null
-            ? throw new EntityNotFoundException("Recipe not found", null)
-            : TypedResults.Json(recipe.ToRecipeResponse());
+        if (recipe is null) throw new EntityNotFoundException("Recipe not found", null);
+
+        var isFavorite = await RecipeIsFavoriteAsync(db, currentUserId.Value, recipeId, cancellationToken);
+
+        return TypedResults.Json(recipe.ToRecipeResponse(isFavorite));
+    }
+
+    [Authorize]
+    public static async Task<JsonHttpResult<RecipeResponse>> PostAutotagRecipe(
+        CurrentUserService currentUserService,
+        ApiDbContext db,
+        RecipeTagSuggestionService tagSuggestionService,
+        Guid workspaceId,
+        Guid recipeId,
+        CancellationToken cancellationToken
+    )
+    {
+        var currentUserId = currentUserService.UserId;
+        if (currentUserId is null) throw new UnauthorizedException();
+
+        if (await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId) is null)
+            throw new EntityNotFoundException("workspace not found", null);
+
+        if (!tagSuggestionService.IsConfigured)
+            throw new InvalidFormatException(
+                "Recipe auto-tagging is unavailable",
+                "OpenAI API is not configured."
+            );
+
+        var recipe = await db.Recipes
+            .Include(value => value.Ingredients)
+            .Include(value => value.Steps)
+            .Include(value => value.Nutrition)
+            .ForCurrentUser(currentUserId.Value)
+            .WhereIsNotDeleted()
+            .Where(value => value.WorkspaceId == workspaceId && value.Id == recipeId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (recipe is null) throw new EntityNotFoundException("Recipe not found", null);
+
+        var currentCanonical = RecipeTagWhitelist.NormalizeToWhitelist(recipe.Tags);
+        var ingredientNames = recipe.Ingredients
+            .OrderBy(ingredient => ingredient.SortOrder)
+            .Select(ingredient => ingredient.Name)
+            .ToList();
+        var stepInstructions = recipe.Steps
+            .OrderBy(step => step.SortOrder)
+            .Select(step => step.Instruction)
+            .ToList();
+
+        var suggested = await tagSuggestionService.TrySuggestTagsAsync(
+            recipe.Title,
+            recipe.Description,
+            ingredientNames,
+            stepInstructions,
+            cancellationToken,
+            currentCanonical
+        );
+
+        if (suggested is null)
+            throw new InvalidFormatException(
+                "Auto-tag failed",
+                "The model did not return usable tags. Try again."
+            );
+
+        recipe.UpdateDetails(
+            recipe.Title,
+            recipe.Description,
+            recipe.Servings,
+            recipe.SourceUrl,
+            recipe.Notes,
+            recipe.PrepMinutes,
+            recipe.CookMinutes,
+            recipe.IsArchived,
+            suggested
+        );
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        var isFavorite = await RecipeIsFavoriteAsync(db, currentUserId.Value, recipeId, cancellationToken);
+
+        return TypedResults.Json(recipe.ToRecipeResponse(isFavorite));
     }
 
     [Authorize]
@@ -170,7 +340,7 @@ internal static class RecipesHandlers
             .WhereIsNotDeleted()
             .FirstAsync(value => value.Id == recipe.Id, cancellationToken);
 
-        return TypedResults.Json(recipe.ToRecipeResponse());
+        return TypedResults.Json(recipe.ToRecipeResponse(isFavorite: false));
     }
 
     [Authorize]
@@ -240,12 +410,12 @@ internal static class RecipesHandlers
             .Select((step, index) => RecipeStep.CreateNew(index, step.Instruction, step.TimerSeconds))
             .ToArray();
 
-        var newNutrition = body.Nutrition
-                               ?.Nutrients
-                               .GroupBy(nutrient => nutrient.NutrientType.Trim(), StringComparer.OrdinalIgnoreCase)
-                               .Select(group => RecipeNutrition.CreateNew(group.Key, group.Last().Amount))
-                               .ToArray()
-                           ?? Array.Empty<RecipeNutrition>();
+        var newNutrition = body.Nutrition?.Nutrients is { Length: > 0 } nutrients
+            ? nutrients
+                .GroupBy(nutrient => nutrient.NutrientType.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(group => RecipeNutrition.CreateNew(group.Key, group.Last().Amount))
+                .ToArray()
+            : Array.Empty<RecipeNutrition>();
 
         foreach (var ingredient in newIngredients)
             db.Entry(ingredient).Property(nameof(RecipeIngredient.RecipeId)).CurrentValue = recipeId;
@@ -259,10 +429,9 @@ internal static class RecipesHandlers
         await db.RecipeNutrition.AddRangeAsync(newNutrition, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
-        if (!string.IsNullOrWhiteSpace(body.ImportImageUrl) && !string.IsNullOrWhiteSpace(body.SourceUrl)) {
+        if (!string.IsNullOrWhiteSpace(body.ImportImageUrl)) {
             var payload = await recipeImportService.TryDownloadImportImageAsync(
                 body.ImportImageUrl,
-                body.SourceUrl,
                 cancellationToken
             );
             if (payload is not null) {
@@ -292,7 +461,9 @@ internal static class RecipesHandlers
             .Where(value => value.WorkspaceId == workspaceId && value.Id == recipeId)
             .FirstAsync(cancellationToken);
 
-        return TypedResults.Json(updatedRecipe.ToRecipeResponse());
+        var isFavorite = await RecipeIsFavoriteAsync(db, currentUserId, recipeId, cancellationToken);
+
+        return TypedResults.Json(updatedRecipe.ToRecipeResponse(isFavorite));
     }
 
     [Authorize]
@@ -404,7 +575,9 @@ internal static class RecipesHandlers
         recipe.SetImageObjectKey(newKey);
         await db.SaveChangesAsync(cancellationToken);
 
-        return TypedResults.Json(recipe.ToRecipeResponse());
+        var isFavorite = await RecipeIsFavoriteAsync(db, currentUserId, recipeId, cancellationToken);
+
+        return TypedResults.Json(recipe.ToRecipeResponse(isFavorite));
     }
 
     [Authorize]
@@ -438,7 +611,59 @@ internal static class RecipesHandlers
         recipe.SetImageObjectKey(null);
         await db.SaveChangesAsync(cancellationToken);
 
-        return TypedResults.Json(recipe.ToRecipeResponse());
+        var isFavorite = await RecipeIsFavoriteAsync(db, currentUserId, recipeId, cancellationToken);
+
+        return TypedResults.Json(recipe.ToRecipeResponse(isFavorite));
+    }
+
+    [Authorize]
+    public static async Task<JsonHttpResult<RecipeResponse>> PatchRecipeFavorite(
+        CurrentUserService currentUserService,
+        ApiDbContext db,
+        Guid workspaceId,
+        Guid recipeId,
+        [FromBody] SetRecipeFavoriteRequest body,
+        CancellationToken cancellationToken
+    ) {
+        var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
+        if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
+
+        var userId = workspaceUser.UserId;
+        var recipeExists = await db.Recipes
+            .AsNoTracking()
+            .ForCurrentUser(userId)
+            .WhereIsNotDeleted()
+            .AnyAsync(recipe => recipe.WorkspaceId == workspaceId && recipe.Id == recipeId, cancellationToken);
+
+        if (!recipeExists) throw new EntityNotFoundException("Recipe not found", null);
+
+        if (body.IsFavorite) {
+            var already = await db.RecipeFavorites.AnyAsync(
+                favorite => favorite.UserId == userId && favorite.RecipeId == recipeId,
+                cancellationToken
+            );
+
+            if (!already) {
+                db.RecipeFavorites.Add(new RecipeFavorite { UserId = userId, RecipeId = recipeId });
+                await db.SaveChangesAsync(cancellationToken);
+            }
+        } else {
+            await db.RecipeFavorites
+                .Where(favorite => favorite.UserId == userId && favorite.RecipeId == recipeId)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+
+        var recipe = await db.Recipes
+            .Include(value => value.Ingredients)
+            .Include(value => value.Steps)
+            .Include(value => value.Nutrition)
+            .AsNoTracking()
+            .ForCurrentUser(userId)
+            .WhereIsNotDeleted()
+            .Where(value => value.WorkspaceId == workspaceId && value.Id == recipeId)
+            .FirstAsync(cancellationToken);
+
+        return TypedResults.Json(recipe.ToRecipeResponse(body.IsFavorite));
     }
 
     [Authorize]
@@ -497,7 +722,7 @@ internal static class RecipesHandlers
             .WhereIsNotDeleted()
             .FirstAsync(value => value.Id == recipe.Id, cancellationToken);
 
-        return TypedResults.Json(importedRecipe.ToRecipeResponse());
+        return TypedResults.Json(importedRecipe.ToRecipeResponse(isFavorite: false));
     }
 
     private static async Task TryApplyImportedImageAsync(
@@ -507,11 +732,10 @@ internal static class RecipesHandlers
         IS3StorageService s3StorageService,
         CancellationToken cancellationToken
     ) {
-        if (string.IsNullOrWhiteSpace(body.ImportImageUrl) || string.IsNullOrWhiteSpace(body.SourceUrl)) return;
+        if (string.IsNullOrWhiteSpace(body.ImportImageUrl)) return;
 
         var payload = await recipeImportService.TryDownloadImportImageAsync(
             body.ImportImageUrl,
-            body.SourceUrl,
             cancellationToken
         );
 
@@ -565,6 +789,79 @@ internal static class RecipesHandlers
         );
     }
 
+    private static async Task<RecipeTagUsageItemResponse[]> LoadRecipeTagUsageAsync(
+        ApiDbContext db,
+        Guid currentUserId,
+        Guid workspaceId,
+        CancellationToken cancellationToken
+    )
+    {
+        var tagArrays = await db.Recipes
+            .AsNoTracking()
+            .ForCurrentUser(currentUserId)
+            .WhereIsNotDeleted()
+            .Where(recipe => recipe.WorkspaceId == workspaceId)
+            .Select(recipe => recipe.Tags)
+            .ToArrayAsync(cancellationToken);
+
+        return tagArrays
+            .SelectMany(tags => tags)
+            .GroupBy(tag => tag, StringComparer.Ordinal)
+            .Select(group => new RecipeTagUsageItemResponse(group.Key, group.Count()))
+            .OrderBy(item => item.RecipeCount)
+            .ThenBy(item => item.Tag, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static async Task<BulkRemoveRecipeTagsResponse> BulkRemoveTagsFromWorkspaceRecipesAsync(
+        ApiDbContext db,
+        Guid currentUserId,
+        Guid workspaceId,
+        IReadOnlyList<string> exactTagsToRemove,
+        CancellationToken cancellationToken
+    )
+    {
+        var remove = exactTagsToRemove.ToHashSet(StringComparer.Ordinal);
+
+        if (remove.Count == 0)
+            return new BulkRemoveRecipeTagsResponse(0, Array.Empty<string>());
+
+        var tagList = remove.ToList();
+
+        var recipes = await db.Recipes
+            .ForCurrentUser(currentUserId)
+            .WhereIsNotDeleted()
+            .Where(recipe => recipe.WorkspaceId == workspaceId)
+            .Where(recipe => tagList.Any(tag => recipe.Tags.Contains(tag)))
+            .ToListAsync(cancellationToken);
+
+        var recipesUpdated = 0;
+
+        foreach (var recipe in recipes)
+        {
+            var before = recipe.Tags.Length;
+            recipe.RemoveTags(remove);
+
+            if (recipe.Tags.Length != before)
+                recipesUpdated++;
+        }
+
+        if (recipesUpdated > 0)
+            await db.SaveChangesAsync(cancellationToken);
+
+        return new BulkRemoveRecipeTagsResponse(recipesUpdated, tagList.ToArray());
+    }
+
+    private static Task<bool> RecipeIsFavoriteAsync(
+        ApiDbContext db,
+        Guid userId,
+        Guid recipeId,
+        CancellationToken cancellationToken
+    ) {
+        return db.RecipeFavorites.AsNoTracking()
+            .AnyAsync(favorite => favorite.UserId == userId && favorite.RecipeId == recipeId, cancellationToken);
+    }
+
     private static void ApplyRecipe(Recipe recipe, SaveRecipeRequest body) {
         recipe.UpdateDetails(
             body.Title,
@@ -598,12 +895,12 @@ internal static class RecipesHandlers
 
         recipe.SetNutrition(
             body.Nutrition?.ServingBasis,
-            body.Nutrition
-                ?.Nutrients
-                .GroupBy(nutrient => nutrient.NutrientType.Trim(), StringComparer.OrdinalIgnoreCase)
-                .Select(group => RecipeNutrition.CreateNew(group.Key, group.Last().Amount))
-                .ToArray()
-            ?? Array.Empty<RecipeNutrition>()
+            body.Nutrition?.Nutrients is { Length: > 0 } nutrients
+                ? nutrients
+                    .GroupBy(nutrient => nutrient.NutrientType.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .Select(group => RecipeNutrition.CreateNew(group.Key, group.Last().Amount))
+                    .ToArray()
+                : Array.Empty<RecipeNutrition>()
         );
     }
 }

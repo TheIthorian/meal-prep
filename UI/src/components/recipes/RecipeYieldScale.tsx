@@ -11,7 +11,45 @@ interface RecipeYieldScaleProps {
     className?: string;
 }
 
-/** Clamp to slider range ×⅛…×8 in servings; allow fractions so ×⅛ works for small base yields. */
+/** Discrete ingredient multipliers (left → right). */
+const YIELD_MULTIPLIERS = [
+    1 / 8,
+    1 / 4,
+    1 / 3,
+    1 / 2,
+    2 / 3,
+    3 / 4,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+] as const;
+
+/** Shown under each tick (Unicode fractions where available). */
+const YIELD_MULTIPLIER_LABELS = [
+    '⅛',
+    '¼',
+    '⅓',
+    '½',
+    '⅔',
+    '¾',
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+] as const;
+
+const SLIDER_MAX = YIELD_MULTIPLIERS.length - 1;
+
+/** Clamp servings to discrete multiplier range ×⅛…×8, capped at 99. */
 function clampTargetServings(value: number, baseServings: number): number {
     if (!(baseServings > 0) || !Number.isFinite(value)) return Math.max(1, baseServings);
     const min = baseServings / 8;
@@ -26,26 +64,24 @@ function formatTargetServingsLabel(n: number): string {
     return formatAmount(n);
 }
 
-function formatYieldRatio(targetServings: number, baseServings: number): string {
-    if (!(baseServings > 0) || !Number.isFinite(targetServings)) return '1';
-    const r = targetServings / baseServings;
-    if (!Number.isFinite(r)) return '1';
-    if (Math.abs(r - Math.round(r)) < 1e-6) return String(Math.round(r));
-    return String(Number(r.toFixed(3)));
+function ratioToMultiplierIndex(ratio: number): number {
+    if (!(ratio > 0) || !Number.isFinite(ratio)) return YIELD_MULTIPLIERS.indexOf(1);
+    let best = 0;
+    let bestDiff = Infinity;
+    for (let i = 0; i < YIELD_MULTIPLIERS.length; i++) {
+        const m = YIELD_MULTIPLIERS[i]!;
+        const d = Math.abs(m - ratio);
+        if (d < bestDiff) {
+            bestDiff = d;
+            best = i;
+        }
+    }
+    return best;
 }
 
-/** Maps multiplier ratio r to slider position 0–100; ⅛→0, 1→50, 8→100 on log₈ scale. */
-function ratioToSliderPercent(ratio: number): number {
-    if (!(ratio > 0) || !Number.isFinite(ratio)) return 50;
-    const log8 = Math.log(ratio) / Math.LN2 / 3;
-    const t = (log8 + 1) / 2;
-    const pct = Math.round(t * 100);
-    return Math.min(100, Math.max(0, pct));
-}
-
-function sliderPercentToMultiplier(percent: number): number {
-    const t = percent / 100;
-    return Math.pow(8, 2 * t - 1);
+function formatScaleLabelForIndex(index: number): string {
+    const label = YIELD_MULTIPLIER_LABELS[index] ?? '1';
+    return `×${label}`;
 }
 
 export function RecipeYieldScale({
@@ -55,8 +91,7 @@ export function RecipeYieldScale({
     className,
 }: RecipeYieldScaleProps) {
     const ratio = baseServings > 0 ? targetServings / baseServings : 1;
-    const sliderPercent = ratioToSliderPercent(ratio);
-    const scaleLabel = formatYieldRatio(targetServings, baseServings);
+    const sliderIndex = ratioToMultiplierIndex(ratio);
     const isScaled = Math.abs(targetServings - baseServings) > 0.001;
 
     return (
@@ -79,46 +114,62 @@ export function RecipeYieldScale({
                             {isScaled ? (
                                 <>
                                     {' '}
-                                    <span className='text-border'>·</span> ingredients ×
-                                    <span className='whitespace-nowrap tabular-nums font-medium text-foreground'>
-                                        {scaleLabel}
+                                    <span className='text-border'>·</span> ingredients{' '}
+                                    <span className='whitespace-nowrap font-medium text-foreground'>
+                                        {formatScaleLabelForIndex(sliderIndex)}
                                     </span>
                                 </>
                             ) : null}
                         </p>
                     </div>
 
-                    <div className='space-y-2.5'>
-                        <div className='relative px-1 pt-0.5'>
-                            {/* Tick marks aligned to log scale endpoints (⅛, 1, 8). */}
+                    <div className='space-y-2'>
+                        <div className='relative min-w-0 px-1 pt-0.5'>
                             <div
-                                className='pointer-events-none absolute inset-x-0 top-[calc(50%-2px)] flex justify-between px-[7px]'
+                                className='pointer-events-none absolute inset-x-1 top-[calc(50%-2px)] z-0 grid'
+                                style={{ gridTemplateColumns: `repeat(${YIELD_MULTIPLIERS.length}, minmax(0, 1fr))` }}
                                 aria-hidden
                             >
-                                <span className='h-2 w-px rounded-full bg-muted-foreground/30' />
-                                <span className='h-2 w-px rounded-full bg-muted-foreground/30' />
-                                <span className='h-2 w-px rounded-full bg-muted-foreground/30' />
+                                {YIELD_MULTIPLIER_LABELS.map(label => (
+                                    <div key={label} className='flex justify-center'>
+                                        <span className='h-2 w-px rounded-full bg-muted-foreground/30' />
+                                    </div>
+                                ))}
                             </div>
                             <Slider
                                 min={0}
-                                max={100}
+                                max={SLIDER_MAX}
                                 step={1}
-                                value={[sliderPercent]}
+                                value={[sliderIndex]}
                                 onValueChange={values => {
-                                    const pct = values[0] ?? 50;
-                                    const m = sliderPercentToMultiplier(pct);
+                                    const i = values[0] ?? YIELD_MULTIPLIERS.indexOf(1);
+                                    const m = YIELD_MULTIPLIERS[Math.min(SLIDER_MAX, Math.max(0, i))]!;
                                     onTargetServingsChange(clampTargetServings(baseServings * m, baseServings));
                                 }}
+                                aria-valuetext={`Scale ingredients ${formatScaleLabelForIndex(sliderIndex)}`}
                                 aria-label='Scale recipe yield'
                                 trackClassName='h-2.5 border border-border/50 bg-background/80 shadow-inner dark:bg-background/40'
                                 rangeClassName='bg-gradient-to-r from-primary/85 to-primary shadow-[0_0_12px_-2px_hsl(var(--primary)/0.45)]'
-                                thumbClassName='h-[1.375rem] w-[1.375rem] border-primary/90 bg-background shadow-md ring-4 ring-background/80 transition-[box-shadow,transform] hover:scale-105 hover:shadow-lg active:scale-95'
+                                thumbClassName='z-10 h-[1.375rem] w-[1.375rem] border-primary/90 bg-background shadow-md ring-4 ring-background/80 transition-[box-shadow,transform] hover:scale-105 hover:shadow-lg active:scale-95'
                             />
                         </div>
-                        <div className='flex justify-between px-0.5 font-mono text-[11px] font-medium tabular-nums tracking-tight text-muted-foreground'>
-                            <span className='whitespace-nowrap'>×⅛</span>
-                            <span className='whitespace-nowrap text-foreground/80'>×1</span>
-                            <span className='whitespace-nowrap'>×8</span>
+                        <div className='-mx-1 overflow-x-auto pb-0.5'>
+                            <div
+                                className='grid min-w-[min(100%,520px)] font-mono text-[9px] font-medium tabular-nums tracking-tight text-muted-foreground sm:min-w-0 sm:text-[10px]'
+                                style={{ gridTemplateColumns: `repeat(${YIELD_MULTIPLIERS.length}, minmax(0, 1fr))` }}
+                            >
+                                {YIELD_MULTIPLIER_LABELS.map((label, i) => (
+                                    <span
+                                        key={label}
+                                        className={cn(
+                                            'block text-center leading-none',
+                                            i === sliderIndex && 'font-semibold text-foreground',
+                                        )}
+                                    >
+                                        ×{label}
+                                    </span>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>

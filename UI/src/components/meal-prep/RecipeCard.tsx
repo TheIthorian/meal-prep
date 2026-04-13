@@ -1,9 +1,14 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, Users } from 'lucide-react';
+import { BookOpen, Star, Users } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { RecipeListItem } from '@/models/meal-prep';
 import { formatRecipeTagLabel } from '@/lib/meal-prep';
 import { motion } from 'framer-motion';
 import { RecipeCoverImage } from '@/components/meal-prep/RecipeCoverImage';
+import { AddToRecipeCollectionMenu } from '@/components/meal-prep/AddToRecipeCollectionMenu';
+import { recipesApi } from '@/lib/api';
+import { analyticsEvents, useAnalytics, withWorkspaceProperties } from '@/lib/analytics';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 interface RecipeCardProps {
     workspaceId: string;
@@ -14,12 +19,37 @@ interface RecipeCardProps {
 export function RecipeCard({ workspaceId, recipe, index }: RecipeCardProps) {
     const to = `/workspaces/${workspaceId}/recipe/${recipe.id}`;
     const entranceDelay = Math.min(index, 5) * 0.02;
+    const queryClient = useQueryClient();
+    const { currentWorkspace } = useWorkspace();
+    const { capture } = useAnalytics();
+
+    const setFavorite = useMutation({
+        mutationFn: (next: boolean) => recipesApi.setFavorite(workspaceId, recipe.id, next),
+        onSuccess: (_updated, next) => {
+            void queryClient.invalidateQueries({ queryKey: ['recipes', workspaceId] });
+            void queryClient.invalidateQueries({ queryKey: ['recipe', workspaceId, recipe.id] });
+            if (currentWorkspace) {
+                capture(
+                    analyticsEvents.recipeFavoriteUpdated,
+                    withWorkspaceProperties(currentWorkspace, {
+                        recipe_id: recipe.id,
+                        is_favorite: next,
+                    }),
+                );
+            }
+        },
+    });
+
+    const starVisibility = recipe.isFavorite
+        ? 'opacity-85 group-hover/card:opacity-100'
+        : 'opacity-0 group-hover/card:opacity-100';
 
     return (
         <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2, delay: entranceDelay, ease: 'easeOut' }}
+            className='group/card relative'
         >
             <Link
                 to={to}
@@ -63,6 +93,27 @@ export function RecipeCard({ workspaceId, recipe, index }: RecipeCardProps) {
                     </div>
                 </div>
             </Link>
+            <AddToRecipeCollectionMenu
+                workspaceId={workspaceId}
+                recipeId={recipe.id}
+                className='absolute left-3 top-3 z-10 opacity-0 transition-opacity group-hover/card:opacity-100 focus-within:opacity-100'
+            />
+            <button
+                type='button'
+                aria-label={recipe.isFavorite ? 'Remove from favourites' : 'Add to favourites'}
+                aria-pressed={recipe.isFavorite}
+                disabled={setFavorite.isPending}
+                onClick={e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    void setFavorite.mutateAsync(!recipe.isFavorite);
+                }}
+                className={`absolute right-3 top-3 z-10 rounded-md bg-background/90 p-1.5 text-amber-500 shadow-sm ring-1 ring-border/60 transition-opacity hover:bg-background focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${starVisibility}`}
+            >
+                <Star
+                    className={`h-4 w-4 ${recipe.isFavorite ? 'fill-amber-400 text-amber-500' : 'text-amber-600/90'}`}
+                />
+            </button>
         </motion.div>
     );
 }

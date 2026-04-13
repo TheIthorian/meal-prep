@@ -6,6 +6,10 @@ namespace Api.Data;
 public partial class ApiDbContext
 {
     public DbSet<Recipe> Recipes => Set<Recipe>();
+    public DbSet<RecipeCollection> RecipeCollections => Set<RecipeCollection>();
+    public DbSet<RecipeCollectionRecipe> RecipeCollectionRecipes => Set<RecipeCollectionRecipe>();
+    public DbSet<RecipeCollectionShare> RecipeCollectionShares => Set<RecipeCollectionShare>();
+    public DbSet<RecipeFavorite> RecipeFavorites => Set<RecipeFavorite>();
     public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
     public DbSet<RecipeStep> RecipeSteps => Set<RecipeStep>();
     public DbSet<RecipeNutrition> RecipeNutrition => Set<RecipeNutrition>();
@@ -20,6 +24,50 @@ public partial class ApiDbContext
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder) {
         modelBuilder.Entity<Recipe>()
             .HasIndex(recipe => new { recipe.WorkspaceId, recipe.IsDeleted, recipe.IsArchived });
+
+        modelBuilder.Entity<RecipeCollection>()
+            .HasIndex(collection => new { collection.WorkspaceId, collection.IsDeleted });
+
+        modelBuilder.Entity<RecipeCollectionRecipe>()
+            .HasOne(link => link.RecipeCollection)
+            .WithMany(collection => collection.RecipeLinks)
+            .HasForeignKey(link => link.RecipeCollectionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RecipeCollectionRecipe>()
+            .HasOne(link => link.Recipe)
+            .WithMany()
+            .HasForeignKey(link => link.RecipeId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RecipeCollectionRecipe>()
+            .HasIndex(link => new { link.RecipeCollectionId, link.RecipeId })
+            .IsUnique();
+
+        modelBuilder.Entity<RecipeCollectionShare>()
+            .HasOne(share => share.RecipeCollection)
+            .WithMany(collection => collection.Shares)
+            .HasForeignKey(share => share.RecipeCollectionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RecipeCollectionShare>()
+            .HasOne(share => share.SharedWithWorkspace)
+            .WithMany()
+            .HasForeignKey(share => share.SharedWithWorkspaceId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RecipeCollectionShare>()
+            .HasIndex(share => new { share.RecipeCollectionId, share.SharedWithWorkspaceId })
+            .IsUnique();
+
+        modelBuilder.Entity<RecipeFavorite>().HasKey(favorite => new { favorite.UserId, favorite.RecipeId });
+        modelBuilder.Entity<RecipeFavorite>()
+            .HasOne(favorite => favorite.Recipe)
+            .WithMany()
+            .HasForeignKey(favorite => favorite.RecipeId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RecipeFavorite>()
+            .HasOne(favorite => favorite.User)
+            .WithMany()
+            .HasForeignKey(favorite => favorite.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         modelBuilder.Entity<Recipe>().Property(recipe => recipe.Servings).HasPrecision(10, 2);
         modelBuilder.Entity<Recipe>().Property(recipe => recipe.NutritionServingBasis).HasPrecision(10, 2);
         modelBuilder.Entity<Recipe>().Property(recipe => recipe.Tags).HasColumnType("text[]");

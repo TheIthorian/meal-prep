@@ -166,8 +166,7 @@ public class RecipeImportServiceTests
         var service = CreateRecipeImportService(previewClient, factory);
 
         var payload = await service.TryDownloadImportImageAsync(
-            "https://cdn2.pepperplate.com/recipes/x.jpg",
-            "https://www.pepperplate.com/"
+            "https://cdn2.pepperplate.com/recipes/x.jpg"
         );
 
         Assert.NotNull(payload);

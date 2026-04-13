@@ -8,7 +8,9 @@ import {
     Recipe,
     RecipeListItem,
     SaveMealPlanEntryRequest,
+    BulkRemoveRecipeTagsResponse,
     RecipeTagListResponse,
+    RecipeTagUsageListResponse,
     SaveRecipeRequest,
     SuggestRecipeTagsRequest,
     SuggestRecipeTagsResponse,
@@ -17,6 +19,12 @@ import {
     ShoppingList,
     ShoppingListItem,
     ShoppingListListItem,
+    RecipeCollectionListItem,
+    RecipeCollectionDetail,
+    CreateRecipeCollectionRequest,
+    PatchRecipeCollectionRequest,
+    RecipeCollectionExport,
+    RecipeCollectionSharedWorkspace,
 } from '@/models/meal-prep';
 import type { PaginatedResponse } from '@/models/pagination';
 import type { McpAccessTokenCreated, McpAccessTokenListItem } from '@/models/mcp';
@@ -72,6 +80,10 @@ export const recipesApi = {
         httpClient.post<Recipe>(`/api/v1/workspaces/${workspaceId}/recipes`, data),
     update: (workspaceId: string, recipeId: string, data: SaveRecipeRequest) =>
         httpClient.patch<Recipe>(`/api/v1/workspaces/${workspaceId}/recipes/${recipeId}`, data),
+    setFavorite: (workspaceId: string, recipeId: string, isFavorite: boolean) =>
+        httpClient.patch<Recipe>(`/api/v1/workspaces/${workspaceId}/recipes/${recipeId}/favorite`, { isFavorite }),
+    autotag: (workspaceId: string, recipeId: string) =>
+        httpClient.post<Recipe>(`/api/v1/workspaces/${workspaceId}/recipes/${recipeId}/autotag`, {}),
     remove: (workspaceId: string, recipeId: string) =>
         httpClient.delete<void>(`/api/v1/workspaces/${workspaceId}/recipes/${recipeId}`),
     importFromUrl: (workspaceId: string, url: string) =>
@@ -87,6 +99,57 @@ export const recipesApi = {
         httpClient.get<RecipeTagListResponse>(`/api/v1/workspaces/${workspaceId}/recipe-tags`),
     suggestTags: (workspaceId: string, data: SuggestRecipeTagsRequest) =>
         httpClient.post<SuggestRecipeTagsResponse>(`/api/v1/workspaces/${workspaceId}/recipes/suggest-tags`, data),
+    getRecipeTagUsage: (workspaceId: string) =>
+        httpClient.get<RecipeTagUsageListResponse>(`/api/v1/workspaces/${workspaceId}/recipe-tags/usage`),
+    bulkRemoveRecipeTags: (workspaceId: string, tags: string[]) =>
+        httpClient.post<BulkRemoveRecipeTagsResponse>(`/api/v1/workspaces/${workspaceId}/recipe-tags/bulk-remove`, {
+            tags,
+        }),
+    removeSingletonRecipeTags: (workspaceId: string) =>
+        httpClient.post<BulkRemoveRecipeTagsResponse>(
+            `/api/v1/workspaces/${workspaceId}/recipe-tags/remove-singletons`,
+            {},
+        ),
+};
+
+export const recipeCollectionsApi = {
+    list: (workspaceId: string) =>
+        httpClient.get<RecipeCollectionListItem[]>(`/api/v1/workspaces/${workspaceId}/recipe-collections`),
+    create: (workspaceId: string, data: CreateRecipeCollectionRequest) =>
+        httpClient.post<RecipeCollectionDetail>(`/api/v1/workspaces/${workspaceId}/recipe-collections`, data),
+    get: (workspaceId: string, collectionId: string) =>
+        httpClient.get<RecipeCollectionDetail>(
+            `/api/v1/workspaces/${workspaceId}/recipe-collections/${collectionId}`,
+        ),
+    update: (workspaceId: string, collectionId: string, data: PatchRecipeCollectionRequest) =>
+        httpClient.patch<RecipeCollectionDetail>(
+            `/api/v1/workspaces/${workspaceId}/recipe-collections/${collectionId}`,
+            data,
+        ),
+    remove: (workspaceId: string, collectionId: string) =>
+        httpClient.delete<void>(`/api/v1/workspaces/${workspaceId}/recipe-collections/${collectionId}`),
+    addRecipe: (workspaceId: string, collectionId: string, recipeId: string) =>
+        httpClient.post<RecipeCollectionDetail>(
+            `/api/v1/workspaces/${workspaceId}/recipe-collections/${collectionId}/recipes`,
+            { recipeId },
+        ),
+    removeRecipe: (workspaceId: string, collectionId: string, recipeId: string) =>
+        httpClient.delete<RecipeCollectionDetail>(
+            `/api/v1/workspaces/${workspaceId}/recipe-collections/${collectionId}/recipes/${recipeId}`,
+        ),
+    exportJson: (workspaceId: string, collectionId: string) =>
+        httpClient.get<RecipeCollectionExport>(
+            `/api/v1/workspaces/${workspaceId}/recipe-collections/${collectionId}/export`,
+        ),
+    share: (workspaceId: string, collectionId: string, targetWorkspaceId: string) =>
+        httpClient.post<RecipeCollectionSharedWorkspace[]>(
+            `/api/v1/workspaces/${workspaceId}/recipe-collections/${collectionId}/share`,
+            { targetWorkspaceId },
+        ),
+    unshare: (workspaceId: string, collectionId: string, targetWorkspaceId: string) =>
+        httpClient.delete<RecipeCollectionSharedWorkspace[]>(
+            `/api/v1/workspaces/${workspaceId}/recipe-collections/${collectionId}/share/${targetWorkspaceId}`,
+        ),
 };
 
 export const mealPlanApi = {

@@ -13,7 +13,8 @@ public record RecipeListItemResponse(
     string? SourceUrl,
     int IngredientCount,
     int StepCount,
-    bool HasImage
+    bool HasImage,
+    bool IsFavorite
 );
 
 public record RecipeIngredientResponse(
@@ -47,6 +48,7 @@ public record RecipeResponse(
     bool IsArchived,
     string[] Tags,
     bool HasImage,
+    bool IsFavorite,
     RecipeIngredientResponse[] Ingredients,
     RecipeStepResponse[] Steps,
     RecipeNutritionResponse? Nutrition
@@ -70,6 +72,12 @@ public record RecipeTagListResponse(string[] Tags);
 
 public record SuggestRecipeTagsResponse(string[] Tags);
 
+public record RecipeTagUsageItemResponse(string Tag, int RecipeCount);
+
+public record RecipeTagUsageListResponse(RecipeTagUsageItemResponse[] Items);
+
+public record BulkRemoveRecipeTagsResponse(int RecipesUpdated, string[] TagsProcessed);
+
 /// <summary>
 ///     Maps recipe domain models and import previews to API responses.
 /// </summary>
@@ -77,7 +85,7 @@ public static class RecipeResponseTransforms
 {
     extension(Recipe recipe)
     {
-        public RecipeListItemResponse ToRecipeListItemResponse() {
+        public RecipeListItemResponse ToRecipeListItemResponse(bool isFavorite) {
             return new RecipeListItemResponse(
                 recipe.Id,
                 recipe.Title,
@@ -88,11 +96,12 @@ public static class RecipeResponseTransforms
                 recipe.SourceUrl,
                 recipe.Ingredients.Count,
                 recipe.Steps.Count,
-                !string.IsNullOrEmpty(recipe.ImageObjectKey)
+                !string.IsNullOrEmpty(recipe.ImageObjectKey),
+                isFavorite
             );
         }
 
-        public RecipeResponse ToRecipeResponse() {
+        public RecipeResponse ToRecipeResponse(bool isFavorite) {
             return new RecipeResponse(
                 recipe.Id,
                 recipe.WorkspaceId,
@@ -106,6 +115,7 @@ public static class RecipeResponseTransforms
                 recipe.IsArchived,
                 RecipeTagWhitelist.NormalizeToWhitelist(recipe.Tags),
                 !string.IsNullOrEmpty(recipe.ImageObjectKey),
+                isFavorite,
                 recipe.Ingredients
                     .OrderBy(ingredient => ingredient.SortOrder)
                     .Select(ingredient => ingredient.ToResponse())

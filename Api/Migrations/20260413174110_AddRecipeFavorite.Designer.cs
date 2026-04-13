@@ -3,6 +3,7 @@ using System;
 using Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Api.Migrations
 {
     [DbContext(typeof(ApiDbContext))]
-    partial class ApiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260413174110_AddRecipeFavorite")]
+    partial class AddRecipeFavorite
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -303,111 +306,6 @@ namespace Api.Migrations
                     b.HasIndex("WorkspaceId", "IsDeleted", "IsArchived");
 
                     b.ToTable("Recipes");
-                });
-
-            modelBuilder.Entity("Api.Models.RecipeCollection", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
-
-                    b.Property<Guid>("WorkspaceId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("WorkspaceId", "IsDeleted");
-
-                    b.ToTable("RecipeCollections");
-                });
-
-            modelBuilder.Entity("Api.Models.RecipeCollectionRecipe", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
-
-                    b.Property<Guid>("RecipeCollectionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("RecipeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RecipeId");
-
-                    b.HasIndex("RecipeCollectionId", "RecipeId")
-                        .IsUnique();
-
-                    b.ToTable("RecipeCollectionRecipes");
-                });
-
-            modelBuilder.Entity("Api.Models.RecipeCollectionShare", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
-
-                    b.Property<Guid>("RecipeCollectionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("SharedWithWorkspaceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SharedWithWorkspaceId");
-
-                    b.HasIndex("RecipeCollectionId", "SharedWithWorkspaceId")
-                        .IsUnique();
-
-                    b.ToTable("RecipeCollectionShares");
                 });
 
             modelBuilder.Entity("Api.Models.RecipeFavorite", b =>
@@ -1018,55 +916,6 @@ namespace Api.Migrations
                     b.Navigation("Workspace");
                 });
 
-            modelBuilder.Entity("Api.Models.RecipeCollection", b =>
-                {
-                    b.HasOne("Api.Models.Workspace", "Workspace")
-                        .WithMany()
-                        .HasForeignKey("WorkspaceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Workspace");
-                });
-
-            modelBuilder.Entity("Api.Models.RecipeCollectionRecipe", b =>
-                {
-                    b.HasOne("Api.Models.RecipeCollection", "RecipeCollection")
-                        .WithMany("RecipeLinks")
-                        .HasForeignKey("RecipeCollectionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Api.Models.Recipe", "Recipe")
-                        .WithMany()
-                        .HasForeignKey("RecipeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Recipe");
-
-                    b.Navigation("RecipeCollection");
-                });
-
-            modelBuilder.Entity("Api.Models.RecipeCollectionShare", b =>
-                {
-                    b.HasOne("Api.Models.RecipeCollection", "RecipeCollection")
-                        .WithMany("Shares")
-                        .HasForeignKey("RecipeCollectionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Api.Models.Workspace", "SharedWithWorkspace")
-                        .WithMany()
-                        .HasForeignKey("SharedWithWorkspaceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("RecipeCollection");
-
-                    b.Navigation("SharedWithWorkspace");
-                });
-
             modelBuilder.Entity("Api.Models.RecipeFavorite", b =>
                 {
                     b.HasOne("Api.Models.Recipe", "Recipe")
@@ -1259,13 +1108,6 @@ namespace Api.Migrations
                     b.Navigation("Nutrition");
 
                     b.Navigation("Steps");
-                });
-
-            modelBuilder.Entity("Api.Models.RecipeCollection", b =>
-                {
-                    b.Navigation("RecipeLinks");
-
-                    b.Navigation("Shares");
                 });
 
             modelBuilder.Entity("Api.Models.ShoppingList", b =>

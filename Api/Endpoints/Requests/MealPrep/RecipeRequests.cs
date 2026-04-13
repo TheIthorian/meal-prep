@@ -46,6 +46,10 @@ public record SuggestRecipeTagsRequest(
     string[]? StepInstructions
 );
 
+public record BulkRemoveRecipeTagsRequest(string[] Tags);
+
+public record SetRecipeFavoriteRequest(bool IsFavorite);
+
 public class SaveRecipeRequestValidator : AbstractValidator<SaveRecipeRequest>
 {
     public SaveRecipeRequestValidator() {
@@ -75,14 +79,6 @@ public class SaveRecipeRequestValidator : AbstractValidator<SaveRecipeRequest>
                                      || string.Equals(u.Scheme, "http", StringComparison.OrdinalIgnoreCase))
                     )
                     .WithMessage("Import image URL must be an absolute http(s) URL.");
-                RuleFor(x => x)
-                    .Must(x => !string.IsNullOrWhiteSpace(x.SourceUrl)
-                               && RecipeImportImagePolicy.AreHostsCompatibleForImportedImage(
-                                   x.SourceUrl!,
-                                   x.ImportImageUrl!
-                               )
-                    )
-                    .WithMessage("Import image must use the same site as the recipe source URL.");
             }
         );
     }
@@ -111,9 +107,13 @@ public class SaveRecipeStepRequestValidator : AbstractValidator<SaveRecipeStepRe
 public class SaveRecipeNutritionRequestValidator : AbstractValidator<SaveRecipeNutritionRequest>
 {
     public SaveRecipeNutritionRequestValidator() {
-        RuleFor(x => x.ServingBasis).GreaterThan(0).When(x => x.ServingBasis.HasValue);
-        RuleFor(x => x.Nutrients).NotEmpty();
-        RuleForEach(x => x.Nutrients).SetValidator(new SaveRecipeNutrientRequestValidator());
+        When(
+            x => x.Nutrients is { Length: > 0 },
+            () => {
+                RuleFor(x => x.ServingBasis).NotNull().GreaterThan(0);
+                RuleForEach(x => x.Nutrients!).SetValidator(new SaveRecipeNutrientRequestValidator());
+            }
+        );
     }
 }
 
@@ -146,5 +146,20 @@ public class SuggestRecipeTagsRequestValidator : AbstractValidator<SuggestRecipe
         RuleFor(x => x.Description).MaximumLength(4000).When(x => x.Description is not null);
         When(x => x.IngredientNames is not null, () => { RuleForEach(x => x.IngredientNames!).MaximumLength(255); });
         When(x => x.StepInstructions is not null, () => { RuleForEach(x => x.StepInstructions!).MaximumLength(4000); });
+    }
+}
+
+public class BulkRemoveRecipeTagsRequestValidator : AbstractValidator<BulkRemoveRecipeTagsRequest>
+{
+    public BulkRemoveRecipeTagsRequestValidator() {
+        RuleFor(x => x.Tags).NotEmpty();
+        RuleForEach(x => x.Tags).NotEmpty().MaximumLength(512);
+    }
+}
+
+public class SetRecipeFavoriteRequestValidator : AbstractValidator<SetRecipeFavoriteRequest>
+{
+    public SetRecipeFavoriteRequestValidator() {
+        // Boolean payload only; no additional constraints.
     }
 }
