@@ -6,7 +6,6 @@ import {
     GenerateShoppingListRequest,
     MealPlanEntry,
     Recipe,
-    RecipeImportPreview,
     RecipeListItem,
     SaveMealPlanEntryRequest,
     SaveRecipeRequest,
@@ -65,8 +64,8 @@ export const recipesApi = {
         httpClient.patch<Recipe>(`/api/v1/workspaces/${workspaceId}/recipes/${recipeId}`, data),
     remove: (workspaceId: string, recipeId: string) =>
         httpClient.delete<void>(`/api/v1/workspaces/${workspaceId}/recipes/${recipeId}`),
-    previewImport: (workspaceId: string, url: string) =>
-        httpClient.post<RecipeImportPreview>(`/api/v1/workspaces/${workspaceId}/recipes/import-preview`, { url }),
+    importFromUrl: (workspaceId: string, url: string) =>
+        httpClient.post<Recipe>(`/api/v1/workspaces/${workspaceId}/recipes/import`, { url }),
     uploadImage: (workspaceId: string, recipeId: string, file: File) => {
         const formData = new FormData();
         formData.append('file', file);

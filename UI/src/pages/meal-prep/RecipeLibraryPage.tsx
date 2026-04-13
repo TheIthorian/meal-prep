@@ -7,7 +7,6 @@ import { recipesApi } from '@/lib/api';
 import { RecipeCard } from '@/components/meal-prep/RecipeCard';
 import { RecipeImportDialog } from '@/components/recipes/RecipeImportDialog';
 import type { Recipe } from '@/models/meal-prep';
-import { toSaveRecipeRequest } from '@/lib/meal-prep';
 import { LoadingState } from '@/components/common/LoadingState';
 import { EmptyState } from '@/components/common/EmptyState';
 
@@ -39,8 +38,7 @@ export default function RecipeLibraryPage() {
     }, [recipes, activeTag]);
 
     async function handleImported(recipe: Recipe) {
-        const saved = await recipesApi.create(workspaceId, toSaveRecipeRequest(recipe));
-        navigate(`recipe/${saved.id}`);
+        navigate(`recipe/${recipe.id}`);
     }
 
     return (

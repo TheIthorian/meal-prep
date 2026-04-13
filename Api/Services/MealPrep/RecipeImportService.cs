@@ -84,6 +84,12 @@ public class RecipeImportService(
         if (llmInvocation?.Structured is not null)
             return MapLlmStructuredPreview(llmInvocation.Structured, url, html);
 
+        if (llmInvocation is not null && !string.IsNullOrWhiteSpace(llmInvocation.FailureDetail))
+            throw new InvalidFormatException(
+                "Recipe import failed",
+                $"Structured metadata was missing and LLM fallback failed: {llmInvocation.FailureDetail}"
+            );
+
         throw new InvalidFormatException(
             "Recipe import failed",
             "Could not find recipe metadata on that page. You can still create the recipe manually."
@@ -179,7 +185,7 @@ public class RecipeImportService(
     private RecipeImportPreview MapLlmStructuredPreview(RecipeImportLlmStructuredDto dto, string sourceUrl, string html)
     {
         var servings = dto.Servings > 0 ? dto.Servings : 1m;
-        var title = dto.Title.Trim();
+        var title = string.IsNullOrWhiteSpace(dto.Title) ? BuildFallbackTitle(sourceUrl, html) : dto.Title.Trim();
         var description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim();
 
         var tags = dto.Tags
@@ -223,6 +229,27 @@ public class RecipeImportService(
             nutrition,
             imageUrl
         );
+    }
+
+    private static string BuildFallbackTitle(string sourceUrl, string html)
+    {
+        var htmlTitleMatch = Regex.Match(
+            html,
+            "<title[^>]*>(?<title>.*?)</title>",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline
+        );
+        if (htmlTitleMatch.Success)
+        {
+            var decoded = WebUtility.HtmlDecode(htmlTitleMatch.Groups["title"].Value);
+            var normalized = Regex.Replace(decoded, "\\s+", " ").Trim();
+            if (!string.IsNullOrWhiteSpace(normalized))
+                return normalized;
+        }
+
+        if (Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri) && !string.IsNullOrWhiteSpace(uri.Host))
+            return $"Imported recipe from {uri.Host}";
+
+        return "Imported recipe";
     }
 
     private RecipeImportPreviewNutrition? BuildNutritionPreviewFromLlm(RecipeImportLlmNutritionDto nutrition, decimal servingBasis)

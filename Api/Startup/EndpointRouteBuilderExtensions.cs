@@ -105,6 +105,11 @@ public static class EndpointRouteBuilderExtensions
                 .Produces<RecipeImportPreviewResponse>()
                 .WithName("PreviewRecipeImport");
 
+            apiGroup.MapPost("/workspaces/{workspaceId:guid}/recipes/import", RecipesHandlers.PostImportRecipe)
+                .WithBodyValidation<ImportRecipeRequest>()
+                .Produces<RecipeResponse>()
+                .WithName("ImportRecipe");
+
             apiGroup.MapGet("/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}", RecipesHandlers.GetRecipe)
                 .Produces<RecipeResponse>()
                 .WithName("GetRecipe");

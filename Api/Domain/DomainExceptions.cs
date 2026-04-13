@@ -51,6 +51,19 @@ public class InvalidFormatException(string message, string? detail) : AppExcepti
     }
 );
 
+public class RequestValidationException(IDictionary<string, string[]> errors) : AppException(
+    "Request validation failed",
+    new ExtendedProblemDetail(
+        new ProblemDetails {
+            Title = "Request validation failed",
+            Type = $"https://localhost:5000/errors/{nameof(RequestValidationException)}",
+            Status = StatusCodes.Status400BadRequest,
+            Detail = "One or more validation errors occurred."
+        },
+        new Dictionary<string, string[]>(errors)
+    )
+);
+
 public class ForbiddenActionException(string message, string? detail) : AppException(
     message,
     new ProblemDetails {

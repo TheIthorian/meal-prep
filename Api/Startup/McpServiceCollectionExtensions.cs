@@ -11,11 +11,19 @@ public static class McpServiceCollectionExtensions
     extension(IServiceCollection services)
     {
         public void AddMealPrepMcpServer() {
+            services.AddTransient<MealPrepMcpTools>();
             services
-                .AddMcpServer()
+                .AddMcpServer(ConfigureMealPrepMcpServerOptions)
                 .WithHttpTransport(options => { options.Stateless = true; })
-                .WithTools<MealPrepMcpTools>();
+                .WithTools(MealPrepMcpToolsRegistration.CreateTools());
         }
+    }
+
+    private static void ConfigureMealPrepMcpServerOptions(McpServerOptions options) {
+        options.ServerInstructions =
+            "Meal Prep workspace assistant. Use these tools to manage recipes, meal plans, and shopping lists. "
+            + "This server is scoped to one workspace by the MCP URL token, so do not pass workspaceId to tools. "
+            + "For create/update tools, send JSON strings that match each tool's described request schema.";
     }
 }
 

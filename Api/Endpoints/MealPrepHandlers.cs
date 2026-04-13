@@ -324,6 +324,41 @@ internal static class RecipesHandlers
         return TypedResults.Json(preview.ToResponse());
     }
 
+    [Authorize]
+    public static async Task<JsonHttpResult<RecipeResponse>> PostImportRecipe(
+        CurrentUserService currentUserService,
+        ApiDbContext db,
+        RecipeImportService recipeImportService,
+        IS3StorageService s3StorageService,
+        Guid workspaceId,
+        [FromBody] ImportRecipeRequest body,
+        CancellationToken cancellationToken
+    )
+    {
+        var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
+        if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
+
+        var preview = await recipeImportService.PreviewAsync(body.Url, workspaceId, workspaceUser.UserId, cancellationToken);
+        var saveRequest = ToSaveRecipeRequest(preview);
+
+        var recipe = Recipe.CreateNew(workspaceUser.Workspace, saveRequest.Title, saveRequest.Servings);
+        ApplyRecipe(recipe, saveRequest);
+        await TryApplyImportedImageAsync(saveRequest, recipe, recipeImportService, s3StorageService, cancellationToken);
+
+        await db.Recipes.AddAsync(recipe, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var importedRecipe = await db.Recipes
+            .Include(value => value.Ingredients)
+            .Include(value => value.Steps)
+            .Include(value => value.Nutrition)
+            .ForCurrentUser(workspaceUser.UserId)
+            .WhereIsNotDeleted()
+            .FirstAsync(value => value.Id == recipe.Id, cancellationToken);
+
+        return TypedResults.Json(importedRecipe.ToRecipeResponse());
+    }
+
     private static async Task TryApplyImportedImageAsync(
         SaveRecipeRequest body,
         Recipe recipe,
@@ -347,6 +382,46 @@ internal static class RecipesHandlers
         await using var stream = new MemoryStream(payload.Data);
         var key = await s3StorageService.UploadFileAsync(stream, payload.FileName, payload.ContentType);
         recipe.SetImageObjectKey(key);
+    }
+
+    private static SaveRecipeRequest ToSaveRecipeRequest(RecipeImportPreview preview)
+    {
+        return new SaveRecipeRequest(
+            preview.Title,
+            preview.Description,
+            preview.Servings,
+            preview.SourceUrl,
+            null,
+            preview.PrepMinutes,
+            preview.CookMinutes,
+            false,
+            preview.Tags.ToArray(),
+            preview.Ingredients
+                .OrderBy(ingredient => ingredient.SortOrder)
+                .Select(ingredient => new SaveRecipeIngredientRequest(
+                    ingredient.Name,
+                    ingredient.NormalizedIngredientName,
+                    ingredient.Amount,
+                    ingredient.Unit,
+                    ingredient.PreparationNote,
+                    ingredient.Section,
+                    ingredient.DisplayText
+                ))
+                .ToArray(),
+            preview.Steps
+                .OrderBy(step => step.SortOrder)
+                .Select(step => new SaveRecipeStepRequest(step.Instruction, step.TimerSeconds))
+                .ToArray(),
+            preview.Nutrition is null
+                ? null
+                : new SaveRecipeNutritionRequest(
+                    preview.Nutrition.ServingBasis,
+                    preview.Nutrition.Nutrients
+                        .Select(nutrient => new SaveRecipeNutrientRequest(nutrient.NutrientType, nutrient.Amount))
+                        .ToArray()
+                ),
+            preview.ImageUrl
+        );
     }
 
     private static void ApplyRecipe(Recipe recipe, SaveRecipeRequest body)

@@ -86,7 +86,10 @@ public sealed class RecipeImportLlmParser
     );
 
     private static readonly JsonSerializerOptions SerializerOptions = new() {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        AllowTrailingCommas = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        NumberHandling = JsonNumberHandling.AllowReadingFromString
     };
 
     private static readonly JsonSerializerOptions RequestLogSerializerOptions = new() {
@@ -130,7 +133,20 @@ public sealed class RecipeImportLlmParser
     )
     {
         if (_chatClient is null)
-            return null;
+        {
+            _logger.LogWarning("Recipe import LLM parser is not configured; OpenAI API key is missing.");
+
+            return new RecipeImportLlmInvocationResult(
+                null,
+                _providerBaseUrl,
+                _model,
+                BuildRequestJson(sourceUrl, ""),
+                null,
+                null,
+                false,
+                "LLM parser is not configured (missing OpenAI API key)."
+            );
+        }
 
         using var scope = _logger.BeginPropertyScope(("sourceUrl", sourceUrl));
 
@@ -230,8 +246,7 @@ public sealed class RecipeImportLlmParser
                 );
             }
 
-            var dto = JsonSerializer.Deserialize<RecipeImportLlmStructuredDto>(text, SerializerOptions);
-            if (dto is null || !IsPlausibleRecipe(dto))
+            if (!TryParseStructuredDto(text, out var dto, out var parseFailureDetail))
             {
                 _logger.LogWarning("Recipe import LLM returned JSON that could not be validated.");
 
@@ -243,7 +258,23 @@ public sealed class RecipeImportLlmParser
                     text,
                     finishReason,
                     false,
-                    "Deserialized JSON was null or failed plausibility checks (title, ingredients, steps)."
+                    parseFailureDetail ?? "Failed to deserialize LLM JSON payload."
+                );
+            }
+
+            if (!IsPlausibleRecipe(dto, out var plausibilityFailureDetail))
+            {
+                _logger.LogWarning("Recipe import LLM returned JSON that failed plausibility checks.");
+
+                return new RecipeImportLlmInvocationResult(
+                    null,
+                    _providerBaseUrl,
+                    _model,
+                    requestJson,
+                    text,
+                    finishReason,
+                    false,
+                    plausibilityFailureDetail
                 );
             }
 
@@ -303,16 +334,68 @@ public sealed class RecipeImportLlmParser
         return detail[..maxChars] + "…";
     }
 
-    private static bool IsPlausibleRecipe(RecipeImportLlmStructuredDto dto)
+    private static bool IsPlausibleRecipe(RecipeImportLlmStructuredDto dto, out string failureDetail)
     {
-        if (string.IsNullOrWhiteSpace(dto.Title))
-            return false;
+        var hasTitle = !string.IsNullOrWhiteSpace(dto.Title);
+        var hasIngredients = dto.IngredientLines.Any(static line => !string.IsNullOrWhiteSpace(line));
+        var hasSteps = dto.Steps.Any(static step => !string.IsNullOrWhiteSpace(step.Instruction));
+        var ingredientCount = dto.IngredientLines.Count;
+        var stepCount = dto.Steps.Count;
+        var nonEmptyIngredientCount = dto.IngredientLines.Count(static line => !string.IsNullOrWhiteSpace(line));
+        var nonEmptyStepCount = dto.Steps.Count(static step => !string.IsNullOrWhiteSpace(step.Instruction));
 
-        if (dto.IngredientLines.Count == 0 || dto.Steps.Count == 0)
+        if (!hasIngredients && !hasSteps)
+        {
+            failureDetail =
+                $"Plausibility check failed: no usable ingredients or steps. titlePresent={hasTitle}, ingredients={ingredientCount}, nonEmptyIngredients={nonEmptyIngredientCount}, steps={stepCount}, nonEmptySteps={nonEmptyStepCount}.";
             return false;
+        }
 
-        return dto.IngredientLines.Any(static line => !string.IsNullOrWhiteSpace(line))
-               && dto.Steps.Any(static step => !string.IsNullOrWhiteSpace(step.Instruction));
+        failureDetail =
+            $"Plausibility check passed. titlePresent={hasTitle}, ingredients={ingredientCount}, nonEmptyIngredients={nonEmptyIngredientCount}, steps={stepCount}, nonEmptySteps={nonEmptyStepCount}.";
+        return true;
+    }
+
+    private static bool TryParseStructuredDto(
+        string rawText,
+        out RecipeImportLlmStructuredDto dto,
+        out string? failureDetail
+    )
+    {
+        dto = new RecipeImportLlmStructuredDto();
+        failureDetail = null;
+
+        var candidates = new List<string> { rawText.Trim() };
+
+        var objectStart = rawText.IndexOf('{');
+        var objectEnd = rawText.LastIndexOf('}');
+        if (objectStart >= 0 && objectEnd > objectStart)
+            candidates.Add(rawText[objectStart..(objectEnd + 1)].Trim());
+
+        foreach (var candidate in candidates.Distinct())
+        {
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<RecipeImportLlmStructuredDto>(candidate, SerializerOptions);
+                if (parsed is null)
+                    continue;
+
+                parsed.Tags ??= [];
+                parsed.IngredientLines ??= [];
+                parsed.Steps ??= [];
+                parsed.Nutrition ??= new RecipeImportLlmNutritionDto();
+
+                dto = parsed;
+                return true;
+            }
+            catch (JsonException ex)
+            {
+                var snippet = candidate.Length > 500 ? candidate[..500] + "..." : candidate;
+                failureDetail = $"Failed to parse LLM JSON: {ex.Message}. Candidate snippet: {snippet}";
+            }
+        }
+
+        return false;
     }
 
     private static string PrepareHtmlForPrompt(string html)

@@ -35,6 +35,8 @@ public record SaveRecipeRequest(
     string? ImportImageUrl
 );
 
+public record ImportRecipeRequest(string Url);
+
 public record ImportRecipePreviewRequest(string Url);
 
 public class SaveRecipeRequestValidator : AbstractValidator<SaveRecipeRequest>
@@ -109,6 +111,13 @@ public class SaveRecipeNutrientRequestValidator : AbstractValidator<SaveRecipeNu
 public class ImportRecipePreviewRequestValidator : AbstractValidator<ImportRecipePreviewRequest>
 {
     public ImportRecipePreviewRequestValidator() {
+        RuleFor(x => x.Url).NotEmpty().Must(url => Uri.TryCreate(url, UriKind.Absolute, out _));
+    }
+}
+
+public class ImportRecipeRequestValidator : AbstractValidator<ImportRecipeRequest>
+{
+    public ImportRecipeRequestValidator() {
         RuleFor(x => x.Url).NotEmpty().Must(url => Uri.TryCreate(url, UriKind.Absolute, out _));
     }
 }

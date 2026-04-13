@@ -9,3 +9,4 @@ riderModule.iml
 .docker.env
 *.DotSettings.user
 Api/bin*
+pepperplate_recipes/
