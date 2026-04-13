@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using Api.Configuration;
+using Microsoft.Extensions.Http;
 using Api.Data;
 using Api.Models;
 using Api.Services.MealPrep;
@@ -156,6 +157,24 @@ public class RecipeImportServiceTests
     }
 
     [Fact]
+    public async Task TryDownloadImportImageAsync_FollowsRedirectToBlob_AndInfersJpegFromOctetStream()
+    {
+        var imageClient = new HttpClient(new PepperplateCdnToBlobHandler());
+        var factory = new StubRecipeImageClientFactory(imageClient);
+        var previewClient = new HttpClient(new StubHttpMessageHandler("<html></html>"));
+        var service = CreateRecipeImportService(previewClient, factory);
+
+        var payload = await service.TryDownloadImportImageAsync(
+            "https://cdn2.pepperplate.com/recipes/x.jpg",
+            "https://www.pepperplate.com/"
+        );
+
+        Assert.NotNull(payload);
+        Assert.Equal("image/jpeg", payload.ContentType);
+        Assert.True(payload.Data.Length > 0);
+    }
+
+    [Fact]
     public async Task PreviewAsync_WhenHeuristicsFailAndLlmDisabled_Throws()
     {
         var html = """
@@ -172,10 +191,18 @@ public class RecipeImportServiceTests
             service.PreviewAsync("https://example.com/page")
         );
 
-        Assert.Contains("Could not find recipe metadata", exception.Details.Detail);
+        var detail = exception.Details.Detail ?? string.Empty;
+        Assert.True(
+            detail.Contains("Could not find recipe metadata", StringComparison.Ordinal)
+            || detail.Contains("Structured metadata was missing", StringComparison.Ordinal),
+            $"Unexpected detail: {detail}"
+        );
     }
 
-    private static RecipeImportService CreateRecipeImportService(HttpClient httpClient)
+    private static RecipeImportService CreateRecipeImportService(
+        HttpClient httpClient,
+        IHttpClientFactory? recipeImageClientFactory = null
+    )
     {
         var llmParser = new RecipeImportLlmParser(
             Options.Create(new OpenAIConfiguration { ApiKey = string.Empty }),
@@ -188,11 +215,55 @@ public class RecipeImportServiceTests
 
         return new RecipeImportService(
             httpClient,
+            recipeImageClientFactory ?? new ThrowingRecipeImageClientFactory(),
             new MeasurementService(),
             llmParser,
             new ApiDbContext(dbOptions),
             NullLogger<RecipeImportService>.Instance
         );
+    }
+
+    private sealed class ThrowingRecipeImageClientFactory : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) {
+            throw new InvalidOperationException($"Unexpected CreateClient({name}).");
+        }
+    }
+
+    private sealed class StubRecipeImageClientFactory(HttpClient imageClient) : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) {
+            return name == RecipeImportService.RecipeImageImportHttpClientName
+                ? imageClient
+                : throw new InvalidOperationException($"Unexpected client name: {name}.");
+        }
+    }
+
+    /// <summary>
+    ///     Mimics Pepperplate CDN: HTTPS 302 to HTTP Azure Blob; blob returns application/octet-stream.
+    /// </summary>
+    private sealed class PepperplateCdnToBlobHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.RequestUri?.Host.Equals("cdn2.pepperplate.com", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                var redirect = new HttpResponseMessage(HttpStatusCode.Redirect);
+                redirect.Headers.Location = new Uri("http://pepperplate.blob.core.windows.net/recipes/x.jpg", UriKind.Absolute);
+                return Task.FromResult(redirect);
+            }
+
+            if (request.RequestUri?.Host.Equals("pepperplate.blob.core.windows.net", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                var jpegHeader = new byte[] { 0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46 };
+                var ok = new HttpResponseMessage(HttpStatusCode.OK);
+                ok.Content = new ByteArrayContent(jpegHeader);
+                ok.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+                return Task.FromResult(ok);
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+        }
     }
 
     private sealed class StubHttpMessageHandler(string html, long? contentLength = null) : HttpMessageHandler

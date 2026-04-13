@@ -7,6 +7,7 @@ using Api.Data;
 using Api.Domain;
 using Api.Logging;
 using Api.Models;
+using Microsoft.Extensions.Http;
 
 namespace Api.Services.MealPrep;
 
@@ -15,12 +16,14 @@ namespace Api.Services.MealPrep;
 /// </summary>
 public class RecipeImportService(
     HttpClient httpClient,
+    IHttpClientFactory httpClientFactory,
     MeasurementService measurementService,
     RecipeImportLlmParser recipeImportLlmParser,
     ApiDbContext db,
     ILogger<RecipeImportService> logger
 )
 {
+    public const string RecipeImageImportHttpClientName = "RecipeImageImport";
     private const int MaxResponseBytes = 2 * 1024 * 1024;
     private static readonly Regex JsonLdScriptPattern = new(
         "<script[^>]*type=[\"']application/ld\\+json[\"'][^>]*>(?<json>.*?)</script>",
@@ -109,40 +112,72 @@ public class RecipeImportService(
 
         if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri)) return null;
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-        request.Headers.UserAgent.ParseAdd("MealPrepBot/1.0");
+        var imageClient = httpClientFactory.CreateClient(RecipeImageImportHttpClientName);
+        var currentUri = uri;
 
-        using var response = await httpClient.SendAsync(
-            request,
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken
-        );
-
-        if (!response.IsSuccessStatusCode) return null;
-
-        if (response.Content.Headers.ContentLength is > RecipeImageUploadConstants.MaxBytes) return null;
-
-        var mediaType = response.Content.Headers.ContentType?.MediaType;
-        if (!RecipeImageUploadConstants.IsAllowedContentType(mediaType)) return null;
-
-        await using var networkStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using var memory = new MemoryStream();
-        var buffer = new byte[8192];
-        long total = 0;
-
-        int read;
-        while ((read = await networkStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+        for (var hop = 0; hop < 8; hop++)
         {
-            total += read;
-            if (total > RecipeImageUploadConstants.MaxBytes) return null;
+            using var request = new HttpRequestMessage(HttpMethod.Get, currentUri);
 
-            await memory.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+            using var response = await imageClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken
+            );
+
+            if (IsRecipeImageRedirect(response.StatusCode))
+            {
+                if (response.Headers.Location is null) return null;
+
+                currentUri = response.Headers.Location.IsAbsoluteUri
+                    ? response.Headers.Location
+                    : new Uri(currentUri, response.Headers.Location);
+
+                if (string.Equals(currentUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase))
+                {
+                    currentUri = new UriBuilder(currentUri) { Scheme = Uri.UriSchemeHttps, Port = -1 }.Uri;
+                }
+
+                continue;
+            }
+
+            if (!response.IsSuccessStatusCode) return null;
+
+            if (response.Content.Headers.ContentLength is > RecipeImageUploadConstants.MaxBytes) return null;
+
+            var declaredType = response.Content.Headers.ContentType?.MediaType;
+            var mediaType = RecipeImageUploadConstants.ResolveImportedImageContentType(declaredType, currentUri.AbsolutePath);
+            if (mediaType is null) return null;
+
+            await using var networkStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            await using var memory = new MemoryStream();
+            var buffer = new byte[8192];
+            long total = 0;
+
+            int read;
+            while ((read = await networkStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+            {
+                total += read;
+                if (total > RecipeImageUploadConstants.MaxBytes) return null;
+
+                await memory.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+            }
+
+            var bytes = memory.ToArray();
+            var fileName = RecipeImageUploadConstants.FileNameForUpload(Path.GetFileName(currentUri.LocalPath), mediaType);
+
+            return new ImportedRecipeImagePayload(bytes, mediaType, fileName);
         }
 
-        var bytes = memory.ToArray();
-        var fileName = RecipeImageUploadConstants.FileNameForUpload(Path.GetFileName(uri.LocalPath), mediaType ?? "image/jpeg");
+        return null;
+    }
 
-        return new ImportedRecipeImagePayload(bytes, mediaType ?? "image/jpeg", fileName);
+    private static bool IsRecipeImageRedirect(HttpStatusCode statusCode) {
+        return statusCode is HttpStatusCode.Moved
+            or HttpStatusCode.Redirect
+            or HttpStatusCode.RedirectMethod
+            or HttpStatusCode.TemporaryRedirect
+            or HttpStatusCode.PermanentRedirect;
     }
 
     private async Task TryPersistRecipeImportAiLogAsync(

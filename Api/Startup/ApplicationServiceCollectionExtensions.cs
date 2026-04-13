@@ -6,6 +6,8 @@ using Api.Services.MealPrep;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Features;
+using System.Net;
+using System.Net.Http;
 
 namespace Api.Startup;
 
@@ -62,6 +64,12 @@ public static class ApplicationServiceCollectionExtensions
             services.AddSingleton<RecipeImportLlmParser>();
             services.AddSingleton<IngredientCategoryLlmService>();
             services.AddHttpClient<RecipeImportService>();
+            services.AddHttpClient(RecipeImportService.RecipeImageImportHttpClientName)
+                .ConfigureHttpClient(client => client.DefaultRequestHeaders.UserAgent.ParseAdd("MealPrepBot/1.0"))
+                .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler {
+                    AllowAutoRedirect = false,
+                    AutomaticDecompression = DecompressionMethods.Brotli | DecompressionMethods.GZip | DecompressionMethods.Deflate,
+                });
         }
     }
 }

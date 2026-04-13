@@ -18,6 +18,34 @@ public static class RecipeImageUploadConstants
         return contentType is not null && AllowedContentTypes.Contains(contentType);
     }
 
+    /// <summary>
+    ///     Infers an image content type from a URL path (e.g. Azure Blob often returns application/octet-stream).
+    /// </summary>
+    public static string? TryInferImageContentTypeFromPath(string? path) {
+        var ext = Path.GetExtension(path ?? string.Empty).ToLowerInvariant();
+        return ext switch {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".webp" => "image/webp",
+            ".gif" => "image/gif",
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    ///     Resolves the effective image content type from response headers and URL path.
+    /// </summary>
+    public static string? ResolveImportedImageContentType(string? responseMediaType, string absolutePath) {
+        if (IsAllowedContentType(responseMediaType)) return responseMediaType;
+
+        if (string.IsNullOrWhiteSpace(responseMediaType)
+            || string.Equals(responseMediaType, "application/octet-stream", StringComparison.OrdinalIgnoreCase)) {
+            return TryInferImageContentTypeFromPath(absolutePath);
+        }
+
+        return null;
+    }
+
     public static string FileNameForUpload(string originalFileName, string contentType) {
         var safeName = Path.GetFileName(originalFileName);
         if (string.IsNullOrWhiteSpace(safeName)) {
