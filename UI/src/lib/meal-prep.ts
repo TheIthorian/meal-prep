@@ -76,6 +76,7 @@ export function createEmptyRecipe(workspaceId: string): Recipe {
         cookMinutes: null,
         isArchived: false,
         tags: [],
+        hasImage: false,
         ingredients: [{ id: crypto.randomUUID(), sortOrder: 0, name: '', displayText: '', amount: null, unit: '', preparationNote: '', section: '' }],
         steps: [{ id: crypto.randomUUID(), sortOrder: 0, instruction: '', timerSeconds: null }],
         nutrition: null,
@@ -222,4 +223,12 @@ export function searchRecipes(recipes: RecipeListItem[], term: string) {
 
 export function toggleShoppingItem(items: ShoppingListItem[], itemId: string) {
     return items.map(item => (item.id === itemId ? { ...item, isChecked: !item.isChecked } : item));
+}
+
+/** Full URL for authenticated GET of the recipe cover image (uses session cookies). */
+export function recipeImageRequestUrl(workspaceId: string, recipeId: string) {
+    const path = `/api/v1/workspaces/${workspaceId}/recipes/${recipeId}/image`;
+    const base =
+        import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '' : 'http://localhost:5001');
+    return `${base}${path}`;
 }

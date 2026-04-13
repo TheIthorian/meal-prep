@@ -5,6 +5,7 @@ using Api.Services;
 using Api.Services.MealPrep;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http.Features;
 
 namespace Api.Startup;
 
@@ -28,6 +29,9 @@ public static class ApplicationServiceCollectionExtensions
                 .Bind(configuration.GetSection("OpenAI"));
             services.AddProblemDetails();
             services.AddExceptionHandler<GlobalExceptionHandler>();
+            services.Configure<FormOptions>(options => {
+                options.MultipartBodyLengthLimit = RecipeImageUploadConstants.MaxBytes;
+            });
             services.AddAppRateLimiting();
 
             services.AddSingleton<IFilterConfigurationProvider>(_ => {

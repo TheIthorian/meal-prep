@@ -8,6 +8,7 @@ using Api.Models;
 using Api.Models.Filter;
 using Api.Services;
 using Api.Services.MealPrep;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -60,7 +61,8 @@ internal static class RecipesHandlers
                 recipe.Tags,
                 recipe.SourceUrl,
                 recipe.Ingredients.Count,
-                recipe.Steps.Count
+                recipe.Steps.Count,
+                recipe.ImageObjectKey != null && recipe.ImageObjectKey != ""
             ))
             .ToArrayAsync(cancellationToken);
 
@@ -156,6 +158,7 @@ internal static class RecipesHandlers
     public static async Task<Ok> DeleteRecipe(
         CurrentUserService currentUserService,
         ApiDbContext db,
+        IS3StorageService s3StorageService,
         Guid workspaceId,
         Guid recipeId
     )
@@ -172,9 +175,129 @@ internal static class RecipesHandlers
 
         if (recipe is null) throw new EntityNotFoundException("Recipe not found", null);
 
+        if (!string.IsNullOrEmpty(recipe.ImageObjectKey)) {
+            await s3StorageService.DeleteFileAsync(recipe.ImageObjectKey);
+        }
+
         recipe.IsDeleted = true;
         await db.SaveChangesAsync();
         return TypedResults.Ok();
+    }
+
+    [Authorize]
+    public static async Task<IResult> GetRecipeImage(
+        CurrentUserService currentUserService,
+        ApiDbContext db,
+        IS3StorageService s3StorageService,
+        Guid workspaceId,
+        Guid recipeId,
+        CancellationToken cancellationToken
+    )
+    {
+        var currentUserId = currentUserService.UserId;
+        if (currentUserId is null) throw new UnauthorizedException();
+
+        var recipe = await db.Recipes
+            .AsNoTracking()
+            .ForCurrentUser(currentUserId)
+            .WhereIsNotDeleted()
+            .Where(value => value.WorkspaceId == workspaceId && value.Id == recipeId)
+            .Select(value => new { value.ImageObjectKey })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (recipe is null) throw new EntityNotFoundException("Recipe not found", null);
+
+        if (string.IsNullOrEmpty(recipe.ImageObjectKey)) return TypedResults.NotFound();
+
+        var stream = await s3StorageService.DownloadFileAsync(recipe.ImageObjectKey);
+        var contentType = RecipeImageUploadConstants.ContentTypeFromObjectKey(recipe.ImageObjectKey) ?? "application/octet-stream";
+
+        return TypedResults.File(stream, contentType);
+    }
+
+    [Authorize]
+    public static async Task<JsonHttpResult<RecipeResponse>> PostRecipeImage(
+        CurrentUserService currentUserService,
+        ApiDbContext db,
+        IS3StorageService s3StorageService,
+        Guid workspaceId,
+        Guid recipeId,
+        IFormFile? file,
+        CancellationToken cancellationToken
+    )
+    {
+        var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
+        if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
+
+        var currentUserId = workspaceUser.UserId;
+        var recipe = await db.Recipes
+            .Include(value => value.Ingredients)
+            .Include(value => value.Steps)
+            .Include(value => value.Nutrition)
+            .ForCurrentUser(currentUserId)
+            .WhereIsNotDeleted()
+            .Where(value => value.WorkspaceId == workspaceId && value.Id == recipeId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (recipe is null) throw new EntityNotFoundException("Recipe not found", null);
+
+        if (file is null || file.Length == 0) throw new InvalidFormatException("Image file is required", null);
+
+        if (file.Length > RecipeImageUploadConstants.MaxBytes) {
+            throw new InvalidFormatException("Image file is too large", $"Maximum size is {RecipeImageUploadConstants.MaxBytes} bytes.");
+        }
+
+        if (!RecipeImageUploadConstants.IsAllowedContentType(file.ContentType)) {
+            throw new InvalidFormatException("Unsupported image type", "Use JPEG, PNG, WebP, or GIF.");
+        }
+
+        var safeFileName = RecipeImageUploadConstants.FileNameForUpload(file.FileName, file.ContentType);
+        await using var readStream = file.OpenReadStream();
+        var newKey = await s3StorageService.UploadFileAsync(readStream, safeFileName, file.ContentType);
+
+        if (!string.IsNullOrEmpty(recipe.ImageObjectKey)) {
+            await s3StorageService.DeleteFileAsync(recipe.ImageObjectKey);
+        }
+
+        recipe.SetImageObjectKey(newKey);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return TypedResults.Json(recipe.ToRecipeResponse());
+    }
+
+    [Authorize]
+    public static async Task<JsonHttpResult<RecipeResponse>> DeleteRecipeImage(
+        CurrentUserService currentUserService,
+        ApiDbContext db,
+        IS3StorageService s3StorageService,
+        Guid workspaceId,
+        Guid recipeId,
+        CancellationToken cancellationToken
+    )
+    {
+        var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
+        if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
+
+        var currentUserId = workspaceUser.UserId;
+        var recipe = await db.Recipes
+            .Include(value => value.Ingredients)
+            .Include(value => value.Steps)
+            .Include(value => value.Nutrition)
+            .ForCurrentUser(currentUserId)
+            .WhereIsNotDeleted()
+            .Where(value => value.WorkspaceId == workspaceId && value.Id == recipeId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (recipe is null) throw new EntityNotFoundException("Recipe not found", null);
+
+        if (!string.IsNullOrEmpty(recipe.ImageObjectKey)) {
+            await s3StorageService.DeleteFileAsync(recipe.ImageObjectKey);
+        }
+
+        recipe.SetImageObjectKey(null);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return TypedResults.Json(recipe.ToRecipeResponse());
     }
 
     [Authorize]

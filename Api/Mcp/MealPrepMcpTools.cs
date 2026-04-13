@@ -27,7 +27,8 @@ public sealed class MealPrepMcpTools(
     IFilterConfigurationProvider filterConfigurationProvider,
     RecipeImportService recipeImportService,
     ShoppingListGenerationService shoppingListGenerationService,
-    MeasurementService measurementService
+    MeasurementService measurementService,
+    IS3StorageService s3StorageService
 )
 {
     private static string Serialize<T>(JsonHttpResult<T> result) {
@@ -151,7 +152,7 @@ public sealed class MealPrepMcpTools(
     public async Task<string> MealPrepDeleteRecipe(Guid workspaceId, Guid recipeId, CancellationToken cancellationToken) {
         _ = cancellationToken;
         RequireMcpWorkspace(workspaceId);
-        await RecipesHandlers.DeleteRecipe(currentUserService, db, workspaceId, recipeId);
+        await RecipesHandlers.DeleteRecipe(currentUserService, db, s3StorageService, workspaceId, recipeId);
         return """{"ok":true}""";
     }
 

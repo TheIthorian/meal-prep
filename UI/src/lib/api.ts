@@ -59,6 +59,16 @@ export const recipesApi = {
         httpClient.delete<void>(`/api/v1/workspaces/${workspaceId}/recipes/${recipeId}`),
     previewImport: (workspaceId: string, url: string) =>
         httpClient.post<RecipeImportPreview>(`/api/v1/workspaces/${workspaceId}/recipes/import-preview`, { url }),
+    uploadImage: (workspaceId: string, recipeId: string, file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return httpClient.postFormData<Recipe>(
+            `/api/v1/workspaces/${workspaceId}/recipes/${recipeId}/image`,
+            formData,
+        );
+    },
+    deleteImage: (workspaceId: string, recipeId: string) =>
+        httpClient.delete<Recipe>(`/api/v1/workspaces/${workspaceId}/recipes/${recipeId}/image`),
 };
 
 export const mealPlanApi = {

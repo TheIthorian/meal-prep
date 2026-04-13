@@ -8,6 +8,7 @@ export interface RecipeListItem {
     sourceUrl?: string | null;
     ingredientCount: number;
     stepCount: number;
+    hasImage: boolean;
 }
 
 export interface RecipeIngredient {
@@ -62,6 +63,7 @@ export interface Recipe {
     cookMinutes?: number | null;
     isArchived: boolean;
     tags: string[];
+    hasImage: boolean;
     ingredients: RecipeIngredient[];
     steps: RecipeStep[];
     nutrition?: RecipeNutrition | null;

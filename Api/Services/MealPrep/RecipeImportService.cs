@@ -402,7 +402,7 @@ public class RecipeImportService(
         var trimmed = WebUtility.HtmlDecode(text).Trim();
         var match = Regex.Match(
             trimmed,
-            "^(?<amount>[0-9]+(?:\\.[0-9]+)?|[0-9]+/[0-9]+|[0-9]+\\s+[0-9]+/[0-9]+|[¼½¾])?\\s*(?<unit>[A-Za-z]+(?:\\s?oz)?)?\\s*(?<name>.+)$"
+            "^(?<amount>[0-9]+\\s+[0-9]+/[0-9]+|[0-9]+\\s+[¼½¾]|[0-9]+/[0-9]+|[0-9]+(?:\\.[0-9]+)?|[¼½¾])?\\s*(?<unit>[A-Za-z]+(?:\\s?oz)?)?\\s*(?<name>.+)$"
         );
 
         var amount = measurementService.ParseDecimal(match.Groups["amount"].Value);

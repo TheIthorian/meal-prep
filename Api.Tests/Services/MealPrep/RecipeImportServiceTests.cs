@@ -96,6 +96,37 @@ public class RecipeImportServiceTests
     }
 
     [Fact]
+    public async Task PreviewAsync_ShouldParseMixedUnicodeFractionAmountsInJsonLd()
+    {
+        var html = """
+            <html>
+              <head>
+                <script type="application/ld+json">
+                {
+                  "@context": "https://schema.org",
+                  "@type": "Recipe",
+                  "name": "Fried Test",
+                  "recipeIngredient": [ "1 ¼ cups vegetable oil" ],
+                  "recipeInstructions": [ { "text": "Heat oil." } ]
+                }
+                </script>
+              </head>
+              <body></body>
+            </html>
+            """;
+
+        var httpClient = new HttpClient(new StubHttpMessageHandler(html));
+        var service = CreateRecipeImportService(httpClient);
+
+        var preview = await service.PreviewAsync("https://example.com/fried-test");
+
+        var oil = Assert.Single(preview.Ingredients);
+        Assert.Equal(1.25m, oil.Amount);
+        Assert.Equal("cups", oil.Unit);
+        Assert.Equal("vegetable oil", oil.Name);
+    }
+
+    [Fact]
     public async Task PreviewAsync_ShouldRejectLocalhostImports()
     {
         var httpClient = new HttpClient(new StubHttpMessageHandler("<html></html>"));

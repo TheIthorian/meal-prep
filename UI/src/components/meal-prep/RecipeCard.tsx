@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { BookOpen, Users } from 'lucide-react';
 import type { RecipeListItem } from '@/models/meal-prep';
 import { motion } from 'framer-motion';
+import { RecipeCoverImage } from '@/components/meal-prep/RecipeCoverImage';
 
 interface RecipeCardProps {
     workspaceId: string;
@@ -23,9 +24,19 @@ export function RecipeCard({ workspaceId, recipe, index }: RecipeCardProps) {
                 className='group block overflow-hidden rounded-xl border border-border/50 bg-card transition-all duration-200 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5'
             >
                 <div className='aspect-[4/3] overflow-hidden bg-muted'>
-                    <div className='flex h-full w-full items-center justify-center text-muted-foreground/30'>
-                        <BookOpenPlaceholder />
-                    </div>
+                    {recipe.hasImage ? (
+                        <RecipeCoverImage
+                            workspaceId={workspaceId}
+                            recipeId={recipe.id}
+                            hasImage
+                            alt={`${recipe.title} cover`}
+                            className='h-full w-full object-cover'
+                        />
+                    ) : (
+                        <div className='flex h-full w-full items-center justify-center text-muted-foreground/30'>
+                            <BookOpenPlaceholder />
+                        </div>
+                    )}
                 </div>
                 <div className='p-4'>
                     <div className='mb-2 flex flex-wrap gap-1.5'>

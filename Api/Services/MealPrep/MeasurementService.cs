@@ -96,6 +96,13 @@ public class MeasurementService
             return ParseFraction(normalized);
         }
 
+        var spaceParts = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (spaceParts.Length == 2
+            && decimal.TryParse(spaceParts[0], NumberStyles.Number, CultureInfo.InvariantCulture, out var wholePart)
+            && decimal.TryParse(spaceParts[1], NumberStyles.Number, CultureInfo.InvariantCulture, out var fractionalPart)
+            && fractionalPart is > 0 and < 1)
+            return wholePart + fractionalPart;
+
         return null;
     }
 

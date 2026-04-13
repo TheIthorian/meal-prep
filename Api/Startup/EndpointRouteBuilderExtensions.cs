@@ -123,6 +123,20 @@ public static class EndpointRouteBuilderExtensions
                 .Produces(StatusCodes.Status200OK)
                 .WithName("DeleteRecipe");
 
+            apiGroup.MapGet("/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}/image", RecipesHandlers.GetRecipeImage)
+                .Produces(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status404NotFound)
+                .WithName("GetRecipeImage");
+
+            apiGroup.MapPost("/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}/image", RecipesHandlers.PostRecipeImage)
+                .DisableAntiforgery()
+                .Produces<RecipeResponse>()
+                .WithName("UploadRecipeImage");
+
+            apiGroup.MapDelete("/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}/image", RecipesHandlers.DeleteRecipeImage)
+                .Produces<RecipeResponse>()
+                .WithName("DeleteRecipeImage");
+
             apiGroup.MapGet("/workspaces/{workspaceId:guid}/meal-plan-entries", MealPlanEntriesHandlers.GetMealPlanEntries)
                 .Produces<MealPlanEntryResponse[]>()
                 .WithName("GetMealPlanEntries");

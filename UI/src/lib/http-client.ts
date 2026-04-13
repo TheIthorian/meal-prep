@@ -48,6 +48,18 @@ class AppHttpClient {
     }
 
     private setupInterceptors() {
+        this.axiosInstance.interceptors.request.use(config => {
+            if (config.data instanceof FormData && config.headers) {
+                const headers = config.headers;
+                if (typeof headers.delete === 'function') {
+                    headers.delete('Content-Type');
+                } else {
+                    delete (headers as Record<string, unknown>)['Content-Type'];
+                }
+            }
+            return config;
+        });
+
         // Response interceptor for error handling
         this.axiosInstance.interceptors.response.use(
             response => response,
@@ -98,6 +110,11 @@ class AppHttpClient {
 
     async post<T>(url: string, data?: unknown, config?: AxiosRequestConfig) {
         const response = await this.axiosInstance.post<T>(url, data, config);
+        return response.data;
+    }
+
+    async postFormData<T>(url: string, data: FormData) {
+        const response = await this.axiosInstance.post<T>(url, data);
         return response.data;
     }
 

@@ -1,12 +1,16 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Clock, Users, Flame } from 'lucide-react';
+import { ArrowLeft, Clock, Flame } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { recipesApi } from '@/lib/api';
-import { getNutrientAmount } from '@/lib/meal-prep';
-import type { RecipeListItem } from '@/models/meal-prep';
+import { getNutrientAmount, scaleRecipeIngredients } from '@/lib/meal-prep';
+import { InstructionWithInlineAmounts } from '@/components/recipes/InstructionWithInlineAmounts';
+import { RecipeYieldScale } from '@/components/recipes/RecipeYieldScale';
+import type { Recipe, RecipeListItem } from '@/models/meal-prep';
 import { MealPlanEntryDialog } from '@/components/planner/MealPlanEntryDialog';
 import { LoadingState } from '@/components/common/LoadingState';
+import { RecipePhotoSection } from '@/components/meal-prep/RecipePhotoSection';
 
 function recipeToListItem(recipe: {
     id: string;
@@ -16,6 +20,7 @@ function recipeToListItem(recipe: {
     isArchived: boolean;
     tags: string[];
     sourceUrl?: string | null;
+    hasImage: boolean;
     ingredients: unknown[];
     steps: unknown[];
 }): RecipeListItem {
@@ -27,6 +32,7 @@ function recipeToListItem(recipe: {
         isArchived: recipe.isArchived,
         tags: recipe.tags,
         sourceUrl: recipe.sourceUrl,
+        hasImage: recipe.hasImage,
         ingredientCount: recipe.ingredients.length,
         stepCount: recipe.steps.length,
     };
@@ -41,6 +47,29 @@ export default function RecipeDetailPage() {
         queryFn: () => recipesApi.getById(workspaceId, recipeId),
         enabled: Boolean(workspaceId && recipeId),
     });
+
+    function handleRecipeImageChanged(nextHasImage: boolean) {
+        queryClient.setQueryData<Recipe>(['recipe', workspaceId, recipeId], previous =>
+            previous ? { ...previous, hasImage: nextHasImage } : previous,
+        );
+        void queryClient.invalidateQueries({ queryKey: ['recipes', workspaceId] });
+    }
+
+    const [targetServings, setTargetServings] = useState(1);
+
+    useEffect(() => {
+        if (!recipe) return;
+        const base = recipe.servings > 0 ? recipe.servings : 1;
+        setTargetServings(Math.min(99, Math.max(1, Math.round(base))));
+        // Re-sync when navigating to another recipe or the written yield changes — not on refetch.
+    }, [recipe?.id, recipe?.servings]); // eslint-disable-line react-hooks/exhaustive-deps -- stable deps; `recipe` omitted to avoid reset on cache refresh
+
+    const baseServings = recipe ? (recipe.servings > 0 ? recipe.servings : 1) : 1;
+
+    const scaledIngredients = useMemo(() => {
+        if (!recipe) return [];
+        return scaleRecipeIngredients(recipe.ingredients, baseServings, targetServings);
+    }, [recipe, baseServings, targetServings]);
 
     if (isLoading || !recipe) {
         return (
@@ -74,6 +103,14 @@ export default function RecipeDetailPage() {
                 Back to recipes
             </Link>
 
+            <RecipePhotoSection
+                workspaceId={workspaceId}
+                recipeId={recipe.id}
+                hasImage={recipe.hasImage}
+                title={recipe.title}
+                onImageChanged={handleRecipeImageChanged}
+            />
+
             <div className='mb-8'>
                 <div className='mb-3 flex flex-wrap gap-1.5'>
                     {recipe.tags.map(tag => (
@@ -95,10 +132,6 @@ export default function RecipeDetailPage() {
                             {totalTime > 0 ? `${totalTime} min` : '—'}
                         </span>
                     ) : null}
-                    <span className='flex items-center gap-1.5'>
-                        <Users className='h-4 w-4' />
-                        {recipe.servings} servings
-                    </span>
                     {calories != null && (
                         <span className='flex items-center gap-1.5'>
                             <Flame className='h-4 w-4' />
@@ -106,6 +139,13 @@ export default function RecipeDetailPage() {
                         </span>
                     )}
                 </div>
+
+                <RecipeYieldScale
+                    className='mt-5'
+                    baseServings={baseServings}
+                    targetServings={targetServings}
+                    onTargetServingsChange={setTargetServings}
+                />
             </div>
 
             <div className='mb-8 flex gap-3'>
@@ -131,7 +171,7 @@ export default function RecipeDetailPage() {
                     <h2 className='font-heading mb-4 text-xl text-foreground'>Ingredients</h2>
                     <div className='rounded-xl border border-border/50 bg-card p-4'>
                         <ul className='space-y-2.5'>
-                            {recipe.ingredients.map(ing => (
+                            {scaledIngredients.map(ing => (
                                 <li key={ing.id} className='text-sm text-foreground/90'>
                                     {ing.displayText}
                                 </li>
@@ -154,7 +194,12 @@ export default function RecipeDetailPage() {
                                 <span className='mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary'>
                                     {i + 1}
                                 </span>
-                                <p className='text-sm leading-relaxed text-foreground/90'>{step.instruction}</p>
+                                <p className='text-sm leading-relaxed text-foreground/90'>
+                                    <InstructionWithInlineAmounts
+                                        instruction={step.instruction}
+                                        scaledIngredients={scaledIngredients}
+                                    />
+                                </p>
                             </motion.li>
                         ))}
                     </ol>

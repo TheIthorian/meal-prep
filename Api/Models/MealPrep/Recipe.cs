@@ -29,6 +29,11 @@ public class Recipe : DeletableWorkspaceEntity
     public decimal? NutritionServingBasis { get; private set; }
     public string[] Tags { get; private set; } = [];
 
+    /// <summary>
+    ///     S3 object key for the recipe cover image, when set.
+    /// </summary>
+    [MaxLength(512)] public string? ImageObjectKey { get; private set; }
+
     public static Recipe CreateNew(Workspace workspace, string title, decimal servings) {
         return new Recipe(workspace, title, servings);
     }
@@ -58,6 +63,10 @@ public class Recipe : DeletableWorkspaceEntity
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(tag => tag)
             .ToArray();
+    }
+
+    public void SetImageObjectKey(string? objectKey) {
+        ImageObjectKey = objectKey;
     }
 
     public void ReplaceIngredients(IEnumerable<RecipeIngredient> ingredients) {

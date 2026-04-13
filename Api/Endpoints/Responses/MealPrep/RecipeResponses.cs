@@ -12,7 +12,8 @@ public record RecipeListItemResponse(
     string[] Tags,
     string? SourceUrl,
     int IngredientCount,
-    int StepCount
+    int StepCount,
+    bool HasImage
 );
 
 public record RecipeIngredientResponse(
@@ -45,6 +46,7 @@ public record RecipeResponse(
     int? CookMinutes,
     bool IsArchived,
     string[] Tags,
+    bool HasImage,
     RecipeIngredientResponse[] Ingredients,
     RecipeStepResponse[] Steps,
     RecipeNutritionResponse? Nutrition
@@ -80,7 +82,8 @@ public static class RecipeResponseTransforms
                 recipe.Tags,
                 recipe.SourceUrl,
                 recipe.Ingredients.Count,
-                recipe.Steps.Count
+                recipe.Steps.Count,
+                !string.IsNullOrEmpty(recipe.ImageObjectKey)
             );
         }
 
@@ -97,6 +100,7 @@ public static class RecipeResponseTransforms
                 recipe.CookMinutes,
                 recipe.IsArchived,
                 recipe.Tags,
+                !string.IsNullOrEmpty(recipe.ImageObjectKey),
                 recipe.Ingredients.OrderBy(ingredient => ingredient.SortOrder).Select(ingredient => ingredient.ToResponse()).ToArray(),
                 recipe.Steps.OrderBy(step => step.SortOrder).Select(step => step.ToResponse()).ToArray(),
                 recipe.ToNutritionResponse()

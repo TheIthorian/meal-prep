@@ -34,4 +34,18 @@ public class MeasurementServiceTests
         Assert.Equal("kg", displayAmount.Unit);
         Assert.False(displayAmount.IsApproximate);
     }
+
+    [Fact]
+    public void ParseDecimal_ShouldCombineWholeNumberAndUnicodeFraction()
+    {
+        Assert.Equal(1.25m, _measurementService.ParseDecimal("1 ¼"));
+        Assert.Equal(2.5m, _measurementService.ParseDecimal("2 ½"));
+        Assert.Equal(1.75m, _measurementService.ParseDecimal("1 ¾"));
+    }
+
+    [Fact]
+    public void ParseDecimal_ShouldNotSumTwoUnrelatedNumbers()
+    {
+        Assert.Null(_measurementService.ParseDecimal("1 2"));
+    }
 }
