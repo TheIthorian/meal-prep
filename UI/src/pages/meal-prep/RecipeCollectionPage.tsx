@@ -64,6 +64,19 @@ async function writeExportToDirectory(
     }
 }
 
+async function pickJsonFile(): Promise<File | null> {
+    return await new Promise(resolve => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'application/json,.json';
+        input.onchange = () => {
+            const file = input.files?.[0] ?? null;
+            resolve(file);
+        };
+        input.click();
+    });
+}
+
 export default function RecipeCollectionPage() {
     const { workspaceId = '', collectionId = '' } = useParams<{
         workspaceId: string;
@@ -160,10 +173,30 @@ export default function RecipeCollectionPage() {
     async function handleImportDirectory() {
         if (!detail) return;
         try {
+            async function importFromJsonPayload(data: RecipeCollectionExport) {
+                const created = await recipeCollectionsApi.create(workspaceId, {
+                    name: `${data.collectionName} (Imported)`,
+                    description: data.description ?? null,
+                });
+
+                for (const item of data.recipes) {
+                    const recipe = await recipesApi.create(workspaceId, item.payload);
+                    await recipeCollectionsApi.addRecipe(workspaceId, created.id, recipe.id);
+                }
+
+                toast({ title: 'Import complete' });
+                navigate(workspacePath(workspaceId, `collections/${created.id}`));
+            }
+
             const picker = (window as Window & { showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle> })
                 .showDirectoryPicker;
             if (!picker) {
-                toast({ title: 'Import not supported in this browser', variant: 'destructive' });
+                const jsonFile = await pickJsonFile();
+                if (!jsonFile) return;
+                const json = await jsonFile.text();
+                const data = JSON.parse(json) as RecipeCollectionExport;
+                await importFromJsonPayload(data);
+                toast({ title: 'Directory import unavailable, imported from JSON instead' });
                 return;
             }
             const importDir = await picker();
@@ -171,7 +204,6 @@ export default function RecipeCollectionPage() {
             const file = await fileHandle.getFile();
             const json = (await file.text()) as string;
             const data = JSON.parse(json) as RecipeCollectionExport;
-
             const created = await recipeCollectionsApi.create(workspaceId, {
                 name: `${data.collectionName} (Imported)`,
                 description: data.description ?? null,
