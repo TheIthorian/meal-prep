@@ -179,9 +179,20 @@ export default function RecipeCollectionPage() {
         mutationFn: () => recipeCollectionsApi.createShareLink(detail!.ownerWorkspaceId, collectionId),
         onSuccess: async data => {
             const absoluteUrl = `${window.location.origin}${data.importPath}`;
-            await navigator.clipboard.writeText(absoluteUrl);
             setLastShareLink(absoluteUrl);
-            toast({ title: 'Magic link copied' });
+            try {
+                if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(absoluteUrl);
+                    toast({ title: 'Magic link copied' });
+                    return;
+                }
+            } catch {
+                // fall through to link-visible fallback toast
+            }
+            toast({
+                title: 'Magic link generated',
+                description: 'Clipboard is unavailable here. Copy the link from this dialog.',
+            });
         },
     });
 
