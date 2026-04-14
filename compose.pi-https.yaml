@@ -1,0 +1,125 @@
+networks:
+  meal-prep-net:
+    name: meal-prep-net
+    external: false
+
+services:
+  caddy:
+    container_name: meal-prep-caddy
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - ui
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Infra/Caddyfile.pi:/etc/caddy/Caddyfile:ro
+      - ./Infra/certs:/certs:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - meal-prep-net
+
+  ui:
+    container_name: meal-prep-ui
+    build:
+      context: .
+      dockerfile: UI/Dockerfile
+      args:
+        VITE_API_BASE_URL: ""
+        VITE_IS_DEV_MODE: "false"
+    restart: unless-stopped
+    networks:
+      - meal-prep-net
+
+  api:
+    container_name: meal-prep-api
+    image: api
+    build:
+      context: .
+      dockerfile: Api/Dockerfile
+    env_file:
+      - .docker.env
+    environment:
+      - "ASPNETCORE_HTTP_PORTS=5001"
+      - "ASPNETCORE_ENVIRONMENT=Production"
+    expose:
+      - "5001"
+    depends_on:
+      - db
+      - minio
+      - redis
+    networks:
+      - meal-prep-net
+
+  redis:
+    container_name: meal-prep-redis
+    image: redis:latest
+    restart: unless-stopped
+    command: redis-server --save 20 1 --loglevel warning
+    volumes:
+      - redis:/data
+    networks:
+      - meal-prep-net
+
+  minio:
+    container_name: meal-prep-minio
+    image: minio/minio:latest
+    entrypoint: bash
+    environment:
+      - MINIO_ROOT_USER=minio
+      - MINIO_ROOT_PASSWORD=123456789
+      - MINIO_SITE_REGION=eu-west-1
+    command:
+      - -c
+      - |
+        mkdir -p /data/drive/meal-prep-dev
+        /usr/bin/minio server /data/drive/meal-prep-dev --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    networks:
+      - meal-prep-net
+
+  minio-init:
+    container_name: meal-prep-minio-init
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set local http://meal-prep-minio:9000 minio 123456789;
+      mc mb --ignore-existing local/meal-prep-dev;
+      mc mb --ignore-existing local/meal-prep-autotest;
+      "
+    networks:
+      - meal-prep-net
+
+  db:
+    container_name: meal-prep-pg-db
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: root
+      PGOPTIONS: "--client-min-messages=warning"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d
+    networks:
+      - meal-prep-net
+
+volumes:
+  redis:
+    driver: local
+  miniodata:
+  postgres-data:
+  caddy_data:
+  caddy_config:
