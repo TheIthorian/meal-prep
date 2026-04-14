@@ -1,0 +1,8 @@
+mealprep.local, 192.168.1.98 {
+    tls /certs/cert.pem /certs/key.pem
+
+    @api path /api/*
+    reverse_proxy @api api:5001
+
+    reverse_proxy ui:80
+}
