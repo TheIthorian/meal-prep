@@ -6,6 +6,7 @@ import {
     ChevronLeft,
     ChevronRight,
     Clock,
+    Pencil,
     ExternalLink,
     Flame,
     Sparkles,
@@ -29,6 +30,7 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { formatRecipeTagLabel, getNutrientAmount, safeHttpUrlHref, scaleRecipeIngredients } from '@/lib/meal-prep';
+import { toSaveRecipeRequest } from '@/lib/meal-prep';
 import { InstructionWithInlineAmounts } from '@/components/recipes/InstructionWithInlineAmounts';
 import { RecipeIngredientListRow } from '@/components/recipes/RecipeIngredientListRow';
 import { RecipeYieldScale } from '@/components/recipes/RecipeYieldScale';
@@ -37,6 +39,7 @@ import { MealPlanEntryDialog } from '@/components/planner/MealPlanEntryDialog';
 import { LoadingState } from '@/components/common/LoadingState';
 import { RecipePhotoSection } from '@/components/meal-prep/RecipePhotoSection';
 import { AddToRecipeCollectionMenu } from '@/components/meal-prep/AddToRecipeCollectionMenu';
+import { RecipeForm } from '@/components/recipes/RecipeForm';
 
 function shouldSuppressRecipeArrowNavigation(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return false;
@@ -82,6 +85,8 @@ export default function RecipeDetailPage() {
     const { currentWorkspace } = useWorkspace();
     const { capture } = useAnalytics();
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [draftRecipe, setDraftRecipe] = useState<Recipe | null>(null);
 
     const { data: recipe, isLoading } = useQuery({
         queryKey: ['recipe', workspaceId, recipeId],
@@ -213,6 +218,24 @@ export default function RecipeDetailPage() {
         },
     });
 
+    const updateRecipe = useMutation({
+        mutationFn: (nextRecipe: Recipe) => recipesApi.update(workspaceId, recipeId, toSaveRecipeRequest(nextRecipe)),
+        onSuccess: updated => {
+            queryClient.setQueryData<Recipe>(['recipe', workspaceId, recipeId], updated);
+            void queryClient.invalidateQueries({ queryKey: ['recipes', workspaceId] });
+            setIsEditing(false);
+            setDraftRecipe(null);
+            toast({ title: 'Recipe updated' });
+        },
+        onError: () => {
+            toast({
+                title: 'Failed to save recipe',
+                description: 'Please review the recipe fields and try again.',
+                variant: 'destructive',
+            });
+        },
+    });
+
     function handleRecipeImageChanged(nextHasImage: boolean) {
         queryClient.setQueryData<Recipe>(['recipe', workspaceId, recipeId], previous =>
             previous ? { ...previous, hasImage: nextHasImage } : previous,
@@ -253,6 +276,36 @@ export default function RecipeDetailPage() {
     const listItem = recipeToListItem(recipe);
     const cookingPath = `/workspaces/${workspaceId}/cooking/${recipe.id}`;
     const sourceHref = safeHttpUrlHref(recipe.sourceUrl);
+
+    function startEditing() {
+        setDraftRecipe(structuredClone(recipe));
+        setIsEditing(true);
+    }
+
+    function cancelEditing() {
+        setIsEditing(false);
+        setDraftRecipe(null);
+    }
+
+    if (isEditing && draftRecipe) {
+        return (
+            <div className='mx-auto max-w-5xl px-4 py-6 md:px-8 md:py-10'>
+                <div className='mb-6 flex items-center justify-between gap-3'>
+                    <h1 className='font-heading text-2xl text-foreground md:text-3xl'>Edit Recipe</h1>
+                    <Button type='button' variant='ghost' onClick={cancelEditing} disabled={updateRecipe.isPending}>
+                        Cancel
+                    </Button>
+                </div>
+                <RecipeForm
+                    recipe={draftRecipe}
+                    workspaceId={workspaceId}
+                    isSaving={updateRecipe.isPending}
+                    onChange={setDraftRecipe}
+                    onSubmit={() => void updateRecipe.mutateAsync(draftRecipe)}
+                />
+            </div>
+        );
+    }
 
     return (
         <motion.div
@@ -364,15 +417,28 @@ export default function RecipeDetailPage() {
                         recipeId={recipeId}
                         variant='compact'
                     />
-                    <Button
-                        type='button'
-                        variant='outline'
-                        className='border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive'
-                        onClick={() => setDeleteDialogOpen(true)}
-                    >
-                        <Trash2 className='mr-1.5 h-4 w-4' />
-                        Delete
-                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button type='button' variant='outline' size='icon' className='h-9 w-9 shrink-0' onClick={startEditing}>
+                                <Pencil className='h-4 w-4' />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side='bottom'>Edit recipe</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                type='button'
+                                variant='outline'
+                                size='icon'
+                                className='h-9 w-9 shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive'
+                                onClick={() => setDeleteDialogOpen(true)}
+                            >
+                                <Trash2 className='h-4 w-4' />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side='bottom'>Delete recipe</TooltipContent>
+                    </Tooltip>
                 </div>
             </div>
 
