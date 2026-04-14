@@ -221,6 +221,8 @@ internal static class RecipesHandlers
             .Include(value => value.Ingredients)
             .Include(value => value.Steps)
             .Include(value => value.Nutrition)
+            .Include(value => value.CollectionLinks)
+            .ThenInclude(link => link.RecipeCollection)
             .AsNoTracking()
             .ForCurrentUser(currentUserId)
             .WhereIsNotDeleted()
@@ -230,8 +232,19 @@ internal static class RecipesHandlers
         if (recipe is null) throw new EntityNotFoundException("Recipe not found", null);
 
         var isFavorite = await RecipeIsFavoriteAsync(db, currentUserId.Value, recipeId, cancellationToken);
+        var collections = recipe.CollectionLinks
+            .Where(link => !link.RecipeCollection.IsDeleted)
+            .OrderBy(link => link.RecipeCollection.Name)
+            .Select(link => new RecipeCollectionMembershipResponse(
+                    link.RecipeCollectionId,
+                    link.RecipeCollection.Name,
+                    link.RecipeCollection.WorkspaceId,
+                    link.RecipeCollection.WorkspaceId == workspaceId
+                )
+            )
+            .ToArray();
 
-        return TypedResults.Json(recipe.ToRecipeResponse(isFavorite));
+        return TypedResults.Json(recipe.ToRecipeResponse(isFavorite, collections));
     }
 
     [Authorize]

@@ -36,7 +36,7 @@ public partial class ApiDbContext
             .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<RecipeCollectionRecipe>()
             .HasOne(link => link.Recipe)
-            .WithMany()
+            .WithMany(recipe => recipe.CollectionLinks)
             .HasForeignKey(link => link.RecipeId)
             .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<RecipeCollectionRecipe>()

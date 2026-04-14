@@ -17,6 +17,7 @@ public class Recipe : DeletableWorkspaceEntity
     public ICollection<RecipeIngredient> Ingredients { get; private set; } = new List<RecipeIngredient>();
     public ICollection<RecipeStep> Steps { get; private set; } = new List<RecipeStep>();
     public ICollection<RecipeNutrition> Nutrition { get; private set; } = new List<RecipeNutrition>();
+    public ICollection<RecipeCollectionRecipe> CollectionLinks { get; private set; } = new List<RecipeCollectionRecipe>();
 
     [MaxLength(255)] public string Title { get; private set; } = string.Empty;
     [MaxLength(4000)] public string? Description { get; private set; }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, ChevronsUpDown, Download, Minus, Plus, Share2, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, ChevronsUpDown, Download, Minus, Plus, Share2, Trash2 } from 'lucide-react';
 import { recipeCollectionsApi, recipesApi } from '@/lib/api';
 import { RecipeCard } from '@/components/meal-prep/RecipeCard';
 import { LoadingState } from '@/components/common/LoadingState';
@@ -27,6 +27,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Progress } from '@/components/ui/progress';
 import { toast } from '@/hooks/use-toast';
 import { analyticsEvents, useAnalytics, withWorkspaceProperties } from '@/lib/analytics';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -77,6 +78,48 @@ async function pickJsonFile(): Promise<File | null> {
     });
 }
 
+function dedupeExportRecipes(data: RecipeCollectionExport) {
+    const seen = new Set<string>();
+    const unique = data.recipes.filter(recipe => {
+        const key = JSON.stringify(recipe.payload);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+    return {
+        unique,
+        duplicatesOmitted: data.recipes.length - unique.length,
+    };
+}
+
+function toRecipeIdentityKey(title?: string | null, sourceUrl?: string | null) {
+    const normalizedTitle = (title ?? '').trim().toLowerCase();
+    const normalizedSourceUrl = (sourceUrl ?? '').trim().toLowerCase();
+    return `${normalizedTitle}|${normalizedSourceUrl}`;
+}
+
+async function loadExistingRecipeIdentityKeys(workspaceId: string) {
+    const existingKeys = new Set<string>();
+    const pageSize = 100;
+    let page = 1;
+    let totalCount = 0;
+
+    do {
+        const response = await recipesApi.getAll(workspaceId, {
+            page,
+            pageSize,
+            includeArchived: true,
+        });
+        totalCount = response.totalCount;
+        for (const recipe of response.data) {
+            existingKeys.add(toRecipeIdentityKey(recipe.title, recipe.sourceUrl ?? null));
+        }
+        page += 1;
+    } while ((page - 1) * pageSize < totalCount);
+
+    return existingKeys;
+}
+
 export default function RecipeCollectionPage() {
     const { workspaceId = '', collectionId = '' } = useParams<{
         workspaceId: string;
@@ -90,6 +133,12 @@ export default function RecipeCollectionPage() {
     const [recipePickerOpen, setRecipePickerOpen] = useState(false);
     const [shareDialogOpen, setShareDialogOpen] = useState(false);
     const [lastShareLink, setLastShareLink] = useState<string | null>(null);
+    const [importState, setImportState] = useState({
+        isActive: false,
+        current: 0,
+        total: 0,
+        label: '',
+    });
 
     const { data: detail, isLoading } = useQuery({
         queryKey: ['recipe-collection', workspaceId, collectionId],
@@ -174,17 +223,77 @@ export default function RecipeCollectionPage() {
         if (!detail) return;
         try {
             async function importFromJsonPayload(data: RecipeCollectionExport) {
+                const deduped = dedupeExportRecipes(data);
+                const existingKeys = await loadExistingRecipeIdentityKeys(workspaceId);
+                const candidates = deduped.unique.filter(
+                    item => !existingKeys.has(toRecipeIdentityKey(item.payload.title, item.payload.sourceUrl ?? null)),
+                );
+                const skippedExisting = deduped.unique.length - candidates.length;
+                const failedTitles: string[] = [];
+
+                if (candidates.length === 0) {
+                    toast({
+                        title: 'Nothing to import',
+                        description:
+                            skippedExisting > 0
+                                ? `All ${skippedExisting} recipe${skippedExisting === 1 ? '' : 's'} already exist in this workspace.`
+                                : 'No importable recipes found.',
+                    });
+                    return;
+                }
+
+                setImportState({
+                    isActive: true,
+                    current: 0,
+                    total: candidates.length,
+                    label: `Importing 0 of ${candidates.length} recipes`,
+                });
+
                 const created = await recipeCollectionsApi.create(workspaceId, {
                     name: `${data.collectionName} (Imported)`,
                     description: data.description ?? null,
                 });
 
-                for (const item of data.recipes) {
-                    const recipe = await recipesApi.create(workspaceId, item.payload);
-                    await recipeCollectionsApi.addRecipe(workspaceId, created.id, recipe.id);
+                for (const [index, item] of candidates.entries()) {
+                    try {
+                        const recipe = await recipesApi.create(workspaceId, item.payload);
+                        await recipeCollectionsApi.addRecipe(workspaceId, created.id, recipe.id);
+                        existingKeys.add(toRecipeIdentityKey(item.payload.title, item.payload.sourceUrl ?? null));
+                    } catch {
+                        failedTitles.push(item.title || item.payload.title || `Recipe ${index + 1}`);
+                    }
+                    const current = index + 1;
+                    setImportState({
+                        isActive: true,
+                        current,
+                        total: candidates.length,
+                        label: `Importing ${current} of ${candidates.length} recipes`,
+                    });
                 }
 
-                toast({ title: 'Import complete' });
+                toast({
+                    title: failedTitles.length > 0 ? 'Import complete with skipped items' : 'Import complete',
+                    description: [
+                        deduped.duplicatesOmitted > 0
+                            ? `Omitted ${deduped.duplicatesOmitted} duplicate recipe${deduped.duplicatesOmitted === 1 ? '' : 's'}.`
+                            : null,
+                        skippedExisting > 0
+                            ? `Skipped ${skippedExisting} existing recipe${skippedExisting === 1 ? '' : 's'}.`
+                            : null,
+                        failedTitles.length > 0
+                            ? `Failed and skipped ${failedTitles.length} item${failedTitles.length === 1 ? '' : 's'}: ${failedTitles.slice(0, 5).join(', ')}${failedTitles.length > 5 ? '…' : ''}`
+                            : null,
+                    ]
+                        .filter(Boolean)
+                        .join(' '),
+                    variant: failedTitles.length > 0 ? 'destructive' : 'default',
+                });
+                setImportState({
+                    isActive: false,
+                    current: candidates.length,
+                    total: candidates.length,
+                    label: '',
+                });
                 navigate(workspacePath(workspaceId, `collections/${created.id}`));
             }
 
@@ -204,9 +313,34 @@ export default function RecipeCollectionPage() {
             const file = await fileHandle.getFile();
             const json = (await file.text()) as string;
             const data = JSON.parse(json) as RecipeCollectionExport;
+            const deduped = dedupeExportRecipes(data);
+            const existingKeys = await loadExistingRecipeIdentityKeys(workspaceId);
+            const candidates = deduped.unique.filter(
+                item => !existingKeys.has(toRecipeIdentityKey(item.payload.title, item.payload.sourceUrl ?? null)),
+            );
+            const skippedExisting = deduped.unique.length - candidates.length;
+            const failedTitles: string[] = [];
+
+            if (candidates.length === 0) {
+                toast({
+                    title: 'Nothing to import',
+                    description:
+                        skippedExisting > 0
+                            ? `All ${skippedExisting} recipe${skippedExisting === 1 ? '' : 's'} already exist in this workspace.`
+                            : 'No importable recipes found.',
+                });
+                return;
+            }
+
             const created = await recipeCollectionsApi.create(workspaceId, {
                 name: `${data.collectionName} (Imported)`,
                 description: data.description ?? null,
+            });
+            setImportState({
+                isActive: true,
+                current: 0,
+                total: candidates.length,
+                label: `Importing 0 of ${candidates.length} recipes`,
             });
 
             let imagesDir: FileSystemDirectoryHandle | null = null;
@@ -216,23 +350,63 @@ export default function RecipeCollectionPage() {
                 imagesDir = null;
             }
 
-            for (const item of data.recipes) {
-                const recipe = await recipesApi.create(workspaceId, item.payload);
-                await recipeCollectionsApi.addRecipe(workspaceId, created.id, recipe.id);
-                if (imagesDir && item.imageFileName) {
-                    try {
-                        const imageHandle = await imagesDir.getFileHandle(item.imageFileName);
-                        const imageFile = await imageHandle.getFile();
-                        await recipesApi.uploadImage(workspaceId, recipe.id, new File([imageFile], imageFile.name));
-                    } catch {
-                        // Continue importing even if one image is missing.
+            for (const [index, item] of candidates.entries()) {
+                try {
+                    const recipe = await recipesApi.create(workspaceId, item.payload);
+                    await recipeCollectionsApi.addRecipe(workspaceId, created.id, recipe.id);
+                    existingKeys.add(toRecipeIdentityKey(item.payload.title, item.payload.sourceUrl ?? null));
+                    if (imagesDir && item.imageFileName) {
+                        try {
+                            const imageHandle = await imagesDir.getFileHandle(item.imageFileName);
+                            const imageFile = await imageHandle.getFile();
+                            await recipesApi.uploadImage(workspaceId, recipe.id, new File([imageFile], imageFile.name));
+                        } catch {
+                            // Continue importing even if one image is missing.
+                        }
                     }
+                } catch {
+                    failedTitles.push(item.title || item.payload.title || `Recipe ${index + 1}`);
                 }
+                const current = index + 1;
+                setImportState({
+                    isActive: true,
+                    current,
+                    total: candidates.length,
+                    label: `Importing ${current} of ${candidates.length} recipes`,
+                });
             }
 
-            toast({ title: 'Import complete' });
+            toast({
+                title: failedTitles.length > 0 ? 'Import complete with skipped items' : 'Import complete',
+                description: [
+                    deduped.duplicatesOmitted > 0
+                        ? `Omitted ${deduped.duplicatesOmitted} duplicate recipe${deduped.duplicatesOmitted === 1 ? '' : 's'}.`
+                        : null,
+                    skippedExisting > 0
+                        ? `Skipped ${skippedExisting} existing recipe${skippedExisting === 1 ? '' : 's'}.`
+                        : null,
+                    failedTitles.length > 0
+                        ? `Failed and skipped ${failedTitles.length} item${failedTitles.length === 1 ? '' : 's'}: ${failedTitles.slice(0, 5).join(', ')}${failedTitles.length > 5 ? '…' : ''}`
+                        : null,
+                ]
+                    .filter(Boolean)
+                    .join(' '),
+                variant: failedTitles.length > 0 ? 'destructive' : 'default',
+            });
+            setImportState({
+                isActive: false,
+                current: candidates.length,
+                total: candidates.length,
+                label: '',
+            });
             navigate(workspacePath(workspaceId, `collections/${created.id}`));
         } catch {
+            setImportState({
+                isActive: false,
+                current: 0,
+                total: 0,
+                label: '',
+            });
             toast({ title: 'Import failed', variant: 'destructive' });
         }
     }
@@ -313,12 +487,6 @@ export default function RecipeCollectionPage() {
                             Export
                         </Button>
                         {detail.canEdit ? (
-                            <Button type='button' variant='outline' size='sm' className='gap-1.5' onClick={() => void handleImportDirectory()}>
-                                <Upload className='h-4 w-4' />
-                                Import
-                            </Button>
-                        ) : null}
-                        {detail.canEdit ? (
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button
@@ -351,6 +519,17 @@ export default function RecipeCollectionPage() {
                     </div>
                 </div>
             </div>
+
+            {importState.isActive && (
+                <div className='mb-6 rounded-lg border border-border bg-card p-4'>
+                    <p className='mb-2 text-sm font-medium text-foreground'>Import in progress</p>
+                    <p className='mb-3 text-xs text-muted-foreground'>{importState.label}</p>
+                    <Progress
+                        value={importState.total > 0 ? (importState.current / importState.total) * 100 : 0}
+                        className='h-2'
+                    />
+                </div>
+            )}
 
             {detail.canEdit && (
                 <div className='mb-8 rounded-lg border border-border bg-card p-4'>

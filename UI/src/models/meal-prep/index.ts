@@ -59,6 +59,7 @@ export interface Recipe {
     tags: string[];
     hasImage: boolean;
     isFavorite: boolean;
+    collections?: RecipeCollectionMembership[];
     /** Set when saving after URL import; server downloads and stores the image once. */
     importImageUrl?: string | null;
     ingredients: RecipeIngredient[];
@@ -141,6 +142,13 @@ export interface RecipeCollectionListItem {
     name: string;
     description?: string | null;
     recipeCount: number;
+    ownerWorkspaceId: string;
+    isOwnedByViewerWorkspace: boolean;
+}
+
+export interface RecipeCollectionMembership {
+    collectionId: string;
+    collectionName: string;
     ownerWorkspaceId: string;
     isOwnedByViewerWorkspace: boolean;
 }

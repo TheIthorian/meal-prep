@@ -49,6 +49,7 @@ public record RecipeResponse(
     string[] Tags,
     bool HasImage,
     bool IsFavorite,
+    RecipeCollectionMembershipResponse[] Collections,
     RecipeIngredientResponse[] Ingredients,
     RecipeStepResponse[] Steps,
     RecipeNutritionResponse? Nutrition
@@ -101,7 +102,10 @@ public static class RecipeResponseTransforms
             );
         }
 
-        public RecipeResponse ToRecipeResponse(bool isFavorite) {
+        public RecipeResponse ToRecipeResponse(
+            bool isFavorite,
+            RecipeCollectionMembershipResponse[]? collections = null
+        ) {
             return new RecipeResponse(
                 recipe.Id,
                 recipe.WorkspaceId,
@@ -116,6 +120,7 @@ public static class RecipeResponseTransforms
                 RecipeTagWhitelist.NormalizeToWhitelist(recipe.Tags),
                 !string.IsNullOrEmpty(recipe.ImageObjectKey),
                 isFavorite,
+                collections ?? [],
                 recipe.Ingredients
                     .OrderBy(ingredient => ingredient.SortOrder)
                     .Select(ingredient => ingredient.ToResponse())

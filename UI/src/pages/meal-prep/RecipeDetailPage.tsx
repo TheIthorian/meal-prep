@@ -89,6 +89,7 @@ export default function RecipeDetailPage() {
         enabled: Boolean(workspaceId && recipeId),
     });
 
+
     /** Same request as the library with an empty search — order matches prev/next in the grid (title, API default). */
     const { data: recipesPage } = useQuery({
         queryKey: ['recipes', workspaceId, ''],
@@ -411,6 +412,19 @@ export default function RecipeDetailPage() {
                     </Tooltip>
                 </div>
                 <h1 className='font-heading text-3xl text-foreground md:text-4xl'>{recipe.title}</h1>
+                {(recipe.collections?.length ?? 0) > 0 ? (
+                    <div className='mt-3 flex flex-wrap gap-2'>
+                        {recipe.collections!.map(collection => (
+                            <Link
+                                key={collection.collectionId}
+                                to={`/workspaces/${collection.ownerWorkspaceId}/collections/${collection.collectionId}`}
+                                className='rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary'
+                            >
+                                {collection.collectionName}
+                            </Link>
+                        ))}
+                    </div>
+                ) : null}
             </div>
 
             <RecipePhotoSection

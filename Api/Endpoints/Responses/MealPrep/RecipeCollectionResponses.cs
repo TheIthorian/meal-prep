@@ -11,6 +11,13 @@ public record RecipeCollectionListItemResponse(
     bool IsOwnedByViewerWorkspace
 );
 
+public record RecipeCollectionMembershipResponse(
+    Guid CollectionId,
+    string CollectionName,
+    Guid OwnerWorkspaceId,
+    bool IsOwnedByViewerWorkspace
+);
+
 public record RecipeCollectionSharedWorkspaceResponse(Guid WorkspaceId, string WorkspaceName);
 
 public record RecipeCollectionDetailResponse(
