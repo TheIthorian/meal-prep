@@ -4,7 +4,6 @@ import { BookOpen, ChefHat, FolderOpen, ListOrdered, ShoppingCart, Settings } fr
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import NotFoundError from '@/pages/NotFoundError';
 import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher';
-import { MealPrepCollectionsSidebar } from '@/components/meal-prep/MealPrepCollectionsSidebar';
 
 function workspacePath(workspaceId: string, subPath: string) {
     const trimmed = subPath.replace(/^\//, '');
@@ -39,7 +38,6 @@ export function MealPrepAppLayout() {
 
     return (
         <div className='flex min-h-screen flex-col bg-background md:flex-row'>
-            <MealPrepCollectionsSidebar />
             <div className='flex min-h-0 min-w-0 flex-1 flex-col'>
                 <header className='sticky top-0 z-30 hidden min-w-0 items-center justify-between gap-4 border-b border-border bg-card/80 px-4 py-4 backdrop-blur-sm md:flex lg:px-8'>
                     <div className='flex min-w-0 flex-1 items-center gap-3 lg:gap-4'>
