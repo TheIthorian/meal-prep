@@ -1,0 +1,33 @@
+{
+  "name": "meal-prep",
+  "private": true,
+  "packageManager": "pnpm@9.0.6",
+  "scripts": {
+    "api:build": "turbo run build --filter=meal-prep-api --filter=meal-prep-api-tests",
+    "api:dev": "turbo run dev --filter=meal-prep-api",
+    "api:run": "turbo run run --filter=meal-prep-api",
+    "api:test": "turbo run test --filter=meal-prep-api-tests",
+    "build": "turbo run build",
+    "dev": "turbo run dev --filter=meal-prep-ui",
+    "install:browsers": "turbo run install:browsers --filter=meal-prep-e2e-tests",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test --filter=meal-prep-e2e-tests",
+    "typecheck": "turbo run typecheck"
+  },
+  "pnpm": {
+    "overrides": {
+      "glob@<10.5.0": "10.5.0",
+      "ajv@<6.14.0": "6.14.0",
+      "minimatch@<10.2.3": "10.2.3",
+      "flatted@<=3.4.1": "3.4.2",
+      "dompurify@<=3.3.1": "3.3.2",
+      "brace-expansion@<5.0.5": "5.0.5",
+      "picomatch@<2.3.2": "2.3.2",
+      "rollup@<4.59.0": "4.59.0"
+    }
+  },
+  "devDependencies": {
+    "turbo": "2.5.6"
+  }
+}

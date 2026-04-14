@@ -1,6 +1,8 @@
-import axios, { AxiosInstance, AxiosError, AxiosRequestConfig, Axios } from 'axios';
+import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
 import { toast } from '@/hooks/use-toast';
-import { ToastActionElement } from '@/components/ui/toast';
+import { getApiBaseUrl } from './api-base-url';
+
+const API_BASE = getApiBaseUrl();
 
 /**
  * Detailed validation error
@@ -37,8 +39,7 @@ class AppHttpClient {
     constructor() {
         this.axiosInstance = axios.create({
             // In dev, default to same-origin + Vite proxy (see vite.config.ts). Override with VITE_API_BASE_URL.
-            baseURL:
-                import.meta.env.VITE_PUBLIC_API_BASE_URL || (import.meta.env.DEV ? '' : 'http://192.168.1.98:5001'),
+            baseURL: API_BASE,
             withCredentials: true,
             headers: { 'Content-Type': 'application/json' },
         });
@@ -77,7 +78,7 @@ class AppHttpClient {
 
     private handleUnauthorizedError(error: AxiosError<ProblemDetail> | AxiosError<PlatformError>) {
         const pathname = window.location.pathname;
-        const publicPaths = ['/login', '/register', '/terms', '/data-retention', '/help'];
+        const publicPaths = ['/login', '/register', '/help'];
 
         if (!publicPaths.some(path => pathname.startsWith(path))) {
             window.location.href = '/login';

@@ -17,9 +17,6 @@ jobs:
     env:
       CI: true
       PLAYWRIGHT_BASE_URL: ${{ inputs.base_url || vars.E2E_BASE_URL || secrets.E2E_BASE_URL }}
-    defaults:
-      run:
-        working-directory: E2eTests
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,7 +35,7 @@ jobs:
         with:
           node-version: "20"
           cache: "pnpm"
-          cache-dependency-path: E2eTests/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -49,10 +46,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browser
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm install:browsers
 
       - name: Run Playwright tests
-        run: pnpm test
+        run: pnpm test:e2e
 
       - name: Upload Playwright report
         if: always()

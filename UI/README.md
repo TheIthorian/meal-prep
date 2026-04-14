@@ -8,7 +8,8 @@ For normal local development from the monorepo:
 
 1. Start backend dependencies from the repo root with `docker compose up -d`.
 2. Run the API with `dotnet run --project Api`.
-3. Run the UI from `UI/` with `pnpm install` and `pnpm run dev`.
+3. Install workspace dependencies once from the repo root with `pnpm install`.
+4. Run the UI from the repo root with `pnpm dev` or from this package with `pnpm dev`.
 
 ## What technologies are used for this project?
 

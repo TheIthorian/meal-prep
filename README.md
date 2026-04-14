@@ -15,6 +15,7 @@ Meal Prep is a web app for saving recipes, importing recipes from the web, and t
 From the repo root:
 
 ```bash
+pnpm install
 docker compose up -d
 dotnet build
 dotnet run --project Api
@@ -23,9 +24,13 @@ dotnet run --project Api
 In another shell:
 
 ```bash
-cd UI
-pnpm install
-pnpm run dev
+pnpm dev
+```
+
+Or run the API through the monorepo wrapper:
+
+```bash
+pnpm api:dev
 ```
 
 This starts the local stack for:
@@ -82,6 +87,43 @@ Then inside the container:
 ```bash
 dotnet test Api.Tests/Api.Tests.csproj
 ```
+
+## Turbo
+
+This repo uses Turborepo to run workspace commands from the repo root.
+
+Common root commands:
+
+```bash
+pnpm build
+pnpm lint
+pnpm typecheck
+pnpm api:build
+pnpm api:dev
+pnpm api:run
+pnpm api:test
+pnpm test:e2e
+pnpm install:browsers
+```
+
+Target a single workspace directly when needed:
+
+```bash
+pnpm --filter meal-prep-api build
+pnpm --filter meal-prep-api run
+pnpm --filter meal-prep-api-tests test
+pnpm --filter meal-prep-ui build
+pnpm --filter meal-prep-infra railway:status
+pnpm --filter meal-prep-e2e-tests test
+```
+
+The main workspace package names are:
+
+- `meal-prep-api`
+- `meal-prep-api-tests`
+- `meal-prep-ui`
+- `meal-prep-infra`
+- `meal-prep-e2e-tests`
 
 ## Infrastructure
 

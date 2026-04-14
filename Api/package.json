@@ -1,0 +1,9 @@
+{
+  "name": "meal-prep-api",
+  "private": true,
+  "scripts": {
+    "build": "dotnet build",
+    "dev": "dotnet run",
+    "run": "dotnet run"
+  }
+}

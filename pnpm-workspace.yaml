@@ -1,0 +1,6 @@
+packages:
+  - Api
+  - Api.Tests
+  - UI
+  - Infra
+  - E2eTests

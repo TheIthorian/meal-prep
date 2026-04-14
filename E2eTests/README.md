@@ -1,6 +1,6 @@
 # E2E Browser Tests (Playwright)
 
-This directory contains a standalone Node.js Playwright app for browser-based end-to-end tests.
+This directory contains the Playwright workspace in the Turborepo monorepo.
 
 Set `PLAYWRIGHT_BASE_URL` to the deployed UI you want to test, such as local, staging, or production.
 
@@ -21,13 +21,18 @@ Set `PLAYWRIGHT_BASE_URL` to the deployed UI you want to test, such as local, st
 ## Run locally
 
 ```bash
-cd E2eTests
 pnpm install
-pnpm run install:browsers
-PLAYWRIGHT_BASE_URL="https://meal-prep.example.com" pnpm test
+pnpm install:browsers
+PLAYWRIGHT_BASE_URL="https://meal-prep.example.com" pnpm test:e2e
 ```
 
 Point `PLAYWRIGHT_BASE_URL` at the environment you want to validate, for example `https://app.example.com`.
+
+Run the package directly if you only want this workspace:
+
+```bash
+pnpm --filter meal-prep-e2e-tests test
+```
 
 ## Configuration
 

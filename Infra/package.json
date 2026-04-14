@@ -1,14 +1,14 @@
 {
   "name": "meal-prep-infra",
   "private": true,
-  "packageManager": "pnpm@10.17.1",
   "scripts": {
     "railway:provision": "tsx scripts/railway/provision.ts",
     "railway:patch": "tsx scripts/railway/patch.ts",
     "railway:push-env": "tsx scripts/railway/push-env.ts",
     "railway:login": "railway login",
     "railway:link": "railway link",
-    "railway:status": "railway status"
+    "railway:status": "railway status",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "commander": "14.0.1",

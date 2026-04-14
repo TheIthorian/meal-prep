@@ -1,0 +1,8 @@
+{
+  "name": "meal-prep-api-tests",
+  "private": true,
+  "scripts": {
+    "build": "dotnet build",
+    "test": "dotnet test Api.Tests.csproj"
+  }
+}

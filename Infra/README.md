@@ -28,7 +28,7 @@ The root [`railway.toml`](../railway.toml) stays at the repository root because 
 
 ## Install
 
-From this directory:
+From the repo root:
 
 ```bash
 pnpm install
@@ -46,6 +46,12 @@ If `railway status` says no linked project was found, run:
 
 ```bash
 pnpm railway:link
+```
+
+You can still run the package directly when needed:
+
+```bash
+pnpm --filter meal-prep-infra railway:status
 ```
 
 ## Config

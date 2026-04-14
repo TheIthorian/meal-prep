@@ -6,7 +6,7 @@ import { componentTagger } from 'lovable-tagger';
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd(), '');
-    const apiBaseUrl = env.VITE_PUBLIC_API_BASE_URL || 'http://localhost:5001';
+    const apiProxyTarget = env.VITE_API_PROXY_TARGET || env.VITE_API_BASE_URL || 'http://127.0.0.1:5001';
 
     return {
         server: {
@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
             // Same-origin /api in dev — avoids cross-port CORS and HTTPS redirects to the API.
             proxy: {
                 '/api': {
-                    target: apiBaseUrl,
+                    target: apiProxyTarget,
                     changeOrigin: true,
                 },
             },

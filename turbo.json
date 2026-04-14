@@ -1,0 +1,49 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["dist/**", "bin/**", "obj/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "run": {
+      "cache": false,
+      "persistent": true
+    },
+    "install:browsers": {
+      "cache": false
+    },
+    "lint": {
+      "dependsOn": ["^lint"]
+    },
+    "railway:link": {
+      "cache": false
+    },
+    "railway:login": {
+      "cache": false
+    },
+    "railway:patch": {
+      "cache": false
+    },
+    "railway:provision": {
+      "cache": false
+    },
+    "railway:push-env": {
+      "cache": false
+    },
+    "railway:status": {
+      "cache": false
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["playwright-report/**", "test-results/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"]
+    }
+  }
+}
