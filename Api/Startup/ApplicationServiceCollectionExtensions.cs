@@ -61,6 +61,7 @@ public static class ApplicationServiceCollectionExtensions
             services.AddScoped<IS3StorageService, S3StorageService>();
             services.AddScoped<MeasurementService>();
             services.AddScoped<RecipeImageProcessingService>();
+            services.AddScoped<RecipeDocumentImportService>();
             services.AddScoped<IIngredientCategoryResolver, IngredientCategoryResolutionService>();
             services.AddScoped<ShoppingListGenerationService>();
             services.AddSingleton<RecipeImportLlmParser>();

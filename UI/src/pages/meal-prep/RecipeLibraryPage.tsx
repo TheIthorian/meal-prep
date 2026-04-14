@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { Search, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { recipesApi } from '@/lib/api';
@@ -17,19 +17,48 @@ export default function RecipeLibraryPage() {
     const [search, setSearch] = useState('');
     const [activeTag, setActiveTag] = useState<string | null>(null);
 
-    const { data, isLoading } = useQuery({
+    const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+    const {
+        data,
+        isLoading,
+        isFetchingNextPage,
+        hasNextPage,
+        fetchNextPage,
+    } = useInfiniteQuery({
         queryKey: ['recipes', workspaceId, search],
-        queryFn: () =>
+        queryFn: ({ pageParam }) =>
             recipesApi.getAll(workspaceId, {
                 q: search.trim() || undefined,
-                page: 1,
-                pageSize: 100,
+                page: pageParam,
+                pageSize: 30,
                 includeArchived: false,
             }),
+        initialPageParam: 1,
+        getNextPageParam: lastPage => (lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined),
         enabled: Boolean(workspaceId),
     });
 
-    const recipes = useMemo(() => data?.data ?? [], [data?.data]);
+    useEffect(() => {
+        const node = sentinelRef.current;
+        if (!node || !hasNextPage) return;
+
+        const observer = new IntersectionObserver(
+            entries => {
+                const [entry] = entries;
+                if (entry?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+                    void fetchNextPage();
+                }
+            },
+            { rootMargin: '400px 0px' },
+        );
+
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
+    const recipes = useMemo(() => data?.pages.flatMap(page => page.data) ?? [], [data?.pages]);
+    const totalCount = data?.pages[0]?.totalCount ?? recipes.length;
 
     const allTags = useMemo(
         () => Array.from(new Set(recipes.flatMap(r => r.tags))).sort((a, b) => a.localeCompare(b)),
@@ -59,7 +88,7 @@ export default function RecipeLibraryPage() {
                 <div>
                     <h1 className='font-heading text-3xl text-foreground md:text-4xl'>Recipes</h1>
                     <p className='mt-1 text-muted-foreground'>
-                        {data ? `${data.totalCount} recipes in your collection` : 'Your recipe collection'}
+                        {data ? `${totalCount} recipes in your collection` : 'Your recipe collection'}
                     </p>
                 </div>
                 <RecipeImportDialog
@@ -139,6 +168,14 @@ export default function RecipeLibraryPage() {
                         ))}
                     </div>
                 </section>
+            )}
+
+            {!isLoading && (
+                <div ref={sentinelRef} className='h-10'>
+                    {isFetchingNextPage ? (
+                        <p className='text-center text-sm text-muted-foreground'>Loading more recipes...</p>
+                    ) : null}
+                </div>
             )}
         </div>
     );

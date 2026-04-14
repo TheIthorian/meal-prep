@@ -21,17 +21,33 @@ interface RecipeImportDialogProps {
 export function RecipeImportDialog({ workspaceId, onImported, trigger }: RecipeImportDialogProps) {
     const [open, setOpen] = useState(false);
     const [url, setUrl] = useState('');
-    const [isImporting, setImporting] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [isImportingFromUrl, setImportingFromUrl] = useState(false);
+    const [isImportingFromFile, setImportingFromFile] = useState(false);
 
-    const handleImport = async () => {
-        setImporting(true);
+    const handleImportFromUrl = async () => {
+        setImportingFromUrl(true);
         try {
             const recipe = await recipesApi.importFromUrl(workspaceId, url);
             onImported(recipe);
             setOpen(false);
             setUrl('');
         } finally {
-            setImporting(false);
+            setImportingFromUrl(false);
+        }
+    };
+
+    const handleImportFromFile = async () => {
+        if (!selectedFile) return;
+
+        setImportingFromFile(true);
+        try {
+            const recipe = await recipesApi.importFromFile(workspaceId, selectedFile);
+            onImported(recipe);
+            setOpen(false);
+            setSelectedFile(null);
+        } finally {
+            setImportingFromFile(false);
         }
     };
 
@@ -52,8 +68,22 @@ export function RecipeImportDialog({ workspaceId, onImported, trigger }: RecipeI
                         onChange={event => setUrl(event.target.value)}
                         placeholder='https://example.com/recipe'
                     />
-                    <Button onClick={handleImport} disabled={!url || isImporting}>
-                        {isImporting ? 'Importing...' : 'Import Recipe'}
+                    <Button onClick={handleImportFromUrl} disabled={!url || isImportingFromUrl || isImportingFromFile}>
+                        {isImportingFromUrl ? 'Importing URL...' : 'Import From URL'}
+                    </Button>
+                </div>
+
+                <div className='space-y-4'>
+                    <Input
+                        type='file'
+                        accept='.pdf,.txt,image/png,image/jpeg,image/jpg,image/webp'
+                        onChange={event => setSelectedFile(event.target.files?.[0] ?? null)}
+                    />
+                    <Button
+                        onClick={handleImportFromFile}
+                        disabled={!selectedFile || isImportingFromUrl || isImportingFromFile}
+                    >
+                        {isImportingFromFile ? 'Importing File...' : 'Import From File'}
                     </Button>
                 </div>
             </DialogContent>

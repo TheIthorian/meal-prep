@@ -98,6 +98,40 @@ public class RecipeImportService(
     }
 
     /// <summary>
+    ///     Builds a recipe preview from OCR/plain text by using the structured LLM parser.
+    /// </summary>
+    public async Task<RecipeImportPreview> PreviewFromTextAsync(
+        string sourceLabel,
+        string extractedText,
+        Guid? workspaceId,
+        Guid? userId,
+        CancellationToken cancellationToken = default
+    ) {
+        var llmInvocation = await recipeImportLlmParser.TryParseStructuredRecipeFromTextAsync(
+            extractedText,
+            sourceLabel,
+            cancellationToken
+        );
+
+        if (llmInvocation is not null && workspaceId is not null)
+            await TryPersistRecipeImportAiLogAsync(workspaceId.Value, userId, sourceLabel, llmInvocation, cancellationToken);
+
+        if (llmInvocation?.Structured is not null)
+            return MapLlmStructuredPreview(llmInvocation.Structured, sourceLabel, "");
+
+        if (llmInvocation is not null && !string.IsNullOrWhiteSpace(llmInvocation.FailureDetail))
+            throw new InvalidFormatException(
+                "Recipe import failed",
+                $"Document text could not be parsed into a recipe: {llmInvocation.FailureDetail}"
+            );
+
+        throw new InvalidFormatException(
+            "Recipe import failed",
+            "Could not parse recipe details from the uploaded document."
+        );
+    }
+
+    /// <summary>
     ///     Downloads a recipe image from an absolute http(s) URL (redirects followed, size and content-type enforced).
     /// </summary>
     public async Task<ImportedRecipeImagePayload?> TryDownloadImportImageAsync(
@@ -268,7 +302,11 @@ public class RecipeImportService(
             )
             .ToList();
 
-        var ingredientLines = dto.IngredientLines.Where(line => !string.IsNullOrWhiteSpace(line)).ToList();
+        var ingredientLines = dto.IngredientLines
+            .Select(NormalizeIngredientLine)
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .Where(IsLikelyIngredientLine)
+            .ToList();
         var ingredients = ingredientLines
             .Select((text, index) => ParseIngredient(text, index))
             .ToArray();
@@ -710,6 +748,27 @@ public class RecipeImportService(
 
         var secondMatch = Regex.Match(step, "(?<seconds>[0-9]+)\\s*(seconds|second|sec)", RegexOptions.IgnoreCase);
         return secondMatch.Success ? int.Parse(secondMatch.Groups["seconds"].Value) : null;
+    }
+
+    private static string NormalizeIngredientLine(string line) {
+        var normalized = Regex.Replace(line.Trim(), "\\s+", " ");
+        return normalized.Trim(',', ';', ':', '-', '•', '·');
+    }
+
+    private static bool IsLikelyIngredientLine(string line) {
+        if (line.Length < 3) return false;
+
+        var alphaMatches = Regex.Matches(line, "[A-Za-z]");
+        if (alphaMatches.Count < 3) return false;
+
+        var words = line.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (words.Length == 0) return false;
+
+        // Drop lines that are effectively OCR shards (e.g. "s", "k", "t", "b")
+        var longWordCount = words.Count(word => word.Any(char.IsLetter) && word.Length >= 2);
+        if (longWordCount == 0) return false;
+
+        return true;
     }
 
     private static string? ResolveToAbsoluteUri(string? raw, string sourceUrl) {

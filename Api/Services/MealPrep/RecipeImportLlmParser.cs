@@ -16,6 +16,7 @@ namespace Api.Services.MealPrep;
 public sealed class RecipeImportLlmParser
 {
     private const int MaxHtmlChars = 120_000;
+    private const int MaxTextChars = 80_000;
 
     private static string BuildRecipeImportSystemPrompt() {
         return $"""
@@ -23,6 +24,21 @@ public sealed class RecipeImportLlmParser
                 If the page has no real recipe, set title to an empty string, ingredientLines and steps to empty arrays, and description to explain briefly that no recipe was found.
                 Ingredient lines must be plain text as a cook would list them (quantity, unit, name).
                 Instructions must be ordered cooking steps. Omit nutrition values unless clearly stated.
+
+                Tags: choose zero to twelve values ONLY from this list. Copy each tag exactly as written (kebab-case). Do not invent tags outside this list.
+                {RecipeTagWhitelist.FormatForPrompt()}
+                """;
+    }
+
+    private static string BuildRecipeImportTextSystemPrompt() {
+        return $"""
+                You extract one primary recipe from OCR or plain document text. Use only information supported by the provided text.
+                If the text has no real recipe, set title to an empty string, ingredientLines and steps to empty arrays, and description to explain briefly that no recipe was found.
+                Ingredient lines must be plain text as a cook would list them (quantity, unit, name).
+                Instructions must be ordered cooking steps. Omit nutrition values unless clearly stated.
+                Ignore OCR junk fragments that are not complete recipe content (single letters, broken word shards, isolated symbols, page furniture).
+                Do not include partial or ambiguous ingredient fragments. Keep only complete ingredient lines with clear food meaning.
+                If OCR split one ingredient across lines and it is obvious, merge it into one ingredient line.
 
                 Tags: choose zero to twelve values ONLY from this list. Copy each tag exactly as written (kebab-case). Do not invent tags outside this list.
                 {RecipeTagWhitelist.FormatForPrompt()}
@@ -300,6 +316,180 @@ public sealed class RecipeImportLlmParser
         }
     }
 
+    /// <summary>
+    ///     Parses OCR or plain document text into the recipe import schema.
+    /// </summary>
+    internal async Task<RecipeImportLlmInvocationResult?> TryParseStructuredRecipeFromTextAsync(
+        string text,
+        string sourceLabel,
+        CancellationToken cancellationToken = default
+    ) {
+        if (_chatClient is null) {
+            _logger.LogWarning("Recipe import LLM parser is not configured; OpenAI API key is missing.");
+
+            return new RecipeImportLlmInvocationResult(
+                null,
+                _providerBaseUrl,
+                _model,
+                BuildRequestJson(sourceLabel, "", BuildRecipeImportTextSystemPrompt()),
+                null,
+                null,
+                false,
+                "LLM parser is not configured (missing OpenAI API key)."
+            );
+        }
+
+        using var scope = _logger.BeginPropertyScope(("sourceLabel", sourceLabel));
+
+        var prepared = PrepareTextForPrompt(text);
+        if (string.IsNullOrWhiteSpace(prepared)) {
+            _logger.LogWarning("Recipe import LLM skipped: no document text after preparation.");
+
+            return new RecipeImportLlmInvocationResult(
+                null,
+                _providerBaseUrl,
+                _model,
+                BuildRequestJson(sourceLabel, "", BuildRecipeImportTextSystemPrompt()),
+                null,
+                null,
+                false,
+                "No document text remained after preparation."
+            );
+        }
+
+        var userContent = $"""
+                           Source: {sourceLabel}
+
+                           Document text:
+                           {prepared}
+                           """;
+
+        var systemPrompt = BuildRecipeImportTextSystemPrompt();
+        var messages = new List<ChatMessage> { new SystemChatMessage(systemPrompt), new UserChatMessage(userContent) };
+
+        var options = new ChatCompletionOptions {
+            Temperature = 0.2f,
+            MaxOutputTokenCount = 4096,
+            ResponseFormat = ChatResponseFormat.CreateJsonSchemaFormat(
+                jsonSchemaFormatName: "recipe_import",
+                jsonSchema: RecipeJsonSchema,
+                jsonSchemaIsStrict: true
+            )
+        };
+
+        var requestJson = BuildRequestJson(sourceLabel, userContent, systemPrompt);
+
+        try {
+            ClientResult<ChatCompletion> result = await _chatClient.CompleteChatAsync(
+                messages,
+                options,
+                cancellationToken
+            );
+            var completion = result.Value;
+            var finishReason = completion.FinishReason.ToString();
+
+            if (!string.IsNullOrWhiteSpace(completion.Refusal)) {
+                _logger.LogWarning("Recipe import LLM refused to respond.");
+
+                return new RecipeImportLlmInvocationResult(
+                    null,
+                    _providerBaseUrl,
+                    _model,
+                    requestJson,
+                    completion.Refusal,
+                    finishReason,
+                    false,
+                    "Model returned a refusal instead of recipe JSON."
+                );
+            }
+
+            if (completion.Content.Count == 0) {
+                _logger.LogWarning("Recipe import LLM returned no message content parts.");
+
+                return new RecipeImportLlmInvocationResult(
+                    null,
+                    _providerBaseUrl,
+                    _model,
+                    requestJson,
+                    null,
+                    finishReason,
+                    false,
+                    "No message content parts in the completion."
+                );
+            }
+
+            var responseText = completion.Content[0].Text;
+            if (string.IsNullOrWhiteSpace(responseText)) {
+                _logger.LogWarning("Recipe import LLM returned empty content.");
+
+                return new RecipeImportLlmInvocationResult(
+                    null,
+                    _providerBaseUrl,
+                    _model,
+                    requestJson,
+                    responseText,
+                    finishReason,
+                    false,
+                    "Assistant message text was empty."
+                );
+            }
+
+            if (!TryParseStructuredDto(responseText, out var dto, out var parseFailureDetail)) {
+                _logger.LogWarning("Recipe import LLM returned JSON that could not be validated.");
+
+                return new RecipeImportLlmInvocationResult(
+                    null,
+                    _providerBaseUrl,
+                    _model,
+                    requestJson,
+                    responseText,
+                    finishReason,
+                    false,
+                    parseFailureDetail ?? "Failed to deserialize LLM JSON payload."
+                );
+            }
+
+            if (!IsPlausibleRecipe(dto, out var plausibilityFailureDetail)) {
+                _logger.LogWarning("Recipe import LLM returned JSON that failed plausibility checks.");
+
+                return new RecipeImportLlmInvocationResult(
+                    null,
+                    _providerBaseUrl,
+                    _model,
+                    requestJson,
+                    responseText,
+                    finishReason,
+                    false,
+                    plausibilityFailureDetail
+                );
+            }
+
+            return new RecipeImportLlmInvocationResult(
+                dto,
+                _providerBaseUrl,
+                _model,
+                requestJson,
+                responseText,
+                finishReason,
+                true,
+                null
+            );
+        } catch (Exception ex) {
+            _logger.LogWarning(ex, "Recipe import LLM request failed.");
+
+            return new RecipeImportLlmInvocationResult(
+                null,
+                _providerBaseUrl,
+                _model,
+                requestJson,
+                null,
+                null,
+                false,
+                TruncateForFailureDetail(ex.ToString())
+            );
+        }
+    }
+
     private static string BuildRequestJson(string sourceUrl, string userMessageContent, string systemPrompt) {
         var payload = new RecipeImportLlmRequestLogDto(
             [
@@ -401,6 +591,17 @@ public sealed class RecipeImportLlmParser
             return stripped;
 
         return stripped[..MaxHtmlChars];
+    }
+
+    private static string PrepareTextForPrompt(string text) {
+        var normalized = Regex.Replace(text, @"\r\n?", "\n");
+        normalized = Regex.Replace(normalized, @"[ \t]+", " ");
+        normalized = Regex.Replace(normalized, @"\n{3,}", "\n\n").Trim();
+
+        if (normalized.Length <= MaxTextChars)
+            return normalized;
+
+        return normalized[..MaxTextChars];
     }
 }
 

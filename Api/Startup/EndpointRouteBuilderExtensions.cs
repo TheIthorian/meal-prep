@@ -144,6 +144,14 @@ public static class EndpointRouteBuilderExtensions
                 .Produces<RecipeResponse>()
                 .WithName("ImportRecipe");
 
+            apiGroup.MapPost(
+                    "/workspaces/{workspaceId:guid}/recipes/import-upload",
+                    RecipesHandlers.PostImportRecipeUpload
+                )
+                .DisableAntiforgery()
+                .Produces<RecipeResponse>()
+                .WithName("ImportRecipeUpload");
+
             apiGroup.MapGet("/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}", RecipesHandlers.GetRecipe)
                 .Produces<RecipeResponse>()
                 .WithName("GetRecipe");

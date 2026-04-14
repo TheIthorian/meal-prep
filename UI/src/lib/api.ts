@@ -89,6 +89,14 @@ export const recipesApi = {
         httpClient.delete<void>(`/api/v1/workspaces/${workspaceId}/recipes/${recipeId}`),
     importFromUrl: (workspaceId: string, url: string) =>
         httpClient.post<Recipe>(`/api/v1/workspaces/${workspaceId}/recipes/import`, { url }),
+    importFromFile: (workspaceId: string, file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return httpClient.postFormData<Recipe>(
+            `/api/v1/workspaces/${workspaceId}/recipes/import-upload`,
+            formData,
+        );
+    },
     uploadImage: (workspaceId: string, recipeId: string, file: File) => {
         const formData = new FormData();
         formData.append('file', file);

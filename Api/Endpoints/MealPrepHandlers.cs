@@ -59,8 +59,12 @@ internal static class RecipesHandlers
             db.RecipeFavorites.Any(favorite => favorite.UserId == userId && favorite.RecipeId == recipe.Id));
 
         orderedQuery = paginationOptions.Direction == PaginationOptions.OrderDirections.Asc
-            ? orderedQuery.ThenBy(recipe => recipe.Title)
-            : orderedQuery.ThenByDescending(recipe => recipe.Title);
+            ? orderedQuery
+                .ThenBy(recipe => recipe.CreatedAt)
+                .ThenBy(recipe => recipe.Id)
+            : orderedQuery
+                .ThenByDescending(recipe => recipe.CreatedAt)
+                .ThenByDescending(recipe => recipe.Id);
 
         var skip = (paginationOptions.Page - 1) * paginationOptions.PageSize;
         var recipes = await orderedQuery
@@ -744,6 +748,54 @@ internal static class RecipesHandlers
 
         var preview = await recipeImportService.PreviewAsync(
             body.Url,
+            workspaceId,
+            workspaceUser.UserId,
+            cancellationToken
+        );
+        var saveRequest = ToSaveRecipeRequest(preview);
+
+        var recipe = Recipe.CreateNew(workspaceUser.Workspace, saveRequest.Title, saveRequest.Servings);
+        ApplyRecipe(recipe, saveRequest);
+        await TryApplyImportedImageAsync(
+            saveRequest,
+            recipe,
+            recipeImportService,
+            recipeImageProcessingService,
+            s3StorageService,
+            cancellationToken
+        );
+
+        await db.Recipes.AddAsync(recipe, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var importedRecipe = await db.Recipes
+            .Include(value => value.Ingredients)
+            .Include(value => value.Steps)
+            .Include(value => value.Nutrition)
+            .ForCurrentUser(workspaceUser.UserId)
+            .WhereIsNotDeleted()
+            .FirstAsync(value => value.Id == recipe.Id, cancellationToken);
+
+        return TypedResults.Json(importedRecipe.ToRecipeResponse(isFavorite: false));
+    }
+
+    [Authorize]
+    public static async Task<JsonHttpResult<RecipeResponse>> PostImportRecipeUpload(
+        CurrentUserService currentUserService,
+        ApiDbContext db,
+        RecipeDocumentImportService recipeDocumentImportService,
+        RecipeImportService recipeImportService,
+        RecipeImageProcessingService recipeImageProcessingService,
+        IS3StorageService s3StorageService,
+        Guid workspaceId,
+        IFormFile? file,
+        CancellationToken cancellationToken
+    ) {
+        var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
+        if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
+
+        var preview = await recipeDocumentImportService.ImportFromUploadAsync(
+            file,
             workspaceId,
             workspaceUser.UserId,
             cancellationToken
