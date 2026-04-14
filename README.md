@@ -140,6 +140,23 @@ Two Pi-oriented compose profiles are available at the repo root:
 - `compose.pi-https.yaml`: HTTPS LAN deployment with Caddy TLS termination.
 - `compose.pi-http.yaml`: HTTP-only LAN deployment (no certificates required).
 
+### Build images off-device for Pi
+
+To avoid slow `ui` and `api` builds on the Pi, build and push ARM images from CI or your development machine:
+
+```bash
+# authenticate first (example for GHCR)
+echo "$GITHUB_TOKEN" | docker login ghcr.io -u <github-username> --password-stdin
+
+REGISTRY=ghcr.io/<org-or-user> IMAGE_TAG=2026-04-14 ./scripts/build-pi-images.sh
+```
+
+Optional:
+
+- Set `PLATFORMS=linux/amd64,linux/arm64` to publish multi-arch images.
+- Set `PUSH_LATEST=true` to also tag and push `:latest`.
+- Set `IMAGE_NAMESPACE=<name>` to customize the image path segment (default: `meal-prep`).
+
 ### HTTPS profile
 
 Files used:
