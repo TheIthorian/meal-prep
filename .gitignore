@@ -6,7 +6,7 @@ riderModule.iml
 .env
 .DS_Store
 .idea
-.docker.env
+.docker.env*
 node_modules/
 .turbo/
 *.DotSettings.user
