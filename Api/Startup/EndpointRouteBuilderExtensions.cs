@@ -16,6 +16,9 @@ public static class EndpointRouteBuilderExtensions
     extension(WebApplication app)
     {
         public void MapApiEndpoints() {
+            app.MapGet("/api/health", () => Results.Ok())
+                .WithName("Health");
+
             var authApiGroup = app.MapGroup("/api/v1/auth");
             authApiGroup.MapIdentityApi<AppUser>();
             authApiGroup.AddEndpointFilter<SeedUserDataFilter>();
