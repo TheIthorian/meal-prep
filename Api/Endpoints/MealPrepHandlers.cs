@@ -27,7 +27,8 @@ internal static class RecipesHandlers
         HttpContext httpContext,
         Guid workspaceId,
         CancellationToken cancellationToken
-    ) {
+    )
+    {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -95,7 +96,8 @@ internal static class RecipesHandlers
     public static async Task<JsonHttpResult<RecipeTagListResponse>> GetRecipeTagWhitelist(
         CurrentUserService currentUserService,
         Guid workspaceId
-    ) {
+    )
+    {
         if (await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId) is null)
             throw new EntityNotFoundException("workspace not found", null);
 
@@ -109,7 +111,8 @@ internal static class RecipesHandlers
         RecipeTagSuggestionService tagSuggestionService,
         [FromBody] SuggestRecipeTagsRequest body,
         CancellationToken cancellationToken
-    ) {
+    )
+    {
         if (await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId) is null)
             throw new EntityNotFoundException("workspace not found", null);
 
@@ -217,7 +220,8 @@ internal static class RecipesHandlers
         Guid workspaceId,
         Guid recipeId,
         CancellationToken cancellationToken
-    ) {
+    )
+    {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -338,7 +342,8 @@ internal static class RecipesHandlers
         Guid workspaceId,
         [FromBody] SaveRecipeRequest body,
         CancellationToken cancellationToken
-    ) {
+    )
+    {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
@@ -380,7 +385,8 @@ internal static class RecipesHandlers
         Guid recipeId,
         [FromBody] SaveRecipeRequest body,
         CancellationToken cancellationToken
-    ) {
+    )
+    {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
@@ -455,12 +461,14 @@ internal static class RecipesHandlers
         await db.RecipeNutrition.AddRangeAsync(newNutrition, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
-        if (!string.IsNullOrWhiteSpace(body.ImportImageUrl)) {
+        if (!string.IsNullOrWhiteSpace(body.ImportImageUrl))
+        {
             var payload = await recipeImportService.TryDownloadImportImageAsync(
                 body.ImportImageUrl,
                 cancellationToken
             );
-            if (payload is not null) {
+            if (payload is not null)
+            {
                 var existingImageKey = await recipeQuery.Select(value => value.ImageObjectKey)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (!string.IsNullOrEmpty(existingImageKey))
@@ -509,7 +517,8 @@ internal static class RecipesHandlers
         IS3StorageService s3StorageService,
         Guid workspaceId,
         Guid recipeId
-    ) {
+    )
+    {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
@@ -522,7 +531,8 @@ internal static class RecipesHandlers
 
         if (recipe is null) throw new EntityNotFoundException("Recipe not found", null);
 
-        if (!string.IsNullOrEmpty(recipe.ImageObjectKey)) {
+        if (!string.IsNullOrEmpty(recipe.ImageObjectKey))
+        {
             await s3StorageService.DeleteFileAsync(recipe.ImageObjectKey);
         }
 
@@ -539,7 +549,8 @@ internal static class RecipesHandlers
         Guid workspaceId,
         Guid recipeId,
         CancellationToken cancellationToken
-    ) {
+    )
+    {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -572,7 +583,8 @@ internal static class RecipesHandlers
         Guid recipeId,
         IFormFile? file,
         CancellationToken cancellationToken
-    ) {
+    )
+    {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
@@ -590,14 +602,16 @@ internal static class RecipesHandlers
 
         if (file is null || file.Length == 0) throw new InvalidFormatException("Image file is required", null);
 
-        if (file.Length > RecipeImageUploadConstants.MaxBytes) {
+        if (file.Length > RecipeImageUploadConstants.MaxBytes)
+        {
             throw new InvalidFormatException(
                 "Image file is too large",
                 $"Maximum size is {RecipeImageUploadConstants.MaxBytes} bytes."
             );
         }
 
-        if (!RecipeImageUploadConstants.IsAllowedContentType(file.ContentType)) {
+        if (!RecipeImageUploadConstants.IsAllowedContentType(file.ContentType))
+        {
             throw new InvalidFormatException("Unsupported image type", "Use JPEG, PNG, WebP, or GIF.");
         }
 
@@ -614,7 +628,8 @@ internal static class RecipesHandlers
             optimized.ContentType
         );
 
-        if (!string.IsNullOrEmpty(recipe.ImageObjectKey)) {
+        if (!string.IsNullOrEmpty(recipe.ImageObjectKey))
+        {
             await s3StorageService.DeleteFileAsync(recipe.ImageObjectKey);
         }
 
@@ -634,7 +649,8 @@ internal static class RecipesHandlers
         Guid workspaceId,
         Guid recipeId,
         CancellationToken cancellationToken
-    ) {
+    )
+    {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
@@ -650,7 +666,8 @@ internal static class RecipesHandlers
 
         if (recipe is null) throw new EntityNotFoundException("Recipe not found", null);
 
-        if (!string.IsNullOrEmpty(recipe.ImageObjectKey)) {
+        if (!string.IsNullOrEmpty(recipe.ImageObjectKey))
+        {
             await s3StorageService.DeleteFileAsync(recipe.ImageObjectKey);
         }
 
@@ -670,7 +687,8 @@ internal static class RecipesHandlers
         Guid recipeId,
         [FromBody] SetRecipeFavoriteRequest body,
         CancellationToken cancellationToken
-    ) {
+    )
+    {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
@@ -683,17 +701,21 @@ internal static class RecipesHandlers
 
         if (!recipeExists) throw new EntityNotFoundException("Recipe not found", null);
 
-        if (body.IsFavorite) {
+        if (body.IsFavorite)
+        {
             var already = await db.RecipeFavorites.AnyAsync(
                 favorite => favorite.UserId == userId && favorite.RecipeId == recipeId,
                 cancellationToken
             );
 
-            if (!already) {
+            if (!already)
+            {
                 db.RecipeFavorites.Add(new RecipeFavorite { UserId = userId, RecipeId = recipeId });
                 await db.SaveChangesAsync(cancellationToken);
             }
-        } else {
+        }
+        else
+        {
             await db.RecipeFavorites
                 .Where(favorite => favorite.UserId == userId && favorite.RecipeId == recipeId)
                 .ExecuteDeleteAsync(cancellationToken);
@@ -719,7 +741,8 @@ internal static class RecipesHandlers
         RecipeImportService recipeImportService,
         [FromBody] ImportRecipePreviewRequest body,
         CancellationToken cancellationToken
-    ) {
+    )
+    {
         if (await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId) is null)
             throw new EntityNotFoundException("workspace not found", null);
 
@@ -742,7 +765,8 @@ internal static class RecipesHandlers
         Guid workspaceId,
         [FromBody] ImportRecipeRequest body,
         CancellationToken cancellationToken
-    ) {
+    )
+    {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
@@ -790,7 +814,8 @@ internal static class RecipesHandlers
         Guid workspaceId,
         IFormFile? file,
         CancellationToken cancellationToken
-    ) {
+    )
+    {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
@@ -834,7 +859,8 @@ internal static class RecipesHandlers
         RecipeImageProcessingService recipeImageProcessingService,
         IS3StorageService s3StorageService,
         CancellationToken cancellationToken
-    ) {
+    )
+    {
         if (string.IsNullOrWhiteSpace(body.ImportImageUrl)) return;
 
         var payload = await recipeImportService.TryDownloadImportImageAsync(
@@ -857,7 +883,8 @@ internal static class RecipesHandlers
         recipe.SetImageObjectKey(key);
     }
 
-    private static SaveRecipeRequest ToSaveRecipeRequest(RecipeImportPreview preview) {
+    private static SaveRecipeRequest ToSaveRecipeRequest(RecipeImportPreview preview)
+    {
         return new SaveRecipeRequest(
             preview.Title,
             preview.Description,
@@ -966,12 +993,14 @@ internal static class RecipesHandlers
         Guid userId,
         Guid recipeId,
         CancellationToken cancellationToken
-    ) {
+    )
+    {
         return db.RecipeFavorites.AsNoTracking()
             .AnyAsync(favorite => favorite.UserId == userId && favorite.RecipeId == recipeId, cancellationToken);
     }
 
-    private static void ApplyRecipe(Recipe recipe, SaveRecipeRequest body) {
+    private static void ApplyRecipe(Recipe recipe, SaveRecipeRequest body)
+    {
         recipe.UpdateDetails(
             body.Title,
             body.Description,
@@ -1023,7 +1052,8 @@ internal static class MealPlanEntriesHandlers
         Guid workspaceId,
         DateOnly? from,
         DateOnly? to
-    ) {
+    )
+    {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -1047,7 +1077,8 @@ internal static class MealPlanEntriesHandlers
         ApiDbContext db,
         Guid workspaceId,
         [FromBody] SaveMealPlanEntryRequest body
-    ) {
+    )
+    {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
@@ -1081,7 +1112,8 @@ internal static class MealPlanEntriesHandlers
         Guid workspaceId,
         Guid mealPlanEntryId,
         [FromBody] SaveMealPlanEntryRequest body
-    ) {
+    )
+    {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -1094,7 +1126,8 @@ internal static class MealPlanEntriesHandlers
 
         if (entry is null) throw new EntityNotFoundException("Meal-plan entry not found", null);
 
-        if (entry.RecipeId != body.RecipeId) {
+        if (entry.RecipeId != body.RecipeId)
+        {
             var recipe = await db.Recipes
                 .ForCurrentUser(currentUserId)
                 .WhereIsNotDeleted()
@@ -1118,7 +1151,8 @@ internal static class MealPlanEntriesHandlers
         ApiDbContext db,
         Guid workspaceId,
         Guid mealPlanEntryId
-    ) {
+    )
+    {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -1143,7 +1177,8 @@ internal static class ShoppingListsHandlers
         CurrentUserService currentUserService,
         ApiDbContext db,
         Guid workspaceId
-    ) {
+    )
+    {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -1166,7 +1201,8 @@ internal static class ShoppingListsHandlers
         ApiDbContext db,
         Guid workspaceId,
         Guid shoppingListId
-    ) {
+    )
+    {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -1192,7 +1228,8 @@ internal static class ShoppingListsHandlers
         Guid workspaceId,
         [FromBody] GenerateShoppingListRequest body,
         CancellationToken cancellationToken
-    ) {
+    )
+    {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
@@ -1289,7 +1326,8 @@ internal static class ShoppingListsHandlers
         Guid workspaceId,
         Guid shoppingListId,
         [FromBody] SaveShoppingListRequest body
-    ) {
+    )
+    {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -1314,7 +1352,8 @@ internal static class ShoppingListsHandlers
         ApiDbContext db,
         Guid workspaceId,
         Guid shoppingListId
-    ) {
+    )
+    {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -1339,7 +1378,8 @@ internal static class ShoppingListsHandlers
         Guid workspaceId,
         Guid shoppingListId,
         [FromBody] SaveShoppingListItemRequest body
-    ) {
+    )
+    {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -1397,7 +1437,8 @@ internal static class ShoppingListsHandlers
         Guid shoppingListId,
         Guid itemId,
         [FromBody] SaveShoppingListItemRequest body
-    ) {
+    )
+    {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
@@ -1440,7 +1481,8 @@ internal static class ShoppingListsHandlers
         Guid workspaceId,
         Guid shoppingListId,
         Guid itemId
-    ) {
+    )
+    {
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 

@@ -5,8 +5,35 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Check, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { shoppingListsApi } from '@/lib/api';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import type { ShoppingListItem } from '@/models/meal-prep';
+import type { SaveShoppingListItemRequest, ShoppingList, ShoppingListItem } from '@/models/meal-prep';
 import { LoadingState } from '@/components/common/LoadingState';
+import {
+    applyOfflineUpdatesToShoppingList,
+    enqueueOfflineShoppingItemUpdate,
+    getOfflineShoppingItemUpdates,
+    getOfflineShoppingList,
+    removeOfflineShoppingItemUpdate,
+    saveOfflineShoppingList,
+} from '@/lib/offline-shopping';
+
+function payloadMatchesItem(payload: SaveShoppingListItemRequest, item: ShoppingListItem) {
+    const sourceNames = payload.sourceNames ?? [];
+    const itemSourceNames = item.sourceNames ?? [];
+    return (
+        payload.name === item.name &&
+        (payload.normalizedIngredientName ?? null) === (item.normalizedIngredientName ?? null) &&
+        (payload.amount ?? null) === (item.amount ?? null) &&
+        (payload.unit ?? null) === (item.unit ?? null) &&
+        payload.isApproximate === item.isApproximate &&
+        payload.isChecked === item.isChecked &&
+        payload.isManual === item.isManual &&
+        (payload.category ?? null) === (item.category ?? null) &&
+        (payload.note ?? null) === (item.note ?? null) &&
+        payload.displayText === item.displayText &&
+        sourceNames.length === itemSourceNames.length &&
+        sourceNames.every((value, index) => value === itemSourceNames[index])
+    );
+}
 
 export default function ShoppingModePage() {
     const { workspaceId = '' } = useParams<{ workspaceId: string }>();
@@ -16,6 +43,7 @@ export default function ShoppingModePage() {
     const listId = searchParams.get('list');
     const [hideCompleted, setHideCompleted] = useState(false);
     const [pendingId, setPendingId] = useState<string | null>(null);
+    const [effectiveList, setEffectiveList] = useState<ShoppingList | null>(null);
 
     useEffect(() => {
         if (workspaceId) {
@@ -31,9 +59,88 @@ export default function ShoppingModePage() {
         queryKey: ['shopping-list', workspaceId, listId],
         queryFn: () => shoppingListsApi.getById(workspaceId, listId!),
         enabled: Boolean(workspaceId && listId),
+        retry: false,
     });
 
-    const items = useMemo(() => shoppingList?.items ?? [], [shoppingList?.items]);
+    useEffect(() => {
+        if (!workspaceId || !listId) return;
+        void (async () => {
+            const local = await getOfflineShoppingList(workspaceId, listId);
+            if (!local) return;
+            const pendingUpdates = await getOfflineShoppingItemUpdates(workspaceId, listId);
+            setEffectiveList(
+                applyOfflineUpdatesToShoppingList(
+                    local,
+                    pendingUpdates.map(update => ({ itemId: update.itemId, payload: update.payload })),
+                ),
+            );
+        })();
+    }, [workspaceId, listId]);
+
+    useEffect(() => {
+        if (!workspaceId || !listId || !shoppingList) return;
+        void (async () => {
+            const pendingUpdates = await getOfflineShoppingItemUpdates(workspaceId, listId);
+            const unresolvedUpdates: Array<{ itemId: string; payload: SaveShoppingListItemRequest }> = [];
+            for (const update of pendingUpdates) {
+                const serverItem = shoppingList.items.find(item => item.id === update.itemId);
+                if (serverItem && payloadMatchesItem(update.payload, serverItem)) {
+                    await removeOfflineShoppingItemUpdate(workspaceId, listId, update.itemId);
+                    continue;
+                }
+                unresolvedUpdates.push({ itemId: update.itemId, payload: update.payload });
+            }
+            const merged = applyOfflineUpdatesToShoppingList(shoppingList, unresolvedUpdates);
+            await saveOfflineShoppingList(workspaceId, listId, merged);
+            setEffectiveList(merged);
+        })();
+    }, [workspaceId, listId, shoppingList]);
+
+    useEffect(() => {
+        if (!workspaceId || !listId) return;
+        async function syncOfflineChanges() {
+            if (!navigator.onLine) return;
+
+            const pendingUpdates = await getOfflineShoppingItemUpdates(workspaceId, listId);
+            for (const update of pendingUpdates) {
+                try {
+                    await shoppingListsApi.updateItem(workspaceId, listId, update.itemId, update.payload);
+                    await removeOfflineShoppingItemUpdate(workspaceId, listId, update.itemId);
+                } catch {
+                    return;
+                }
+            }
+
+            try {
+                const fresh = await shoppingListsApi.getById(workspaceId, listId);
+                const remainingUpdates = await getOfflineShoppingItemUpdates(workspaceId, listId);
+                const unresolvedUpdates: Array<{ itemId: string; payload: SaveShoppingListItemRequest }> = [];
+                for (const update of remainingUpdates) {
+                    const serverItem = fresh.items.find(item => item.id === update.itemId);
+                    if (serverItem && payloadMatchesItem(update.payload, serverItem)) {
+                        await removeOfflineShoppingItemUpdate(workspaceId, listId, update.itemId);
+                        continue;
+                    }
+                    unresolvedUpdates.push({ itemId: update.itemId, payload: update.payload });
+                }
+                const merged = applyOfflineUpdatesToShoppingList(fresh, unresolvedUpdates);
+                await saveOfflineShoppingList(workspaceId, listId, merged);
+                setEffectiveList(merged);
+                await queryClient.invalidateQueries({ queryKey: ['shopping-list', workspaceId, listId] });
+            } catch {
+                // leave local state intact until next successful sync
+            }
+        }
+
+        void syncOfflineChanges();
+        const handleOnline = () => {
+            void syncOfflineChanges();
+        };
+        window.addEventListener('online', handleOnline);
+        return () => window.removeEventListener('online', handleOnline);
+    }, [workspaceId, listId, queryClient]);
+
+    const items = useMemo(() => effectiveList?.items ?? [], [effectiveList?.items]);
 
     const visibleItems = useMemo(
         () => (hideCompleted ? items.filter(i => !i.isChecked) : items),
@@ -52,23 +159,32 @@ export default function ShoppingModePage() {
     const progress = items.length > 0 ? (checkedCount / items.length) * 100 : 0;
 
     async function toggle(item: ShoppingListItem) {
-        if (!shoppingList) return;
+        if (!effectiveList || !listId) return;
         setPendingId(item.id);
+        const payload: SaveShoppingListItemRequest = {
+            name: item.name,
+            normalizedIngredientName: item.normalizedIngredientName,
+            amount: item.amount,
+            unit: item.unit,
+            isApproximate: item.isApproximate,
+            isChecked: !item.isChecked,
+            isManual: item.isManual,
+            category: item.category,
+            note: item.note,
+            displayText: item.displayText,
+            sourceNames: item.sourceNames,
+        };
         try {
-            await shoppingListsApi.updateItem(workspaceId, shoppingList.id, item.id, {
-                name: item.name,
-                normalizedIngredientName: item.normalizedIngredientName,
-                amount: item.amount,
-                unit: item.unit,
-                isApproximate: item.isApproximate,
-                isChecked: !item.isChecked,
-                isManual: item.isManual,
-                category: item.category,
-                note: item.note,
-                displayText: item.displayText,
-                sourceNames: item.sourceNames,
-            });
-            await queryClient.invalidateQueries({ queryKey: ['shopping-list', workspaceId, listId] });
+            const locallyUpdated = applyOfflineUpdatesToShoppingList(effectiveList, [{ itemId: item.id, payload }]);
+            setEffectiveList(locallyUpdated);
+            await saveOfflineShoppingList(workspaceId, listId, locallyUpdated);
+            await enqueueOfflineShoppingItemUpdate(workspaceId, listId, item.id, payload);
+
+            if (navigator.onLine) {
+                await shoppingListsApi.updateItem(workspaceId, effectiveList.id, item.id, payload);
+                await removeOfflineShoppingItemUpdate(workspaceId, listId, item.id);
+                await queryClient.invalidateQueries({ queryKey: ['shopping-list', workspaceId, listId] });
+            }
         } finally {
             setPendingId(null);
         }
@@ -85,10 +201,21 @@ export default function ShoppingModePage() {
         );
     }
 
-    if (isLoading || !shoppingList) {
+    if (isLoading && !effectiveList) {
         return (
             <div className='flex min-h-screen items-center justify-center bg-background'>
                 <LoadingState label='Loading list…' />
+            </div>
+        );
+    }
+
+    if (!effectiveList) {
+        return (
+            <div className='flex min-h-screen flex-col items-center justify-center bg-background px-4'>
+                <p className='text-muted-foreground'>Could not load this shopping list.</p>
+                <Link to={`/workspaces/${workspaceId}/shopping`} className='mt-2 text-sm text-primary'>
+                    Back to shopping list
+                </Link>
             </div>
         );
     }
