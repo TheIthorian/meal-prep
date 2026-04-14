@@ -47,6 +47,8 @@ services:
       - "ASPNETCORE_ENVIRONMENT=Production"
     expose:
       - "5001"
+    ports:
+      - "5001:5001"
     depends_on:
       - db
       - minio
