@@ -39,6 +39,14 @@ export default function ShoppingModePage() {
         () => (hideCompleted ? items.filter(i => !i.isChecked) : items),
         [hideCompleted, items],
     );
+    const groupedVisibleItems = useMemo(() => {
+        const groups: Record<string, ShoppingListItem[]> = {};
+        for (const item of visibleItems) {
+            const category = item.category?.trim() || 'Other';
+            (groups[category] ??= []).push(item);
+        }
+        return Object.entries(groups).sort(([left], [right]) => left.localeCompare(right));
+    }, [visibleItems]);
 
     const checkedCount = items.filter(i => i.isChecked).length;
     const progress = items.length > 0 ? (checkedCount / items.length) * 100 : 0;
@@ -87,7 +95,10 @@ export default function ShoppingModePage() {
 
     return (
         <div className='flex min-h-screen flex-col bg-background'>
-            <div className='safe-area-pt sticky top-0 z-20 border-b border-border bg-background/95 px-4 py-3 backdrop-blur-md'>
+            <div
+                className='sticky top-0 z-20 border-b border-border bg-background/95 px-4 pb-3 backdrop-blur-md'
+                style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
+            >
                 <div className='mx-auto max-w-lg'>
                     <div className='mb-2 flex items-center justify-between'>
                         <Link
@@ -120,54 +131,75 @@ export default function ShoppingModePage() {
 
             <div className='mx-auto w-full max-w-lg flex-1 px-4 py-4'>
                 <AnimatePresence mode='popLayout'>
-                    {visibleItems.map(item => (
-                        <motion.button
-                            key={item.id}
-                            type='button'
+                    {groupedVisibleItems.map(([category, categoryItems]) => (
+                        <motion.section
+                            key={category}
                             layout
-                            disabled={pendingId === item.id}
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -4 }}
                             transition={{ duration: 0.2 }}
-                            onClick={() => void toggle(item)}
-                            className={`mb-2 flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all active:scale-[0.98] ${
-                                item.isChecked
-                                    ? 'border-border/30 bg-muted/40'
-                                    : 'border-border/50 bg-card active:bg-primary/5'
-                            }`}
+                            className='mb-5'
                         >
-                            <div
-                                className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all ${
-                                    item.isChecked
-                                        ? 'animate-scale-check border-primary bg-primary'
-                                        : 'border-muted-foreground/30'
-                                }`}
-                            >
-                                {item.isChecked && <Check className='h-4 w-4 text-primary-foreground' />}
-                            </div>
-                            <div className='min-w-0 flex-1'>
-                                <span
-                                    className={`text-base font-medium ${
-                                        item.isChecked ? 'text-muted-foreground line-through' : 'text-foreground'
-                                    }`}
-                                >
-                                    {item.name}
-                                </span>
-                                <span className='ml-2 text-sm tabular-nums text-muted-foreground'>
-                                    {item.displayText}
-                                </span>
-                                {item.sourceNames.length > 0 && (
-                                    <span
-                                        className={`mt-1 block text-sm ${
-                                            item.isChecked ? 'text-muted-foreground/80' : 'text-muted-foreground'
+                            <h3 className='mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground'>
+                                {category}
+                            </h3>
+                            <div>
+                                {categoryItems.map(item => (
+                                    <motion.button
+                                        key={item.id}
+                                        type='button'
+                                        layout
+                                        disabled={pendingId === item.id}
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.9 }}
+                                        transition={{ duration: 0.2 }}
+                                        onClick={() => void toggle(item)}
+                                        className={`mb-2 flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all active:scale-[0.98] ${
+                                            item.isChecked
+                                                ? 'border-border/30 bg-muted/40'
+                                                : 'border-border/50 bg-card active:bg-primary/5'
                                         }`}
                                     >
-                                        For {item.sourceNames.join(' · ')}
-                                    </span>
-                                )}
+                                        <div
+                                            className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all ${
+                                                item.isChecked
+                                                    ? 'animate-scale-check border-primary bg-primary'
+                                                    : 'border-muted-foreground/30'
+                                            }`}
+                                        >
+                                            {item.isChecked && <Check className='h-4 w-4 text-primary-foreground' />}
+                                        </div>
+                                        <div className='min-w-0 flex-1'>
+                                            <span
+                                                className={`text-base font-medium ${
+                                                    item.isChecked
+                                                        ? 'text-muted-foreground line-through'
+                                                        : 'text-foreground'
+                                                }`}
+                                            >
+                                                {item.name}
+                                            </span>
+                                            <span className='ml-2 text-sm tabular-nums text-muted-foreground'>
+                                                {item.displayText}
+                                            </span>
+                                            {item.sourceNames.length > 0 && (
+                                                <span
+                                                    className={`mt-1 block text-sm ${
+                                                        item.isChecked
+                                                            ? 'text-muted-foreground/80'
+                                                            : 'text-muted-foreground'
+                                                    }`}
+                                                >
+                                                    For {item.sourceNames.join(' · ')}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </motion.button>
+                                ))}
                             </div>
-                        </motion.button>
+                        </motion.section>
                     ))}
                 </AnimatePresence>
 

@@ -44,7 +44,10 @@ export default function ShoppingListPage() {
         enabled: Boolean(workspaceId),
     });
 
-    const selectedId = activeListId ?? listSummaries[0]?.id ?? null;
+    const selectedId = useMemo(() => {
+        if (activeListId && listSummaries.some(list => list.id === activeListId)) return activeListId;
+        return listSummaries[0]?.id ?? null;
+    }, [activeListId, listSummaries]);
 
     const { data: shoppingList, isLoading: detailLoading } = useQuery({
         queryKey: ['shopping-list', workspaceId, selectedId],
@@ -88,6 +91,9 @@ export default function ShoppingListPage() {
     const deleteShoppingList = useMutation({
         mutationFn: (shoppingListId: string) => shoppingListsApi.remove(workspaceId, shoppingListId),
         onSuccess: (_, deletedId) => {
+            queryClient.setQueryData<ShoppingListListItem[]>(['shopping-lists', workspaceId], currentLists =>
+                (currentLists ?? []).filter(list => list.id !== deletedId),
+            );
             queryClient.invalidateQueries({ queryKey: ['shopping-lists', workspaceId] });
             queryClient.removeQueries({ queryKey: ['shopping-list', workspaceId, deletedId] });
             setActiveListId(current => (current === deletedId ? null : current));
@@ -113,7 +119,7 @@ export default function ShoppingListPage() {
     const isLoading = listsLoading || (Boolean(selectedId) && detailLoading);
 
     return (
-        <div className='mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10'>
+        <div className='mx-auto max-w-6xl px-4 py-10 md:px-8 md:py-14'>
             <motion.div
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -138,6 +144,7 @@ export default function ShoppingListPage() {
                             recipes={recipes}
                             entries={planEntries}
                             onGenerated={onGenerated}
+                            triggerLabel='Create list'
                         />
                     </div>
                 </div>
@@ -150,6 +157,15 @@ export default function ShoppingListPage() {
                         <p className='mt-0.5 text-xs text-muted-foreground'>
                             {listSummaries.length} list{listSummaries.length === 1 ? '' : 's'}
                         </p>
+                        <div className='mt-3'>
+                            <ShoppingListGeneratorDialog
+                                workspaceId={workspaceId}
+                                recipes={recipes}
+                                entries={planEntries}
+                                onGenerated={onGenerated}
+                                triggerLabel='Create list'
+                            />
+                        </div>
                         <ul className='mt-4 space-y-2'>
                             {listSummaries.map(list => {
                                 const pct = getShoppingListProgress(list);
@@ -229,14 +245,8 @@ export default function ShoppingListPage() {
                                 </>
                             )}
 
-                            <div className='mt-4 flex flex-wrap items-center gap-2'>
-                                <ShoppingListGeneratorDialog
-                                    workspaceId={workspaceId}
-                                    recipes={recipes}
-                                    entries={planEntries}
-                                    onGenerated={onGenerated}
-                                />
-                                {shoppingList && (
+                            {shoppingList && (
+                                <div className='mt-4 flex flex-wrap items-center gap-2'>
                                     <Link
                                         to={`/workspaces/${workspaceId}/shopping-mode?list=${shoppingList.id}`}
                                         className='inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90'
@@ -244,8 +254,8 @@ export default function ShoppingListPage() {
                                         <ShoppingCart className='h-4 w-4' />
                                         Start shopping
                                     </Link>
-                                )}
-                            </div>
+                                </div>
+                            )}
                         </motion.div>
 
                         {isLoading && <LoadingState label='Loading shopping list…' />}

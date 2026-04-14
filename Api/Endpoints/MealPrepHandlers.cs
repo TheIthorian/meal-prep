@@ -1035,9 +1035,7 @@ internal static class MealPlanEntriesHandlers
             .Where(entry => entry.WorkspaceId == workspaceId)
             .Where(entry => from == null || entry.PlannedDate >= from.Value)
             .Where(entry => to == null || entry.PlannedDate <= to.Value)
-            .OrderBy(entry => entry.Status == MealPlanEntryStatuses.Completed ? 1 : 0)
-            .ThenBy(entry => entry.PlannedDate)
-            .ThenBy(entry => entry.MealType)
+            .OrderByDescending(entry => entry.CreatedAt)
             .ToArrayAsync();
 
         return TypedResults.Json(entries.Select(entry => entry.ToMealPlanEntryResponse()).ToArray());

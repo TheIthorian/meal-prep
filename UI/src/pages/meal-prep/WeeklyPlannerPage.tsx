@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -8,6 +7,7 @@ import { formatDateLabel } from '@/lib/meal-prep';
 import type { MealPlanEntry } from '@/models/meal-prep';
 import { MealPlanEntryDialog } from '@/components/planner/MealPlanEntryDialog';
 import { LoadingState } from '@/components/common/LoadingState';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 const mealLabels: Record<(typeof mealTypes)[number], string> = {
@@ -34,16 +34,6 @@ export default function WeeklyPlannerPage() {
     });
 
     const recipes = recipesPage?.data ?? [];
-
-    const sortedEntries = useMemo(() => {
-        return [...entries].sort((a, b) => {
-            const aDone = a.status === 'completed' ? 1 : 0;
-            const bDone = b.status === 'completed' ? 1 : 0;
-            if (aDone !== bDone) return aDone - bDone;
-            if (a.plannedDate !== b.plannedDate) return a.plannedDate.localeCompare(b.plannedDate);
-            return a.mealType.localeCompare(b.mealType);
-        });
-    }, [entries]);
 
     function invalidatePlan() {
         queryClient.invalidateQueries({ queryKey: ['meal-plan', workspaceId] });
@@ -82,7 +72,7 @@ export default function WeeklyPlannerPage() {
             <div className='mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-card p-4'>
                 <div>
                     <h2 className='text-sm font-semibold uppercase tracking-wide text-muted-foreground'>Add next meal</h2>
-                    <p className='text-sm text-muted-foreground'>Pick a recipe and optionally set a target date.</p>
+                    <p className='text-sm text-muted-foreground'>Pick a recipe to add it to your next meals queue.</p>
                 </div>
                 <MealPlanEntryDialog
                     workspaceId={workspaceId}
@@ -96,12 +86,12 @@ export default function WeeklyPlannerPage() {
 
             {!isLoading && (
                 <div className='space-y-3'>
-                    {sortedEntries.length === 0 ? (
+                    {entries.length === 0 ? (
                         <div className='rounded-xl border border-dashed border-border/70 bg-card/50 p-8 text-center text-muted-foreground'>
                             No next meals yet. Add one to start building your queue.
                         </div>
                     ) : (
-                        sortedEntries.map((entry, index) => (
+                        entries.map((entry, index) => (
                             <motion.div
                                 key={entry.id}
                                 initial={{ opacity: 0, y: 8 }}
@@ -109,19 +99,26 @@ export default function WeeklyPlannerPage() {
                                 transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.2) }}
                                 className='flex items-center gap-3 rounded-xl border border-border/60 bg-card p-4'
                             >
-                                <button
-                                    type='button'
-                                    className='rounded-full p-0.5 text-muted-foreground transition-colors hover:text-foreground'
-                                    aria-label={entry.status === 'completed' ? 'Mark as not done' : 'Mark as done'}
-                                    onClick={() => toggleCompleted.mutate(entry)}
-                                    disabled={toggleCompleted.isPending}
-                                >
-                                    {entry.status === 'completed' ? (
-                                        <CheckCircle2 className='h-5 w-5 shrink-0 text-emerald-500' />
-                                    ) : (
-                                        <Circle className='h-5 w-5 shrink-0 text-muted-foreground' />
-                                    )}
-                                </button>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <button
+                                            type='button'
+                                            className='rounded-full p-0.5 text-muted-foreground transition-colors hover:text-foreground'
+                                            aria-label={entry.status === 'completed' ? 'Mark as not done' : 'Mark as done'}
+                                            onClick={() => toggleCompleted.mutate(entry)}
+                                            disabled={toggleCompleted.isPending}
+                                        >
+                                            {entry.status === 'completed' ? (
+                                                <CheckCircle2 className='h-5 w-5 shrink-0 text-emerald-500' />
+                                            ) : (
+                                                <Circle className='h-5 w-5 shrink-0 text-muted-foreground' />
+                                            )}
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        {entry.status === 'completed' ? 'Mark as not done' : 'Mark as done'}
+                                    </TooltipContent>
+                                </Tooltip>
                                 <div className='min-w-0 flex-1'>
                                     <Link
                                         to={`/workspaces/${workspaceId}/recipe/${entry.recipeId}`}
