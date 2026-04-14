@@ -28,7 +28,7 @@ const profileSchema = z.object({
 });
 
 export function ProfileSettings() {
-    const { user, clearCurrentUser } = useAuth();
+    const { user, clearCurrentUser, logout } = useAuth();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -83,6 +83,19 @@ export function ProfileSettings() {
         updateProfile.mutate(values);
     };
 
+    const handleLogout = async () => {
+        try {
+            await logout();
+            navigate('/login');
+        } catch {
+            toast({
+                variant: 'destructive',
+                title: 'Unable to log out',
+                description: 'Please try again.',
+            });
+        }
+    };
+
     return (
         <>
             <div className='space-y-6'>
@@ -121,9 +134,14 @@ export function ProfileSettings() {
                                         <p className='text-xs text-muted-foreground'>Email cannot be changed here.</p>
                                     </FormItem>
                                 </div>
-                                <Button type='submit' disabled={updateProfile.isPending}>
-                                    {updateProfile.isPending ? 'Saving…' : 'Save profile'}
-                                </Button>
+                                <div className='flex flex-wrap items-center gap-3'>
+                                    <Button type='submit' disabled={updateProfile.isPending}>
+                                        {updateProfile.isPending ? 'Saving…' : 'Save profile'}
+                                    </Button>
+                                    <Button type='button' variant='outline' onClick={handleLogout}>
+                                        Logout
+                                    </Button>
+                                </div>
                             </form>
                         </Form>
                     </CardContent>
