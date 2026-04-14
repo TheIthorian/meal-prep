@@ -88,19 +88,6 @@ services:
       POSTGRES_USER: root
       PGOPTIONS: '--client-min-messages=warning' # ignore errors if the dbs have already been created
   
-  otel-collector:
-    container_name: meal-prep-otel-collector
-    image: otel/opentelemetry-collector-contrib:0.99.0
-    command: [ '--config=/etc/otel-collector-config.yaml' ]
-    volumes:
-      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
-    ports:
-      - '4317:4317' # OTLP gRPC
-      - '4318:4318' # OTLP HTTP
-      - '55681:55681' # (optional) legacy OTLP HTTP
-    networks:
-      - meal-prep-net
-
 volumes:
   redis:
     driver: local

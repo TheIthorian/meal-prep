@@ -12,35 +12,42 @@ ingredients into shopping lists.
 
 ## Prerequisites
 
+(only when running API outside Docker Compose)
+
 - .NET 10.0 SDK
 - PostgreSQL database
-- S3-compatible storage (MinIO in local/dev)
+- S3-compatible storage, such as MinIO
+- Redis
 
 ## Setup
 
-For local development from the monorepo root, `docker compose up -d db minio minio-init` starts Postgres and MinIO. On
-startup, the API creates the configured PostgreSQL database if it does not already exist and then applies EF Core
+For local development, start dependencies from the monorepo root:
+
+```bash
+docker compose up -d db redis minio minio-init
+```
+
+On startup, the API creates the configured PostgreSQL database if it does not already exist and applies EF Core
 migrations.
 
-1. **Configure the database connection string** in `appsettings.json` or `appsettings.Development.json`:
+1. **Configure environment variables** (recommended).
 
-   ```json
-   "ConnectionStrings": {
-     "DefaultConnection": "Host=localhost;Database=meal_prep_dev;Username=root;Password=password"
-   }
-   ```
+   Copy `Api/.env.example` to your local `.env` file and set values for your environment.
+
+   Common keys:
+   - `ConnectionStrings__DefaultConnection`
+   - `ConnectionStrings__Redis`
+   - `AuthStateStore__Provider`
+   - `Jwt__Issuer`, `Jwt__Audience`, `Jwt__Key`
+   - `S3__ServiceUrl`, `S3__AccessKey`, `S3__SecretKey`, `S3__BucketName`, `S3__Region`
+
+   `appsettings.json` and `appsettings.Development.json` can still be used for defaults, but environment variables are the primary approach.
 
 2. **Choose auth state/key storage provider** (prevents logout on server restart):
 
-   ```json
-   "AuthStateStore": {
-     "Provider": "Postgres"
-   }
-   ```
-
    Supported values:
-    - `Postgres`: stores Data Protection keys in PostgreSQL
-    - `Redis`: stores Data Protection keys in Redis (requires `ConnectionStrings:Redis`)
+   - `Postgres`: stores Data Protection keys in PostgreSQL
+   - `Redis`: stores Data Protection keys in Redis (requires `ConnectionStrings:Redis`)
 
 3. **Run database migrations**:
 
@@ -74,7 +81,7 @@ migrations.
    ```
 
 5. **Access Swagger UI** (in development mode):
-   Navigate to `https://localhost:5001/swagger` or `http://localhost:5000/swagger`
+   Navigate to `http://localhost:5001/swagger`
 
 ## Typical Base Repo Workflow
 
@@ -87,19 +94,6 @@ dotnet run --project Api
 
 That is the standard local workflow for backend development.
 
-## Docker
+You can also use root `pnpm` scripts (for example `pnpm api:dev`, `pnpm api:build`, `pnpm api:test`) because this repository uses Turborepo to orchestrate workspace commands.
 
-Build and run with Docker:
-
-```bash
-docker build -t meal-prep-api .
-docker run -p 5000:5000 -p 5001:5001 meal-prep-api
-```
-
-Ensure PostgreSQL is accessible from the container. Redis is only required when `AuthStateStore.Provider=Redis`.
-
-For local backend development/tests in this monorepo, start shared dependencies from the repo root:
-
-```bash
-docker compose up -d db minio minio-init
-```
+For full Dockerized app startup and deployment notes, see the repo root [`README.md`](../README.md) and [`Docs/deploy.md`](../Docs/deploy.md).

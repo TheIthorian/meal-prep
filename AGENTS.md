@@ -7,6 +7,10 @@
 - Always add docstrings for new (non-struct) classes. Exemptions: request/response objects, request/response validators, endpoint handler classes, and tests unless explicitly requested or truly necessary.
 - Use extension blocks over static extension methods for new extension APIs.
 - For serialized backend domain values, prefer string constants in a const/static class over enums.
+- Keep docs and tests in sync with code changes by default:
+  - Update relevant README/docs files whenever commands, env vars, config, deployment behavior, or user-visible flows change.
+  - Add or update tests when behavior changes, and do not leave affected test coverage stale.
+  - If tests cannot be run in the current environment, explicitly state what should be run and why.
 
 ## Backend (.NET / Api)
 

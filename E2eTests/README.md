@@ -26,7 +26,7 @@ pnpm install:browsers
 PLAYWRIGHT_BASE_URL="https://meal-prep.example.com" pnpm test:e2e
 ```
 
-Point `PLAYWRIGHT_BASE_URL` at the environment you want to validate, for example `https://app.example.com`.
+Point `PLAYWRIGHT_BASE_URL` at the environment you want to validate, for example `http://localhost` for local Docker deployment or a staging/prod URL.
 
 Run the package directly if you only want this workspace:
 
@@ -38,6 +38,14 @@ pnpm --filter meal-prep-e2e-tests test
 
 - `PLAYWRIGHT_BASE_URL` (required): target URL under test
 - `E2E_MIN_SIMILARITY` (optional): default screenshot similarity threshold (`0.985`)
+
+## Typical monorepo flow
+
+From repo root:
+
+1. Start app stack with `docker compose up -d --build`
+2. Set `PLAYWRIGHT_BASE_URL` to the UI origin
+3. Run `pnpm test:e2e`
 
 ## Notes on visual checks
 

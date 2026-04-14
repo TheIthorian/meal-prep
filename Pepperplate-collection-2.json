@@ -1,0 +1,2309 @@
+{
+  "collectionName": "Pepperplate",
+  "description": null,
+  "exportedAtUtc": "2026-04-14T12:29:25.539831Z",
+  "recipes": [
+    {
+      "recipeId": "1ba60343-02bb-4942-b72e-1fffde6e15c2",
+      "title": "LaugenPretzel",
+      "imageFileName": "1ba60343-02bb-4942-b72e-1fffde6e15c2.webp",
+      "payload": {
+        "title": "LaugenPretzel",
+        "description": "",
+        "servings": 1,
+        "sourceUrl": "",
+        "notes": "Imported from pepperplate_recipes/LaugenPretzel.txt",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": [],
+        "ingredients": [
+          {
+            "name": "Strong flour",
+            "normalizedIngredientName": null,
+            "amount": 266,
+            "unit": "g",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "266 g Strong flour"
+          },
+          {
+            "name": "Instant Yeast",
+            "normalizedIngredientName": null,
+            "amount": 3,
+            "unit": "g",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "3 g Instant Yeast"
+          },
+          {
+            "name": "Salt",
+            "normalizedIngredientName": null,
+            "amount": 5,
+            "unit": "g",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "5 g Salt"
+          },
+          {
+            "name": "Sugar",
+            "normalizedIngredientName": null,
+            "amount": 21,
+            "unit": "g",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "21 g Sugar"
+          },
+          {
+            "name": "Unsalted Butter",
+            "normalizedIngredientName": null,
+            "amount": 19,
+            "unit": "g",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "19 g Unsalted Butter"
+          },
+          {
+            "name": "Milk",
+            "normalizedIngredientName": null,
+            "amount": 186,
+            "unit": "g",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "186 g Milk"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Put milk in the bowl.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Put an instant yeast.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "After 1 minute, melt the instant yeast using a spatula.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "After adding salt and sugar, use a spatula to dissolve.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "After melting the butter (37 C), put it in the bowl.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Put the flour.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Using a scraper mix evenly until the flour is invisible.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "After 15 minutes of rest, the first fold (folding).",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "After 15 minutes of rest, the second fold (folding).",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "After 15 minutes of rest, the third fold (folding).",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "After 15 minutes of rest, the fourth fold (folding).",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "After 15 minutes of rest, the fifth fold (folding).",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Refrigerated fermentation 1 hour (refrigerator temperature 2 C).",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "After refrigeration fermentation, 80g split.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Round the dough.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Refrigerated 20 minute rest.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Mold in stangen and pretzel shapes.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Rest in the refrigerator for 5 to 10 minutes.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Preheat oven and lodge 10 inch combo cooker; lower to 200 C when baking.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Prepare lye solution with water and caustic soda and fully dissolve.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Immerse dough in lye solution and transfer to bake.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Score the dough and add salt topping.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Bake covered about 10 minutes, then uncovered about 2 minutes; cool after baking.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "61868689-3e41-42ad-ba4c-a1af437b1001",
+      "title": "Kransekakekransekakestenger",
+      "imageFileName": "61868689-3e41-42ad-ba4c-a1af437b1001.webp",
+      "payload": {
+        "title": "Kransekakekransekakestenger",
+        "description": "",
+        "servings": 1,
+        "sourceUrl": "",
+        "notes": "Imported from pepperplate_recipes/Kransekakekransekakestenger.txt",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": [],
+        "ingredients": [
+          {
+            "name": "malte mandler",
+            "normalizedIngredientName": null,
+            "amount": 500,
+            "unit": "g",
+            "preparationNote": null,
+            "section": "Kaken",
+            "displayText": "500 g malte mandler"
+          },
+          {
+            "name": "melis",
+            "normalizedIngredientName": null,
+            "amount": 500,
+            "unit": "g",
+            "preparationNote": null,
+            "section": "Kaken",
+            "displayText": "500 g melis"
+          },
+          {
+            "name": "eggehviter",
+            "normalizedIngredientName": null,
+            "amount": 4,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Kaken",
+            "displayText": "4 eggehviter"
+          },
+          {
+            "name": "eggehvite",
+            "normalizedIngredientName": null,
+            "amount": 1,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Glasur",
+            "displayText": "1 eggehvite"
+          },
+          {
+            "name": "melis",
+            "normalizedIngredientName": null,
+            "amount": 180,
+            "unit": "g",
+            "preparationNote": null,
+            "section": "Glasur",
+            "displayText": "180 g melis"
+          },
+          {
+            "name": "eddik 7 %",
+            "normalizedIngredientName": null,
+            "amount": 0.5,
+            "unit": "ts",
+            "preparationNote": null,
+            "section": "Glasur",
+            "displayText": "1/2 ts eddik 7 %"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Slik gjør du:",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Skåld halvparten av mandlene og la dem tørke over natten, eller et par dager. Mal de tørre mandlene med mandelkvern.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Bland sammen de malte mandlene og melis i en bolle.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Pisk eggehvitene lett sammen. Kjør mandelblandingen i en foodprocessor og bland inn litt og litt av eggehviten til du får en fin konsistens. Deigen skal være seig og fast.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Pakk deigen i plastfolie og la den stå kjølig et par timer eller til neste dag.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Del deigen i 8 emner og trill lange fingertykkepølser, del opp i ca 8 cm lange biter. Legg på et stekebrett med bakepapir, stek midt i ovnen på 200 grader med over- og undervarme i ca. 8-10 minutter til de såvidt er gyldne. Sett til avkjøling.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Smelt kokesjokolade over vannbad. La sjokoladen avkjøle litt, slik at den ikke blir så flytende.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Dypp endene og/eller dekorer med smeltet sjokolade som kan sprøytes i tynne striper over stengene.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Du kan også pynte kransekakestengene med melis og eggehvite som blandes.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Strø på perlekuler eller annen pynt over før sjokoladen stivner. Legg dem på bakepapir til sjokoladen har stivnet. For å få dem raskere stive kan de settes litt i fryseren.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Kransekake kan med fordel fryses og tas opp ved en senere anledning. Oppbevares i en lufttett boks.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "6d42586d-8384-4db7-ba95-597a2889c6ff",
+      "title": "Kneippbrd",
+      "imageFileName": "6d42586d-8384-4db7-ba95-597a2889c6ff.webp",
+      "payload": {
+        "title": "Kneippbrd",
+        "description": "",
+        "servings": 5,
+        "sourceUrl": "",
+        "notes": "Imported from pepperplate_recipes/Kneippbrd.txt",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": ["bread"],
+        "ingredients": [
+          {
+            "name": "hvetemel",
+            "normalizedIngredientName": null,
+            "amount": 1,
+            "unit": "kg",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1 kg hvetemel"
+          },
+          {
+            "name": "sammalt hvete",
+            "normalizedIngredientName": null,
+            "amount": 1,
+            "unit": "kg",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1 kg sammalt hvete"
+          },
+          {
+            "name": "salt",
+            "normalizedIngredientName": null,
+            "amount": 1,
+            "unit": "ts",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1 ts salt"
+          },
+          {
+            "name": "tørrgjær",
+            "normalizedIngredientName": null,
+            "amount": 21,
+            "unit": "g",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "21 g tørrgjær"
+          },
+          {
+            "name": "vann eller melk",
+            "normalizedIngredientName": null,
+            "amount": 1.5,
+            "unit": "liter",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1,5 liter vann eller melk"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "30 minutter på 200 grader.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "2bf40715-0638-4454-8fad-ab3b1855ec6e",
+      "title": "Julebrød",
+      "imageFileName": "2bf40715-0638-4454-8fad-ab3b1855ec6e.webp",
+      "payload": {
+        "title": "Julebrød",
+        "description": "",
+        "servings": 3,
+        "sourceUrl": "",
+        "notes": "",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": ["bread"],
+        "ingredients": [
+          {
+            "name": "1000 to 1100 gram hvetemel",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1000 to 1100 gram hvetemel"
+          },
+          {
+            "name": "ca 300 gram rosiner",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "ca 300 gram rosiner"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Elt deig, elt inn smør og rosiner, og hev ca. 1 time.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Form tre brød, etterhev, pensle med egg, og stek ved 200 grader i 25-30 minutter.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "e6100472-274d-4b6d-b8ef-5beabe37eeb3",
+      "title": "Jerk Mahi Tacos, with Purple Cabbage Slaw, Corn Salsa, & Chipotle Crema",
+      "imageFileName": "e6100472-274d-4b6d-b8ef-5beabe37eeb3.webp",
+      "payload": {
+        "title": "Jerk Mahi Tacos, with Purple Cabbage Slaw, Corn Salsa, & Chipotle Crema",
+        "description": "",
+        "servings": 1,
+        "sourceUrl": "",
+        "notes": "",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": [],
+        "ingredients": [
+          {
+            "name": "2 Mahi Mahi filets",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "fish tacos",
+            "displayText": "2 Mahi Mahi filets"
+          },
+          {
+            "name": "1 cup corn",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "corn salsa",
+            "displayText": "1 cup corn"
+          },
+          {
+            "name": "1 cup purple cabbage, shredded",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "purple cabbage slaw",
+            "displayText": "1 cup purple cabbage, shredded"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Season fish with jerk seasoning.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Prepare salsa, slaw, and chipotle crema.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Sear fish and assemble tacos with toppings.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "e1ae63d0-fce2-4bda-a8e8-59c69d330d95",
+      "title": "Ingers Rugbrød",
+      "imageFileName": "e1ae63d0-fce2-4bda-a8e8-59c69d330d95.webp",
+      "payload": {
+        "title": "Ingers Rugbrød",
+        "description": "",
+        "servings": 3,
+        "sourceUrl": "",
+        "notes": "",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": ["bread"],
+        "ingredients": [
+          {
+            "name": "1,3 kg. samalt hvete fin",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1,3 kg. samalt hvete fin"
+          },
+          {
+            "name": "200 gr. samalt rug fin",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "200 gr. samalt rug fin"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Hell løs røre i smurte former.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Hev, slå ut luft, hev igjen, og stek ved 200 grader varmluft i ca 1 time.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "03a9a368-efff-4f1f-a0d0-328faae522b7",
+      "title": "Indian Spiced Tea",
+      "imageFileName": "03a9a368-efff-4f1f-a0d0-328faae522b7.webp",
+      "payload": {
+        "title": "Indian Spiced Tea",
+        "description": "",
+        "servings": 1,
+        "sourceUrl": "",
+        "notes": "Imported from pepperplate_recipes/IndianSpicedTea.txt",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": [],
+        "ingredients": [
+          {
+            "name": "red tea (Pu Erh)",
+            "normalizedIngredientName": null,
+            "amount": 1,
+            "unit": "tbsp",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1 Tbsp red tea (Pu Erh)"
+          },
+          {
+            "name": "black tea",
+            "normalizedIngredientName": null,
+            "amount": 1,
+            "unit": "tbsp",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1 Tbsp black tea"
+          },
+          {
+            "name": "cardamom",
+            "normalizedIngredientName": null,
+            "amount": 1,
+            "unit": "tbsp",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1 Tbsp cardamon"
+          },
+          {
+            "name": "star anise",
+            "normalizedIngredientName": null,
+            "amount": 2,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "2 star anise"
+          },
+          {
+            "name": "cloves",
+            "normalizedIngredientName": null,
+            "amount": 1,
+            "unit": "tsp",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1 tsp cloves"
+          },
+          {
+            "name": "cinnamon stick",
+            "normalizedIngredientName": null,
+            "amount": 1,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1 cinnamon stick"
+          },
+          {
+            "name": "filtered water",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": "1 to 2 L",
+            "section": null,
+            "displayText": "1 to 2 L of filtered water"
+          },
+          {
+            "name": "panela",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": "to taste",
+            "section": null,
+            "displayText": "panela to taste"
+          },
+          {
+            "name": "milk or cream",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": "to taste",
+            "section": null,
+            "displayText": "choice of milk / cream to taste"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Bring water to a boil with cardamom, star anise, cloves, and cinnamon; simmer gently 5–10 minutes.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Add Pu Erh and black tea; steep 3–5 minutes. Strain.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Sweeten with panela to taste; add milk or cream if desired.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "1508b366-2d0b-4dc5-9e74-4aa700d79464",
+      "title": "Imam Bayildi",
+      "imageFileName": "1508b366-2d0b-4dc5-9e74-4aa700d79464.webp",
+      "payload": {
+        "title": "Imam Bayildi",
+        "description": "Eggplants are the hero of this easy Turkish bake.",
+        "servings": 1,
+        "sourceUrl": "",
+        "notes": "",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": [],
+        "ingredients": [
+          {
+            "name": "8 striped or small eggplants",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "8 striped or small eggplants"
+          },
+          {
+            "name": "125 ml tomato passata",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "125 ml tomato passata"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Salt-soak eggplants, then fry and bake until starting to soften.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Cook onion, capsicum, garlic, tomato, passata, and bay leaves.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Stuff eggplants, cover, and bake until very tender.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "1ff37a17-b4b9-4e35-915c-876e65595199",
+      "title": "Hunter's Sausage-And-Sauerkraut Stew",
+      "imageFileName": "1ff37a17-b4b9-4e35-915c-876e65595199.webp",
+      "payload": {
+        "title": "Hunter's Sausage-And-Sauerkraut Stew",
+        "description": "Polish-inspired hunter's stew with meats, vegetables, and sauerkraut.",
+        "servings": 1,
+        "sourceUrl": "",
+        "notes": "",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": [],
+        "ingredients": [
+          {
+            "name": "500 g boneless, skinless chicken thighs",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "500 g boneless, skinless chicken thighs"
+          },
+          {
+            "name": "680 g Polish kielbasa",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "680 g Polish kielbasa"
+          },
+          {
+            "name": "1000 ml fresh sauerkraut with juices",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1000 ml fresh sauerkraut with juices"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Roast peppers and blend with tomatoes.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Brown chicken and cook bacon with vegetables and kielbasa.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Add wine, stock, pepper mixture, and sauerkraut; simmer until tender.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "8a401378-375b-4513-8beb-caaa4f0af876",
+      "title": "Homemade Shepherd's Pie",
+      "imageFileName": "8a401378-375b-4513-8beb-caaa4f0af876.webp",
+      "payload": {
+        "title": "Homemade Shepherd's Pie",
+        "description": "",
+        "servings": 1,
+        "sourceUrl": "",
+        "notes": "",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": [],
+        "ingredients": [
+          {
+            "name": "1000 g ground beef or lamb",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1000 g ground beef or lamb"
+          },
+          {
+            "name": "900 g potatoes",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "mashed potato topping",
+            "displayText": "900 g potatoes"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Cook beef with aromatics and thicken with flour and stock.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Prepare mashed potato topping with milk, butter, cheese, and egg yolk.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Assemble in baking dish and bake at 200 C until golden.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "900d0658-4b85-48c8-9124-94f091240756",
+      "title": "Homemade Beef Noodle Soup with Sesame Chili Oil!",
+      "imageFileName": "900d0658-4b85-48c8-9124-94f091240756.webp",
+      "payload": {
+        "title": "Homemade Beef Noodle Soup with Sesame Chili Oil!",
+        "description": "Made with a fragrant stock and served with a sesame chili oil.",
+        "servings": 1,
+        "sourceUrl": "",
+        "notes": "",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": [],
+        "ingredients": [
+          {
+            "name": "1300 g beef chuck",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1300 g beef chuck"
+          },
+          {
+            "name": "680 g noodles of your choice",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "680 g noodles of your choice"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Brown beef and prepare aromatic stock, then strain.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Simmer beef in stock with soy, turmeric, and sugar until tender.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Add carrots and mushrooms, cook noodles separately, and serve with sesame chili oil.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "6c426b63-3dd6-4ccd-ae09-e1888613839f",
+      "title": "Helkornbrød",
+      "imageFileName": "6c426b63-3dd6-4ccd-ae09-e1888613839f.webp",
+      "payload": {
+        "title": "Helkornbrød",
+        "description": "Helkornbrød med helkorn av hvete er et grovt, saftig og godt brød bakt med sammalt grov hvete og rug, havregryn og kefir. Passer fint i matpakken og til lunsj.",
+        "servings": 3,
+        "sourceUrl": "https://www.pepperplate.com",
+        "notes": null,
+        "prepMinutes": 0,
+        "cookMinutes": 60,
+        "isArchived": false,
+        "tags": [],
+        "ingredients": [
+          {
+            "name": "hvete, helkorn",
+            "normalizedIngredientName": "hvete helkorn",
+            "amount": 250,
+            "unit": "g",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "250 g hvete, helkorn"
+          },
+          {
+            "name": "vann",
+            "normalizedIngredientName": "vann",
+            "amount": 7,
+            "unit": "dl",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "7 dl vann"
+          },
+          {
+            "name": "skummet kulturmelk",
+            "normalizedIngredientName": "skummet kulturmelk",
+            "amount": 3,
+            "unit": "dl",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "3 dl skummet kulturmelk"
+          },
+          {
+            "name": "gjær",
+            "normalizedIngredientName": "gj r",
+            "amount": 1,
+            "unit": "pakke",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1 pakke gjær"
+          },
+          {
+            "name": "soyaolje eller rapsolje",
+            "normalizedIngredientName": "soyaolje eller rapsolje",
+            "amount": 3,
+            "unit": "ss",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "3 ss soyaolje eller rapsolje"
+          },
+          {
+            "name": "mørk sirup",
+            "normalizedIngredientName": "m rk sirup",
+            "amount": 1,
+            "unit": "ss",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1 ss mørk sirup"
+          },
+          {
+            "name": "salt",
+            "normalizedIngredientName": "salt",
+            "amount": 3,
+            "unit": "ts",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "3 ts salt"
+          },
+          {
+            "name": "sammalt rug, grov",
+            "normalizedIngredientName": "sammalt rug grov",
+            "amount": 300,
+            "unit": "g",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "300 g sammalt rug, grov"
+          },
+          {
+            "name": "sammalt hvete, grov",
+            "normalizedIngredientName": "sammalt hvete grov",
+            "amount": 150,
+            "unit": "g",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "150 g sammalt hvete, grov"
+          },
+          {
+            "name": "lettkokte havregryn",
+            "normalizedIngredientName": "lettkokte havregryn",
+            "amount": 250,
+            "unit": "g",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "250 g lettkokte havregryn"
+          },
+          {
+            "name": "hvetemel",
+            "normalizedIngredientName": "hvetemel",
+            "amount": 700,
+            "unit": "g",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "700 g hvetemel"
+          },
+          {
+            "name": "havregryn til pynt",
+            "normalizedIngredientName": "havregryn til pynt",
+            "amount": 2,
+            "unit": "ss",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "2 ss havregryn til pynt"
+          },
+          {
+            "name": "til pensling",
+            "normalizedIngredientName": "til pensling",
+            "amount": null,
+            "unit": "vann",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "vann til pensling"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Legg helkornene i bløt i vannet natten over.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Tilsett kulturmelken og varm blandingen til den er fingervarm, 37 °C.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Smuldre gjæren i den lunkne blandingen. Ha i olje, sirup, salt, sammalt rug, sammalt hvete og havregryn.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Elt deigen godt i en kjøkkenmaskin. Tilsett hvetemel til deigen blir smidig og slipper kanten av bollen.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Dekk bakebollen med plast eller et klede og la deigen heve på et lunt sted til dobbel størrelse, ca. 45 minutter.",
+            "timerSeconds": 2700
+          },
+          {
+            "instruction": "Ta deigen ut på lett melet bakebord. Del deigen i tre like store emner som du former til brød.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Legg brødene i godt smurte 1,5-liters brødformer. Pensle lett med olje, og dekk med plast. La brødene etterheve i 30–40 minutter.",
+            "timerSeconds": 2400
+          },
+          {
+            "instruction": "Pensle brødene med vann, og dryss over små havregryn.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Stek brødene på nederste rille i ovnen ved 200 °C i 50–60 minutter. Avkjøl på rist.",
+            "timerSeconds": 3600
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "678519ac-c68a-4ebb-8750-93875ffae39c",
+      "title": "Havrerundstykker",
+      "imageFileName": "678519ac-c68a-4ebb-8750-93875ffae39c.webp",
+      "payload": {
+        "title": "Havrerundstykker",
+        "description": "",
+        "servings": 1,
+        "sourceUrl": "",
+        "notes": "",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": [],
+        "ingredients": [
+          {
+            "name": "6 dl vann",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "6 dl vann"
+          },
+          {
+            "name": "650 g hvetemel",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "650 g hvetemel"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Elt deigen med mel, havregryn, sukker, salt, vann og gjær, og elt inn olje.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Hev deigen, form 16 rundstykker, etterhev og stek ved 220 C i ca. 10 minutter.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "04ccb1f4-aab2-4927-ae95-71c44428606e",
+      "title": "Harissa Fried Potatoes with Bacon and Poached Eggs",
+      "imageFileName": "04ccb1f4-aab2-4927-ae95-71c44428606e.webp",
+      "payload": {
+        "title": "Harissa Fried Potatoes with Bacon and Poached Eggs",
+        "description": "",
+        "servings": 1,
+        "sourceUrl": "",
+        "notes": "",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": [],
+        "ingredients": [
+          {
+            "name": "FRIED POTATOES",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": "HARISSA",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "HARISSA FRIED POTATOES"
+          },
+          {
+            "name": "slices of bacon",
+            "normalizedIngredientName": null,
+            "amount": 6,
+            "unit": "thick",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "6 thick slices of bacon"
+          },
+          {
+            "name": "Yukon gold potatoes",
+            "normalizedIngredientName": null,
+            "amount": 2,
+            "unit": "large",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "2 large Yukon gold potatoes"
+          },
+          {
+            "name": "bell pepper",
+            "normalizedIngredientName": null,
+            "amount": 1,
+            "unit": "red",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1 red bell pepper"
+          },
+          {
+            "name": "scallions",
+            "normalizedIngredientName": null,
+            "amount": 3,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "3 scallions"
+          },
+          {
+            "name": "and pepper to taste",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": "Salt",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "Salt and pepper to taste"
+          },
+          {
+            "name": "harissa paste",
+            "normalizedIngredientName": null,
+            "amount": 2,
+            "unit": "tablespoons",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "2 tablespoons harissa paste"
+          },
+          {
+            "name": "cayenne powder (more or less to taste)",
+            "normalizedIngredientName": null,
+            "amount": 0.5,
+            "unit": "teaspoon",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "0.5 teaspoon cayenne powder (more or less to taste)"
+          },
+          {
+            "name": "eggs",
+            "normalizedIngredientName": null,
+            "amount": 2,
+            "unit": "large",
+            "preparationNote": null,
+            "section": "POACHED EGGS",
+            "displayText": "2 large eggs"
+          },
+          {
+            "name": "distilled white vinegar",
+            "normalizedIngredientName": null,
+            "amount": 2,
+            "unit": "teaspoons",
+            "preparationNote": null,
+            "section": "POACHED EGGS",
+            "displayText": "2 teaspoons distilled white vinegar"
+          },
+          {
+            "name": "and pepper to taste",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": "Salt",
+            "preparationNote": null,
+            "section": "POACHED EGGS",
+            "displayText": "Salt and pepper to taste"
+          },
+          {
+            "name": "powder (or cayenne powder, paprika, or crushed red pepper) to taste, optional, for serving",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": "Harissa",
+            "preparationNote": null,
+            "section": "POACHED EGGS",
+            "displayText": "Harissa powder (or cayenne powder, paprika, or crushed red pepper) to taste, optional, for serving"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Prepare Ingredients: Scrub the potatoes and small-dice. Roughly chop the bacon (Should be about 1/2” pieces). Remove the seeds from the bell pepper and dice the pepper. Rinse the scallions and mince. In a small bowl, combine the harissa paste with 1 tablespoon water and whisk until smooth.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Cook the Bacon: Transfer the bacon to a large skillet. Turn the heat to medium and cook, stirring regularly, until all the fat has rendered and the bacon is crispy, about 8-10 minutes. Use a slotted spoon to remove the bacon and transfer to a bowl, reserving the fat in the pan.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Prepare the Harissa Fried Potatoes: Turn the heat on the bacon grease to medium high. Once very hot, add the potatoes and cook, stirring regularly for 15 minutes until beginning to brown all over and almost completely cooked through. Season with salt and pepper. Reduce the heat to medium and add the bell pepper and scallions and continue cooking for another 10-12 minutes until the potatoes are fork-tender and the red bell pepper has softened. Add the bacon, harissa and the cayenne powder and reduce heat to low. Toss to coat and keep warm over very low heat as you prepare the poached eggs.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Prepare the Poached Eggs: Bring a small saucepan of water to barely a low boil (you should see just a few bubbles at the bottom of the pot). Add the vinegar and stir. Crack one cold egg into a ramekin. Use the back of your wooden spoon to stir the water in the pot to create a whirlpool in the center. Quickly pour the egg into the whirlpool and immediately cover. Cook for precisely 5 minutes. Watch the pot carefully to ensure the water doesn’t begin boiling. Remove the egg with a slotted spoon and do the same process for the second egg.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "To Serve: Divide the harissa fried potatoes between bowls and top with a poached egg. Sprinkle the egg with salt and pepper and sprinkle with harissa powder, if desired. Enjoy!",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "66c94c35-c4e4-4fe8-94ea-bde9290c8270",
+      "title": "Gyoza",
+      "imageFileName": "66c94c35-c4e4-4fe8-94ea-bde9290c8270.webp",
+      "payload": {
+        "title": "Gyoza",
+        "description": "Authentic Japanese meat or vegetable dumplings, known as yaki gyoza",
+        "servings": 1,
+        "sourceUrl": "https://www.bbcgoodfood.com/recipes/gyoza",
+        "notes": "",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": [],
+        "ingredients": [
+          {
+            "name": "cornflour",
+            "normalizedIngredientName": null,
+            "amount": 2,
+            "unit": "tbsp",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "2 tbsp cornflour"
+          },
+          {
+            "name": "-made gyoza skins, defrosted if frozen (see tip)",
+            "normalizedIngredientName": null,
+            "amount": 26,
+            "unit": "ready",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "26 ready -made gyoza skins, defrosted if frozen (see tip)"
+          },
+          {
+            "name": "3 tbsp vegetable oil",
+            "normalizedIngredientName": null,
+            "amount": 2,
+            "unit": "to",
+            "preparationNote": null,
+            "section": null,
+            "displayText": "2 to 3 tbsp vegetable oil"
+          },
+          {
+            "name": "onions, ends trimmed, roughly chopped",
+            "normalizedIngredientName": null,
+            "amount": 4,
+            "unit": "spring",
+            "preparationNote": null,
+            "section": "For the filling",
+            "displayText": "4 spring onions, ends trimmed, roughly chopped"
+          },
+          {
+            "name": "leaves of Savoy or pointed cabbages, hard stem removed, roughly chopped",
+            "normalizedIngredientName": null,
+            "amount": 2,
+            "unit": "large",
+            "preparationNote": null,
+            "section": "For the filling",
+            "displayText": "2 large leaves of Savoy or pointed cabbages, hard stem removed, roughly chopped"
+          },
+          {
+            "name": "piece of ginger, peeled and chopped",
+            "normalizedIngredientName": null,
+            "amount": 6.5,
+            "unit": "cm",
+            "preparationNote": null,
+            "section": "For the filling",
+            "displayText": "6.5 cm piece of ginger, peeled and chopped"
+          },
+          {
+            "name": "clove",
+            "normalizedIngredientName": null,
+            "amount": 1,
+            "unit": "garlic",
+            "preparationNote": null,
+            "section": "For the filling",
+            "displayText": "1 garlic clove"
+          },
+          {
+            "name": "water chestnuts, about 5 (drained weight)",
+            "normalizedIngredientName": null,
+            "amount": 50,
+            "unit": "g",
+            "preparationNote": null,
+            "section": "For the filling",
+            "displayText": "50 g water chestnuts, about 5 (drained weight)"
+          },
+          {
+            "name": "soy sauce",
+            "normalizedIngredientName": null,
+            "amount": 2,
+            "unit": "tsp",
+            "preparationNote": null,
+            "section": "For the filling",
+            "displayText": "2 tsp soy sauce"
+          },
+          {
+            "name": "oyster sauce",
+            "normalizedIngredientName": null,
+            "amount": 2,
+            "unit": "tsp",
+            "preparationNote": null,
+            "section": "For the filling",
+            "displayText": "2 tsp oyster sauce"
+          },
+          {
+            "name": "cooking saké",
+            "normalizedIngredientName": null,
+            "amount": 1,
+            "unit": "tsp",
+            "preparationNote": null,
+            "section": "For the filling",
+            "displayText": "1 tsp cooking saké"
+          },
+          {
+            "name": "sesame oil",
+            "normalizedIngredientName": null,
+            "amount": 0.5,
+            "unit": "tsp",
+            "preparationNote": null,
+            "section": "For the filling",
+            "displayText": "0.5 tsp sesame oil"
+          },
+          {
+            "name": "minced pork or chicken",
+            "normalizedIngredientName": null,
+            "amount": 140,
+            "unit": "g",
+            "preparationNote": null,
+            "section": "For the filling",
+            "displayText": "140 g minced pork or chicken"
+          },
+          {
+            "name": "soy sauce",
+            "normalizedIngredientName": null,
+            "amount": 2,
+            "unit": "tbsp",
+            "preparationNote": null,
+            "section": "For the soy dipping sauce",
+            "displayText": "2 tbsp soy sauce"
+          },
+          {
+            "name": "rice vinegar",
+            "normalizedIngredientName": null,
+            "amount": 1,
+            "unit": "tbsp",
+            "preparationNote": null,
+            "section": "For the soy dipping sauce",
+            "displayText": "1 tbsp rice vinegar"
+          },
+          {
+            "name": "sesame oil",
+            "normalizedIngredientName": null,
+            "amount": 2,
+            "unit": "tsp",
+            "preparationNote": null,
+            "section": "For the soy dipping sauce",
+            "displayText": "2 tsp sesame oil"
+          },
+          {
+            "name": "soy sauce",
+            "normalizedIngredientName": null,
+            "amount": 2,
+            "unit": "tbsp",
+            "preparationNote": null,
+            "section": "For the yuzu dipping sauce",
+            "displayText": "2 tbsp soy sauce"
+          },
+          {
+            "name": "Yuzu juice",
+            "normalizedIngredientName": null,
+            "amount": 2,
+            "unit": "tbsp",
+            "preparationNote": null,
+            "section": "For the yuzu dipping sauce",
+            "displayText": "2 tbsp Yuzu juice"
+          },
+          {
+            "name": "peanut oil",
+            "normalizedIngredientName": null,
+            "amount": 2,
+            "unit": "tsp",
+            "preparationNote": null,
+            "section": "For the yuzu dipping sauce",
+            "displayText": "2 tsp peanut oil"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "This recipe uses leaves of Savoy or pointed cabbages, piece of ginger, clove, cooking saké, rice vinegar, and Yuzu juice. Put the spring onions, cabbage, ginger and garlic in a food processor, and whizz to a fine mix (or finely chop by hand).",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Add the water chestnuts and pulse to chop, but not too finely – these will add a nice crunchy texture. Add the soy sauce, oyster sauce, sake, sesame oil and a pinch of salt, and whizz again.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Tip the ingredients into a bowl and add the minced pork or chicken. Mix by hand until well combined. Chill until ready to use.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Have a pot of water to hand. Sprinkle the cornflour onto a plate. To assemble the gyoza, hold the dumpling skin in the palm of one hand and put a heaped teaspoon of the filling onto the centre of the skin.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Dip your finger in the water and wipe around the edge of the skin – this will moisten it and help the edges stick together.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Bring the edges of the skin together. Pinch pleats along one side, then press each pleat against the opposite flat side of the skin. With each pinch make sure that you are sealing the parcel and keeping the filling in the centre. Put each gyoza onto the plate dusted with cornflour. Can be covered with cling film and chilled for up to 8 hrs.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Cook the gyoza in batches. Heat a non-stick frying pan with 1 tbsp vegetable oil. Brush off any excess cornflour from the bases of the dumplings. Fry the gyoza on one side only – don’t turn them over, you just want one crispy side. They should be golden brown after about 2 mins.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Add a good splash of water to the pan and cover with a steaming lid or a large sheet of foil with a few holes poked in the top. Cook over a medium heat for 3-5 mins until the water has evaporated and the gyoza filling is cooked through. Set aside while you cook the rest.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Mix all the dipping sauce ingredients and serve alongside the dumplings in dipping bowls. You can serve with both or just one dipping sauce.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Notes: Challanging",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": {
+          "servingBasis": 26,
+          "nutrients": []
+        },
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "ff642f6e-5fa2-4e06-9594-e29bd9d5eee1",
+      "title": "Gulkake/Suksessterte",
+      "imageFileName": "ff642f6e-5fa2-4e06-9594-e29bd9d5eee1.webp",
+      "payload": {
+        "title": "Gulkake/Suksessterte",
+        "description": "",
+        "servings": 1,
+        "sourceUrl": "",
+        "notes": "",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": [],
+        "ingredients": [
+          {
+            "name": "300 g mandler",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Bunn",
+            "displayText": "300 g mandler"
+          },
+          {
+            "name": "300 g melis",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Bunn",
+            "displayText": "300 g melis"
+          },
+          {
+            "name": "5 eggehviter",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Bunn",
+            "displayText": "5 eggehviter"
+          },
+          {
+            "name": "5 eggeplommer",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Krem",
+            "displayText": "5 eggeplommer"
+          },
+          {
+            "name": "150 g sukker",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Krem",
+            "displayText": "150 g sukker"
+          },
+          {
+            "name": "1 dl kremfløte",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Krem",
+            "displayText": "1 dl kremfløte"
+          },
+          {
+            "name": "1 ts vaniljesukker",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Krem",
+            "displayText": "1 ts vaniljesukker"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Alle ingrediensene til bunnen blandes. Steikes ved 175 grader i 30 minutter.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Ingrediensene til fyllet røres over varme til det tykner. Må ikke kokes. Ta av plat og ha så i 150 g smør. Ha i litt maisenna om den ikke tykner.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "db31edee-b09d-4969-a767-1bcff758b658",
+      "title": "Grytebrød",
+      "imageFileName": "db31edee-b09d-4969-a767-1bcff758b658.webp",
+      "payload": {
+        "title": "Grytebrød",
+        "description": "",
+        "servings": 1,
+        "sourceUrl": "",
+        "notes": "",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": [],
+        "ingredients": [
+          {
+            "name": "5 dl vann",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "5 dl vann"
+          },
+          {
+            "name": "1/2 ts tørrgjær",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1/2 ts tørrgjær"
+          },
+          {
+            "name": "350 g hvetemel",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "350 g hvetemel"
+          },
+          {
+            "name": "100 g havregryn",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "100 g havregryn"
+          },
+          {
+            "name": "50 g kruskakli",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "50 g kruskakli"
+          },
+          {
+            "name": "50 g linfrø",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "50 g linfrø"
+          },
+          {
+            "name": "50 g sesamfrø",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "50 g sesamfrø"
+          },
+          {
+            "name": "50 g solsikkekjerner",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "50 g solsikkekjerner"
+          },
+          {
+            "name": "1 ts salt",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1 ts salt"
+          },
+          {
+            "name": "Noen hakkede hasselnøttkjerner, hakkede valnøttkjerner, gresskarkjerner og hakkede tørkede aprikoser",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "Noen hakkede hasselnøttkjerner, hakkede valnøttkjerner, gresskarkjerner og hakkede tørkede aprikoser"
+          },
+          {
+            "name": "Jerngryte med lokk som tåler 250 grader",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "Jerngryte med lokk som tåler 250 grader"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Ha vannet i en plastbolle e.l, og rør ut tørrgjæren i vannet.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Tilsett resten av ingrediensene, og bland alt godt sammen.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Dekk plastbollen med plast, og la den stå i romtemperatur i 12 – 24 timer.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Etter 12 – 24 timer: Strø litt mel på et bakepapir, og tøm deigen ut på bakepapiret.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Brett deigen inn mot midten et par ganger.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "La deigen bli liggende på bakepapiret, dekk over med et klede – og la den heve i ca 2 timer.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Forvarm ovnen til 250 °C, sammen med jerngryten/ kjelen.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Ta jerngryten ut av ovnen, og legg deigen forsiktig ned i den varme gryten.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Legg lokket på gryta, og sett den tilbake i ovnen",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Etter ca 30 minutter tar du lokket av gryten, og fortsetter stekingen i 20 minutter til.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Ta gryten ut av ovnen, ta brødet ut av gryten. Om du banker på undersiden av brødet skal du høre en «hul» lyd. Om brødet ikke virker helt ferdigstekt, kan du legge det tilbake på risten i ovnen – i noen minutter.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Avkjøles på rist.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "1fafb937-31f5-44ee-aeb5-ff1a87dd2a70",
+      "title": "Grove rundstykker med rug",
+      "imageFileName": "1fafb937-31f5-44ee-aeb5-ff1a87dd2a70.webp",
+      "payload": {
+        "title": "Grove rundstykker med rug",
+        "description": "",
+        "servings": 27,
+        "sourceUrl": "",
+        "notes": "",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": [],
+        "ingredients": [
+          {
+            "name": "100 gram havregryn",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Trinn 1",
+            "displayText": "100 gram havregryn"
+          },
+          {
+            "name": "50 gram solsikkekjerner",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Trinn 1",
+            "displayText": "50 gram solsikkekjerner"
+          },
+          {
+            "name": "25 gram linfrø",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Trinn 1",
+            "displayText": "25 gram linfrø"
+          },
+          {
+            "name": "25 gram sesamfrø",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Trinn 1",
+            "displayText": "25 gram sesamfrø"
+          },
+          {
+            "name": "2,5 dl varmt vann",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Trinn 1",
+            "displayText": "2,5 dl varmt vann"
+          },
+          {
+            "name": "200 gram sammalt hvete, fin",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Trinn 2",
+            "displayText": "200 gram sammalt hvete, fin"
+          },
+          {
+            "name": "150 gram sammalt rug, fin",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Trinn 2",
+            "displayText": "150 gram sammalt rug, fin"
+          },
+          {
+            "name": "ca 500 gram hvetemel",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Trinn 2",
+            "displayText": "ca 500 gram hvetemel"
+          },
+          {
+            "name": "ca 1 ts havsalt",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Trinn 2",
+            "displayText": "ca 1 ts havsalt"
+          },
+          {
+            "name": "30 gram fersk gjær (eller 1 pose tørrgjær)",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Trinn 2",
+            "displayText": "30 gram fersk gjær (eller 1 pose tørrgjær)"
+          },
+          {
+            "name": "3 dl lunken melk",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Trinn 2",
+            "displayText": "3 dl lunken melk"
+          },
+          {
+            "name": "3 dl lunkent vann",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Trinn 2",
+            "displayText": "3 dl lunkent vann"
+          },
+          {
+            "name": "1 ts honning",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Trinn 2",
+            "displayText": "1 ts honning"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Bland alle ingrediensene til trinn 1 godt sammen og la blandingen stå på benken til den er lunken eller gjerne enda lengre.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Bland ingrediensene til trinn 2 (med unntak av litt av hvetemelet) i blandingen fra trinn 1. Bruk kjøkkenmaskin og kjør deigen i ca 10 minutter og spe inn resten av hvetemelet, til du får en fin og smidig deig, som slipper såvidt slipper bakebollen, men fremdeles er litt «klissete». Dekk bakebollen med plast og la den heve på et lunt sted til omtrent dobbel størrelse.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Ha litt mel på bakebordet og kna deigen lett sammen slik at den slipper bakebordet. Del opp deigen i passe emner og trill ut runde eller avlage rundstykker. Eller du kan gjøre som meg, kjevle deigen ut i et rektangel og stikke ut rundstykker med en egnet form. Disse blir ikke så høye, men er veldig godt egnet til matpakken i og med at den ikke blir så høy å gape over når du har fylt de med pålegg! Alternativt kan du skjære deigen opp i remser og flette tre og tre remser, før du deler de opp i passende biter. Det gir veldig imponerende rundstykker på en enkel måte!",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Jeg lagde 3 brett à 9 rundstykker, dvs totalt 27 rundstykker, i forskjellige størrelser og fasonger. Pass på at du har omtrent lik størrelse på rundstykker du steker på samme brett, slik at de er ferdige omtrent samtidig.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Legg rundstykkene på bakepapirkledde stekebrett. Ha rundstykker av omtrent lik størrelse på hvert brett, slik at du ikke risikerer at noen rundstykker blir brent, mens andre blir rå. Dekk rundstykkene med et klede og la de etterheve til omtrent dobbel størrelse, i alle fall minst en halv time. Stekes på nest nederste rille ved ca 220 grader i 13-15 minutter, eller til rundstykkene er passe stekt.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "2c4c4f11-738b-48af-9aba-24fb3c07eb85",
+      "title": "Grilled Eggplant, Roasted Tomatoes and Burrata Cheese with Garlic Herb Breadcrumbs",
+      "imageFileName": "2c4c4f11-738b-48af-9aba-24fb3c07eb85.webp",
+      "payload": {
+        "title": "Grilled Eggplant, Roasted Tomatoes and Burrata Cheese with Garlic Herb Breadcrumbs",
+        "description": "",
+        "servings": 1,
+        "sourceUrl": "",
+        "notes": "if the tomatoes are quite sweet, you can omit the sugar. Early season tomatoes especially can be very tart, so taste one to be sure.",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": [],
+        "ingredients": [
+          {
+            "name": "1 1/2 pounds (680g) Campari or cherry tomatoes (or a mix)",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1 1/2 pounds (680g) Campari or cherry tomatoes (or a mix)"
+          },
+          {
+            "name": "1 tablespoon (15ml) balsamic vinegar",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1 tablespoon (15ml) balsamic vinegar"
+          },
+          {
+            "name": "1/2 teaspoon sugar (optional)",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1/2 teaspoon sugar (optional)"
+          },
+          {
+            "name": "Kosher salt and freshly cracked black pepper",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "Kosher salt and freshly cracked black pepper"
+          },
+          {
+            "name": "5 large garlic cloves, 4 crushed, 1 minced",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "5 large garlic cloves, 4 crushed, 1 minced"
+          },
+          {
+            "name": "3 medium globe or Italian eggplants, about 6 to 8 inches long (about 4 lb total)",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "3 medium globe or Italian eggplants, about 6 to 8 inches long (about 4 lb total)"
+          },
+          {
+            "name": "1/2 cup (120ml) extra virgin olive oil, divided (plus more for grill)",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1/2 cup (120ml) extra virgin olive oil, divided (plus more for grill)"
+          },
+          {
+            "name": "1 1/2 cups fresh breadcrumbs (5 -6 slices good white bread pulsed in food processor)",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1 1/2 cups fresh breadcrumbs (5 -6 slices good white bread pulsed in food processor)"
+          },
+          {
+            "name": "1/2 cup (about 15g) chopped fresh basil or parsley leaves, or preferably a mix, loosely packed",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1/2 cup (about 15g) chopped fresh basil or parsley leaves, or preferably a mix, loosely packed"
+          },
+          {
+            "name": "1/4 cup (1 oz / 30g) grated Parmigiano Reggiano cheese",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1/4 cup (1 oz / 30g) grated Parmigiano Reggiano cheese"
+          },
+          {
+            "name": "2 balls burrata cheese (8oz/ 230g total), room temperature. each split in quarters",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "2 balls burrata cheese (8oz/ 230g total), room temperature. each split in quarters"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Preheat oven to 375ºF. Add tomatoes and the 4 crushed garlic cloves to a baking dish (we used 9x13 inch), toss with 2 tablespoons olive oil, balsamic vinegar, sugar (if using) and season with salt and pepper. Roast, turning once or twice, until tomatoes are soft, and skins blister and split, about 30 - 40 minutes. Set aside and reserve with any tomato liquid that may have collected. (Tomatoes can be roasted a day ahead)",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Prepare a gas or charcoal grill for high heat cooking (a grill pan on the stovetop will also work). Chop off the top and bottom ends and peel the eggplants partially in long vertical stripes. Slice eggplants into 1/2-inch thick rounds. Brush each round generously with olive oil (about 3 to 4 tablespoons, total) on both sides and season with salt and pepper. When grill is ready, cook until eggplant is soft and golden brown on both sides, about 5 minutes per side. If eggplant seems dry, brush on a little more oil while cooking. Remove from grill to a plate, cover loosely with foil and set aside. (Eggplant can be grilled a day ahead)",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "On the stovetop, add 3 tablespoons oil and the minced garlic to a cold 8-inch skillet. Turn heat to medium and cook until the garlic sizzles and turns fragrant but not brown, about 1 minute. Add breadcrumbs and toss in the garlicky oil. Cook, stirring often, until crumbs turn golden brown, 4 minutes. Transfer crumbs to a medium bowl, let cool for a few minutes and then stir in herbs and parmesan cheese. Season with salt and pepper to taste.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Assemble dish by adding a layer of eggplant to a platter. Top with a layer of tomatoes, and a drizzle of the tomato cooking juices. Then add another layer of eggplant and tomatoes until all are used. Drizzle again with collected tomato juices. Nestle in chunks of burrata cheese, and sprinkle all over with garlic and herb breadcrumbs. Add a few basil leaves, if desired.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "9028e9d3-46bb-4a8c-a994-36dde66b4ba5",
+      "title": "Grilled Chicken Salad with Cabbage and Raspberry Balsamic Dressing",
+      "imageFileName": "9028e9d3-46bb-4a8c-a994-36dde66b4ba5.webp",
+      "payload": {
+        "title": "Grilled Chicken Salad with Cabbage and Raspberry Balsamic Dressing",
+        "description": "Here spicy grilled chicken is marinated with honey, ginger, sriracha and combined with carrot, cabbage, croutons and a tangy raspberry dressing.",
+        "servings": 1,
+        "sourceUrl": "",
+        "notes": "The chicken is flavorful but not very spicy without a good drizzle of the marinade glaze. Reduce the remaining of the marinade in a saucepan. You can then customize the heat of the chicken by adding more or less glaze at the end of grilling.",
+        "prepMinutes": null,
+        "cookMinutes": null,
+        "isArchived": false,
+        "tags": [],
+        "ingredients": [
+          {
+            "name": "1 green cabbage, halved lengthwise and thinly sliced crosswise (use a mandoline slicer for quicker and better results)",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Salad",
+            "displayText": "1 green cabbage, halved lengthwise and thinly sliced crosswise (use a mandoline slicer for quicker and better results)"
+          },
+          {
+            "name": "2 (9 oz) boneless, skinless chicken breasts",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Salad",
+            "displayText": "2 (9 oz) boneless, skinless chicken breasts"
+          },
+          {
+            "name": "1 1/2 – 2 cups matchstick carrots, or 2 medium carrots cut into matchsticks",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Salad",
+            "displayText": "1 1/2 – 2 cups matchstick carrots, or 2 medium carrots cut into matchsticks"
+          },
+          {
+            "name": "1 red bell pepper, cut into small cubes",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Salad",
+            "displayText": "1 red bell pepper, cut into small cubes"
+          },
+          {
+            "name": "2 handfuls of croutons ( optional for paleo)",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Salad",
+            "displayText": "2 handfuls of croutons ( optional for paleo)"
+          },
+          {
+            "name": "1/2 cup cilantro leaves, chopped",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Salad",
+            "displayText": "1/2 cup cilantro leaves, chopped"
+          },
+          {
+            "name": "3 chopped spring onions, green and white parts",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Salad",
+            "displayText": "3 chopped spring onions, green and white parts"
+          },
+          {
+            "name": "1 teaspoon poppy seeds, toasted",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Salad",
+            "displayText": "1 teaspoon poppy seeds, toasted"
+          },
+          {
+            "name": "1/4 cup balsamic vinegar",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Dressing",
+            "displayText": "1/4 cup balsamic vinegar"
+          },
+          {
+            "name": "1/4 cup olive oil",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Dressing",
+            "displayText": "1/4 cup olive oil"
+          },
+          {
+            "name": "1/4 cup chopped spring onions, green and white parts",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Dressing",
+            "displayText": "1/4 cup chopped spring onions, green and white parts"
+          },
+          {
+            "name": "A handful of raspberries",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Dressing",
+            "displayText": "A handful of raspberries"
+          },
+          {
+            "name": "1/4 cup low-sodium soy sauce",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Marinade",
+            "displayText": "1/4 cup low-sodium soy sauce"
+          },
+          {
+            "name": "2 tablespoons finely minced ginger",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Marinade",
+            "displayText": "2 tablespoons finely minced ginger"
+          },
+          {
+            "name": "3 tablespoons olive oil",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Marinade",
+            "displayText": "3 tablespoons olive oil"
+          },
+          {
+            "name": "Juice of one lime",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Marinade",
+            "displayText": "Juice of one lime"
+          },
+          {
+            "name": "2 tablespoons Worcestershire sauce",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Marinade",
+            "displayText": "2 tablespoons Worcestershire sauce"
+          },
+          {
+            "name": "1 tablespoon toasted sesame oil",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Marinade",
+            "displayText": "1 tablespoon toasted sesame oil"
+          },
+          {
+            "name": "1 teaspoon Sriracha",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Marinade",
+            "displayText": "1 teaspoon Sriracha"
+          },
+          {
+            "name": "2 – 3 cloves garlic, minced",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Marinade",
+            "displayText": "2 – 3 cloves garlic, minced"
+          },
+          {
+            "name": "1 tablespoon honey",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": "Marinade",
+            "displayText": "1 tablespoon honey"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "In a mixing bowl, whisk together soy sauce, ginger, olive oil, lime juice, Worcestershire sauce, sesame oil, Sriracha, minced garlic and honey.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Add chicken breasts to a large resealable bag and add 3 to 4 tablespoons of the marinade mixture, reserving the remaining. Seal the bag and rub the marinade over chicken, then transfer chicken to your refrigerator and let rest at least 30 minutes, or up to 1 day.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Add balsamic vinegar, olive oil, raspberries to a blender and pulse to emulsify the vinaigrette. Add 1/4 cup chopped green onions and whisk to combine. Set aside in the refrigerator.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Heat a grill or grill pan over the stove top over medium-high heat. Brush grill lightly with canola or vegetable oil, then place marinated chicken on the grill and cook, about 4 minutes per side, or until chicken has cooked through.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Transfer to a cutting board and allow to rest for 10 minutes. Then, cut chicken breasts crosswise into 1/4-inch strips.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "In a large bowl toss together cabbage, chicken, carrots, spring onions, bell pepper croutons and cilantro with enough raspberry dressing to coat the salad. Add chicken strips, drizzle with additional raspberry vinaigrette and sprinkle with poppy seeds.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    },
+    {
+      "recipeId": "ed543f2d-51a1-4d80-9eb0-344b556b2e51",
+      "title": "Granola with Flavoured Yoghurt",
+      "imageFileName": "ed543f2d-51a1-4d80-9eb0-344b556b2e51.webp",
+      "payload": {
+        "title": "Granola with Flavoured Yoghurt",
+        "description": "A simple bowl of granola with flavoured yoghurt.",
+        "servings": 1,
+        "sourceUrl": null,
+        "notes": "",
+        "prepMinutes": 1,
+        "cookMinutes": 0,
+        "isArchived": false,
+        "tags": ["breakfast"],
+        "ingredients": [
+          {
+            "name": "Granola",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1 bowl granola"
+          },
+          {
+            "name": "Flavoured yoghurt",
+            "normalizedIngredientName": null,
+            "amount": null,
+            "unit": null,
+            "preparationNote": null,
+            "section": null,
+            "displayText": "1 pot flavoured yoghurt"
+          }
+        ],
+        "steps": [
+          {
+            "instruction": "Put the granola in a bowl.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Spoon the flavoured yoghurt on top.",
+            "timerSeconds": null
+          },
+          {
+            "instruction": "Mix slightly or eat as layered.",
+            "timerSeconds": null
+          }
+        ],
+        "nutrition": null,
+        "importImageUrl": null
+      }
+    }
+  ]
+}

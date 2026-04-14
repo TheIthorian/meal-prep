@@ -1,217 +1,61 @@
 # Meal Prep
 
-Meal Prep is a web app for saving recipes, importing recipes from the web, and turning ingredients into shopping lists.
+Meal Prep is a self-hostable recipe and shopping workflow app.
+It lets you save recipes, import recipes from URLs, organize ingredients, generate shopping lists, and connect MCP clients to a workspace.
 
-## Projects
+## Quickstart (Docker Compose)
 
-| Project  | Description                              | Link                                       |
-| -------- | ---------------------------------------- | ------------------------------------------ |
-| Api      | ASP.NET Core minimal API backend         | [Api/README.md](./Api/README.md)           |
-| UI       | Vite + React + TypeScript frontend       | [UI/README.md](./UI/README.md)             |
-| E2eTests | Playwright browser end-to-end test suite | [E2eTests/README.md](./E2eTests/README.md) |
+### Prerequisites
 
-## Quick Start
+- Docker with Compose plugin (`docker compose`)
 
-From the repo root:
+### 1) Create `.docker.env` from the template
 
-```bash
-pnpm install
-docker compose up -d
-dotnet build
-dotnet run --project Api
-```
-
-In another shell:
+From repo root:
 
 ```bash
-pnpm dev
+cp .docker.env.example .docker.env
 ```
 
-Or run the API through the monorepo wrapper:
+Then update at least these keys in `.docker.env`:
+
+```env
+Jwt__Issuer=meal-prep.local
+Jwt__Audience=meal-prep.local
+Jwt__Key=replace-with-a-long-random-secret
+OpenAI__ApiKey=replace-with-your-api-key
+CORS_ORIGINS=http://localhost,http://localhost:80,http://localhost:5001
+```
+
+### 2) Build and run
+
+From repo root:
 
 ```bash
-pnpm api:dev
+docker compose up -d --build
 ```
 
-This starts the local stack for:
+This starts API + PostgreSQL + Redis + MinIO.
 
-- PostgreSQL
-- Redis
-- MinIO
-- OpenTelemetry Collector
-
-## Product Direction
-
-The current platform already includes:
-
-- User authentication
-- Multi-workspace support
-- Settings and account management
-- Shared local infrastructure
-- End-to-end browser testing
-
-The intended product workflow is:
-
-- Save recipes manually
-- Pull recipes from web pages
-- Extract and organize ingredients
-- Build shopping lists from selected recipes
-
-## Backend Test Dependencies
-
-Endpoint and integration tests in `Api.Tests` expect backend dependencies to be available:
-
-- PostgreSQL on `127.0.0.1:5432`
-- Redis on `127.0.0.1:6379`
-- MinIO on `127.0.0.1:9000`
-
-Start them with:
+### 3) Verify
 
 ```bash
-docker compose up -d
+docker compose ps
+curl -I http://localhost:5001/api/health
 ```
 
-The test suite reads environment variables from `.env.test` at the repo root. No other env or config sources are used for tests.
+## What To Read Next
 
-## Test Container
+- Deployment options: [`Docs/deploy.md`](./Docs/deploy.md)
+- Environment variables reference: [`Docs/env-vars.md`](./Docs/env-vars.md)
+- HTTPS setup notes: [`Docs/https.md`](./Docs/https.md)
+- MCP server usage and deployment caveats: [`Docs/mcp.md`](./Docs/mcp.md)
+- Turborepo workflow: [`Docs/turborepo.md`](./Docs/turborepo.md)
+- Feature guide: [`Docs/features.md`](./Docs/features.md)
 
-Run a dedicated test container:
+## Project READMEs
 
-```bash
-docker compose -f compose.yaml -f compose.test.yaml up -d
-docker compose -f compose.yaml -f compose.test.yaml exec tests bash
-```
-
-Then inside the container:
-
-```bash
-dotnet test Api.Tests/Api.Tests.csproj
-```
-
-## Turbo
-
-This repo uses Turborepo to run workspace commands from the repo root.
-
-Common root commands:
-
-```bash
-pnpm build
-pnpm lint
-pnpm typecheck
-pnpm api:build
-pnpm api:dev
-pnpm api:run
-pnpm api:test
-pnpm test:e2e
-pnpm install:browsers
-```
-
-Target a single workspace directly when needed:
-
-```bash
-pnpm --filter meal-prep-api build
-pnpm --filter meal-prep-api run
-pnpm --filter meal-prep-api-tests test
-pnpm --filter meal-prep-ui build
-pnpm --filter meal-prep-infra railway:status
-pnpm --filter meal-prep-e2e-tests test
-```
-
-The main workspace package names are:
-
-- `meal-prep-api`
-- `meal-prep-api-tests`
-- `meal-prep-ui`
-- `meal-prep-infra`
-- `meal-prep-e2e-tests`
-
-## Infrastructure
-
-- Database: PostgreSQL
-- Cache: Redis
-- Storage: MinIO
-- Observability: OpenTelemetry
-- CI/CD: GitHub Actions
-
-## Raspberry Pi Deploy Profiles
-
-Two Pi-oriented compose profiles are available at the repo root:
-
-- `compose.pi-https.yaml`: HTTPS LAN deployment with Caddy TLS termination.
-- `compose.pi-http.yaml`: HTTP-only LAN deployment (no certificates required).
-
-### Build images off-device for Pi
-
-To avoid slow `ui` and `api` builds on the Pi, build and push ARM images from CI or your development machine:
-
-```bash
-# authenticate first (example for GHCR)
-echo "$GITHUB_TOKEN" | docker login ghcr.io -u <github-username> --password-stdin
-
-REGISTRY=ghcr.io/<org-or-user> IMAGE_TAG=2026-04-14 ./scripts/build-pi-images.sh
-```
-
-Optional:
-
-- Set `PLATFORMS=linux/amd64,linux/arm64` to publish multi-arch images.
-- Set `PUSH_LATEST=true` to also tag and push `:latest`.
-- Set `IMAGE_NAMESPACE=<name>` to customize the image path segment (default: `meal-prep`).
-
-### HTTPS profile
-
-Files used:
-
-- `compose.pi-https.yaml`
-- `Infra/Caddyfile.pi`
-- `UI/Dockerfile`
-- `UI/Caddyfile`
-
-Requirements:
-
-- Place certificate files at:
-  - `Infra/certs/cert.pem`
-  - `Infra/certs/key.pem`
-- Ensure your Pi deploy step writes runtime env vars to `.docker.env`.
-- Include your HTTPS origin in `CORS_ORIGINS` (for example `https://mealprep.local`).
-
-Run:
-
-```bash
-docker compose -f compose.pi-http.yaml up --build
-```
-
-### HTTP profile
-
-Files used:
-
-- `compose.pi-http.yaml`
-- `Infra/Caddyfile.pi-http`
-- `UI/Dockerfile`
-- `UI/Caddyfile`
-
-Notes:
-
-- This profile sets `ASPNETCORE_ENVIRONMENT=Development` for API cookie compatibility over plain HTTP.
-- Include your HTTP origin in `CORS_ORIGINS` (for example `http://192.168.1.98` or `http://mealprep.local`).
-
-Run:
-
-```bash
-docker compose -f compose.pi-http.yaml up -d --build
-```
-
-### Verify deployment
-
-HTTPS:
-
-```bash
-curl -kI https://mealprep.local
-curl -kI https://mealprep.local/api/v1/me
-```
-
-HTTP:
-
-```bash
-curl -I http://192.168.1.98
-curl -I http://192.168.1.98/api/v1/me
-```
+- API: [`Api/README.md`](./Api/README.md)
+- UI: [`UI/README.md`](./UI/README.md)
+- End-to-end tests: [`E2eTests/README.md`](./E2eTests/README.md)
+- Infrastructure tooling: [`Infra/README.md`](./Infra/README.md)

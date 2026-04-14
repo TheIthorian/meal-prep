@@ -13,12 +13,8 @@ services:
       - api
     ports:
       - "80:80"
-      - "443:443"
     volumes:
-      - ./Infra/Caddyfile.pi:/etc/caddy/Caddyfile:ro
-      - ./Infra/certs:/certs:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      - ./Infra/Caddyfile.http:/etc/caddy/Caddyfile:ro
     networks:
       - meal-prep-net
 
@@ -44,7 +40,7 @@ services:
       - .docker.env
     environment:
       - "ASPNETCORE_HTTP_PORTS=5001"
-      - "ASPNETCORE_ENVIRONMENT=Production"
+      - "ASPNETCORE_ENVIRONMENT=Development"
     expose:
       - "5001"
     ports:
@@ -122,5 +118,3 @@ volumes:
     driver: local
   miniodata:
   postgres-data:
-  caddy_data:
-  caddy_config:
