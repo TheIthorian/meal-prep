@@ -1,4 +1,4 @@
-http://mealprep.local, http://192.168.1.98 {
+:80 {
     @api path /api/*
     reverse_proxy @api api:5001
 
