@@ -272,46 +272,66 @@ export default function RecipeDetailPage() {
                     {recipeNeighbors.showNav ? (
                         <div className='flex items-center gap-1 border-l border-border/60 pl-2'>
                             {recipeNeighbors.prevId ? (
-                                <Button asChild variant='outline' size='icon' className='h-9 w-9 shrink-0'>
-                                    <Link
-                                        to={`/workspaces/${workspaceId}/recipe/${recipeNeighbors.prevId}`}
-                                        aria-label='Previous recipe'
-                                    >
-                                        <ChevronLeft className='h-4 w-4' />
-                                    </Link>
-                                </Button>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button asChild variant='outline' size='icon' className='h-9 w-9 shrink-0'>
+                                            <Link
+                                                to={`/workspaces/${workspaceId}/recipe/${recipeNeighbors.prevId}`}
+                                                aria-label='Previous recipe'
+                                            >
+                                                <ChevronLeft className='h-4 w-4' />
+                                            </Link>
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side='bottom'>Previous recipe</TooltipContent>
+                                </Tooltip>
                             ) : (
-                                <Button
-                                    type='button'
-                                    variant='outline'
-                                    size='icon'
-                                    className='h-9 w-9 shrink-0'
-                                    disabled
-                                    aria-label='Previous recipe'
-                                >
-                                    <ChevronLeft className='h-4 w-4' />
-                                </Button>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            type='button'
+                                            variant='outline'
+                                            size='icon'
+                                            className='h-9 w-9 shrink-0'
+                                            disabled
+                                            aria-label='Previous recipe'
+                                        >
+                                            <ChevronLeft className='h-4 w-4' />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side='bottom'>Previous recipe</TooltipContent>
+                                </Tooltip>
                             )}
                             {recipeNeighbors.nextId ? (
-                                <Button asChild variant='outline' size='icon' className='h-9 w-9 shrink-0'>
-                                    <Link
-                                        to={`/workspaces/${workspaceId}/recipe/${recipeNeighbors.nextId}`}
-                                        aria-label='Next recipe'
-                                    >
-                                        <ChevronRight className='h-4 w-4' />
-                                    </Link>
-                                </Button>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button asChild variant='outline' size='icon' className='h-9 w-9 shrink-0'>
+                                            <Link
+                                                to={`/workspaces/${workspaceId}/recipe/${recipeNeighbors.nextId}`}
+                                                aria-label='Next recipe'
+                                            >
+                                                <ChevronRight className='h-4 w-4' />
+                                            </Link>
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side='bottom'>Next recipe</TooltipContent>
+                                </Tooltip>
                             ) : (
-                                <Button
-                                    type='button'
-                                    variant='outline'
-                                    size='icon'
-                                    className='h-9 w-9 shrink-0'
-                                    disabled
-                                    aria-label='Next recipe'
-                                >
-                                    <ChevronRight className='h-4 w-4' />
-                                </Button>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            type='button'
+                                            variant='outline'
+                                            size='icon'
+                                            className='h-9 w-9 shrink-0'
+                                            disabled
+                                            aria-label='Next recipe'
+                                        >
+                                            <ChevronRight className='h-4 w-4' />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side='bottom'>Next recipe</TooltipContent>
+                                </Tooltip>
                             )}
                         </div>
                     ) : null}
@@ -459,7 +479,7 @@ export default function RecipeDetailPage() {
                     workspaceId={workspaceId}
                     recipes={[listItem]}
                     selectedDate={new Date().toISOString().slice(0, 10)}
-                    triggerLabel='Plan this meal'
+                    triggerLabel='Add to next meals'
                     onSaved={() => {
                         queryClient.invalidateQueries({ queryKey: ['meal-plan', workspaceId] });
                     }}

@@ -35,6 +35,7 @@ public sealed class MealPrepMcpTools(
     RecipeImportService recipeImportService,
     ShoppingListGenerationService shoppingListGenerationService,
     MeasurementService measurementService,
+    RecipeImageProcessingService recipeImageProcessingService,
     IS3StorageService s3StorageService,
     ILogger<MealPrepMcpTools> logger,
     ILoggerFactory loggerFactory
@@ -247,6 +248,7 @@ public sealed class MealPrepMcpTools(
                     currentUserService,
                     db,
                     recipeImportService,
+                    recipeImageProcessingService,
                     s3StorageService,
                     workspaceId,
                     recipe,
@@ -314,6 +316,7 @@ public sealed class MealPrepMcpTools(
                     currentUserService,
                     db,
                     recipeImportService,
+                    recipeImageProcessingService,
                     s3StorageService,
                     loggerFactory,
                     workspaceId,
@@ -362,7 +365,17 @@ public sealed class MealPrepMcpTools(
                     await s3StorageService.DeleteFileAsync(recipe.ImageObjectKey);
 
                 await using var stream = new MemoryStream(payload.Data);
-                var key = await s3StorageService.UploadFileAsync(stream, payload.FileName, payload.ContentType);
+                var optimized = await recipeImageProcessingService.OptimizeForWebAsync(
+                    stream,
+                    payload.FileName,
+                    cancellationToken
+                );
+                await using var optimizedStream = new MemoryStream(optimized.Data);
+                var key = await s3StorageService.UploadFileAsync(
+                    optimizedStream,
+                    optimized.FileName,
+                    optimized.ContentType
+                );
                 recipe.SetImageObjectKey(key);
                 await db.SaveChangesAsync(cancellationToken);
 
@@ -416,6 +429,7 @@ public sealed class MealPrepMcpTools(
                     currentUserService,
                     db,
                     recipeImportService,
+                    recipeImageProcessingService,
                     s3StorageService,
                     workspaceId,
                     body,
@@ -428,9 +442,9 @@ public sealed class MealPrepMcpTools(
 
     [McpServerTool]
     [Description(
-        "Lists meal-plan entries for a date range. Pass optionalPlannedFrom and optionalPlannedTo as yyyy-MM-dd (UTC) or omit for the default week window."
+        "Lists next meals. Optionally pass optionalPlannedFrom and optionalPlannedTo as yyyy-MM-dd to filter by target date."
     )]
-    public async Task<string> ListMealPlanEntries(
+    public async Task<string> ListNextMeals(
         [Description("Optional start date (yyyy-MM-dd).")]
         string? optionalPlannedFrom,
         [Description("Optional end date (yyyy-MM-dd).")]
@@ -452,14 +466,14 @@ public sealed class MealPrepMcpTools(
 
     [McpServerTool]
     [Description(
-        "Creates or updates a meal-plan entry. Pass mealPlanEntryId to update; otherwise pass null to create."
+        "Creates or updates a next meal. Pass nextMealId to update; otherwise pass null to create."
     )]
-    public async Task<string> PutMealPlanEntry(
-        [Description("Meal-plan entry id to update. Omit/null to create a new entry.")]
-        Guid? mealPlanEntryId,
-        [Description("Recipe id for the meal-plan entry.")]
+    public async Task<string> PutNextMeal(
+        [Description("Next-meal id to update. Omit/null to create a new entry.")]
+        Guid? nextMealId,
+        [Description("Recipe id for the next meal.")]
         Guid recipeId,
-        [Description("Planned date in yyyy-MM-dd format.")]
+        [Description("Target date in yyyy-MM-dd format.")]
         string plannedDate,
         [Description("Meal type value (must match allowed meal types).")]
         string mealType,
@@ -468,16 +482,32 @@ public sealed class MealPrepMcpTools(
         [Description("Optional notes.")] string? notes,
         [Description("Status value (must match allowed meal-plan statuses).")]
         string status,
+        [Description("Optional completion timestamp in UTC (ISO-8601). If omitted and status is completed, server sets current UTC time.")]
+        string? completedAtUtc,
         CancellationToken cancellationToken
     ) {
         _ = cancellationToken;
         var workspaceId = RequireMcpWorkspaceId();
         if (!DateOnly.TryParse(plannedDate, out var parsedPlannedDate))
             throw new InvalidFormatException("plannedDate must be a valid date in yyyy-MM-dd format.", null);
-        var entry = new SaveMealPlanEntryRequest(recipeId, parsedPlannedDate, mealType, targetServings, notes, status);
+        DateTime? parsedCompletedAtUtc = null;
+        if (!string.IsNullOrWhiteSpace(completedAtUtc)) {
+            if (!DateTime.TryParse(completedAtUtc, out var parsed))
+                throw new InvalidFormatException("completedAtUtc must be a valid ISO-8601 UTC datetime.", null);
+            parsedCompletedAtUtc = parsed.ToUniversalTime();
+        }
+        var entry = new SaveMealPlanEntryRequest(
+            recipeId,
+            parsedPlannedDate,
+            mealType,
+            targetServings,
+            notes,
+            status,
+            parsedCompletedAtUtc
+        );
         await ValidateRequestAsync(entry, cancellationToken);
 
-        if (mealPlanEntryId is null) {
+        if (nextMealId is null) {
             var createResult = await MealPlanEntriesHandlers.PostMealPlanEntry(
                 currentUserService,
                 db,
@@ -491,18 +521,18 @@ public sealed class MealPrepMcpTools(
             currentUserService,
             db,
             workspaceId,
-            mealPlanEntryId.Value,
+            nextMealId.Value,
             entry
         );
         return Serialize(result);
     }
 
     [McpServerTool]
-    [Description("Deletes a meal-plan entry.")]
-    public async Task<string> DeleteMealPlanEntry(Guid mealPlanEntryId, CancellationToken cancellationToken) {
+    [Description("Deletes a next meal entry.")]
+    public async Task<string> DeleteNextMeal(Guid nextMealId, CancellationToken cancellationToken) {
         _ = cancellationToken;
         var workspaceId = RequireMcpWorkspaceId();
-        await MealPlanEntriesHandlers.DeleteMealPlanEntry(currentUserService, db, workspaceId, mealPlanEntryId);
+        await MealPlanEntriesHandlers.DeleteMealPlanEntry(currentUserService, db, workspaceId, nextMealId);
         return """{"ok":true}""";
     }
 
@@ -537,20 +567,20 @@ public sealed class MealPrepMcpTools(
     }
 
     [McpServerTool]
-    [Description("Generates a shopping list from selected recipes and/or meal-plan entries.")]
+    [Description("Generates a shopping list from selected recipes and/or next meals.")]
     public async Task<string> GenerateShoppingList(
         [Description("Shopping list name.")] string name,
         [Description("Optional shopping list notes.")]
         string? notes,
         [Description("Recipe ids to include.")]
         Guid[] recipeIds,
-        [Description("Meal-plan entry ids to include.")]
-        Guid[] mealPlanEntryIds,
+        [Description("Next-meal ids to include.")]
+        Guid[] nextMealIds,
         CancellationToken cancellationToken
     ) {
         _ = cancellationToken;
         var workspaceId = RequireMcpWorkspaceId();
-        var request = new GenerateShoppingListRequest(name, notes, recipeIds, mealPlanEntryIds);
+        var request = new GenerateShoppingListRequest(name, notes, recipeIds, nextMealIds);
         await ValidateRequestAsync(request, cancellationToken);
         var result = await ShoppingListsHandlers.PostGenerateShoppingList(
             currentUserService,

@@ -4,10 +4,10 @@ import { LoginRequest, RegisterRequest } from '@/models/auth';
 import { UserResponse } from '@/models/user';
 import {
     GenerateShoppingListRequest,
-    MealPlanEntry,
+    NextMeal,
     Recipe,
     RecipeListItem,
-    SaveMealPlanEntryRequest,
+    SaveNextMealRequest,
     BulkRemoveRecipeTagsResponse,
     RecipeTagListResponse,
     RecipeTagUsageListResponse,
@@ -24,7 +24,8 @@ import {
     CreateRecipeCollectionRequest,
     PatchRecipeCollectionRequest,
     RecipeCollectionExport,
-    RecipeCollectionSharedWorkspace,
+    RecipeCollectionShareLink,
+    RecipeCollectionShareLinkPreview,
 } from '@/models/meal-prep';
 import type { PaginatedResponse } from '@/models/pagination';
 import type { McpAccessTokenCreated, McpAccessTokenListItem } from '@/models/mcp';
@@ -141,26 +142,26 @@ export const recipeCollectionsApi = {
         httpClient.get<RecipeCollectionExport>(
             `/api/v1/workspaces/${workspaceId}/recipe-collections/${collectionId}/export`,
         ),
-    share: (workspaceId: string, collectionId: string, targetWorkspaceId: string) =>
-        httpClient.post<RecipeCollectionSharedWorkspace[]>(
+    createShareLink: (workspaceId: string, collectionId: string) =>
+        httpClient.post<RecipeCollectionShareLink>(
             `/api/v1/workspaces/${workspaceId}/recipe-collections/${collectionId}/share`,
-            { targetWorkspaceId },
+            {},
         ),
-    unshare: (workspaceId: string, collectionId: string, targetWorkspaceId: string) =>
-        httpClient.delete<RecipeCollectionSharedWorkspace[]>(
-            `/api/v1/workspaces/${workspaceId}/recipe-collections/${collectionId}/share/${targetWorkspaceId}`,
-        ),
+    getShareLinkPreview: (shareToken: string) =>
+        httpClient.get<RecipeCollectionShareLinkPreview>(`/api/v1/recipe-collection-share/${shareToken}`),
+    importFromShareLink: (workspaceId: string, shareToken: string) =>
+        httpClient.post<RecipeCollectionDetail>(`/api/v1/workspaces/${workspaceId}/recipe-collection-import/${shareToken}`, {}),
 };
 
 export const mealPlanApi = {
     getAll: (workspaceId: string, params?: { from?: string; to?: string }) =>
-        httpClient.get<MealPlanEntry[]>(`/api/v1/workspaces/${workspaceId}/meal-plan-entries`, { params }),
-    create: (workspaceId: string, data: SaveMealPlanEntryRequest) =>
-        httpClient.post<MealPlanEntry>(`/api/v1/workspaces/${workspaceId}/meal-plan-entries`, data),
-    update: (workspaceId: string, mealPlanEntryId: string, data: SaveMealPlanEntryRequest) =>
-        httpClient.patch<MealPlanEntry>(`/api/v1/workspaces/${workspaceId}/meal-plan-entries/${mealPlanEntryId}`, data),
-    remove: (workspaceId: string, mealPlanEntryId: string) =>
-        httpClient.delete<void>(`/api/v1/workspaces/${workspaceId}/meal-plan-entries/${mealPlanEntryId}`),
+        httpClient.get<NextMeal[]>(`/api/v1/workspaces/${workspaceId}/next-meals`, { params }),
+    create: (workspaceId: string, data: SaveNextMealRequest) =>
+        httpClient.post<NextMeal>(`/api/v1/workspaces/${workspaceId}/next-meals`, data),
+    update: (workspaceId: string, nextMealId: string, data: SaveNextMealRequest) =>
+        httpClient.patch<NextMeal>(`/api/v1/workspaces/${workspaceId}/next-meals/${nextMealId}`, data),
+    remove: (workspaceId: string, nextMealId: string) =>
+        httpClient.delete<void>(`/api/v1/workspaces/${workspaceId}/next-meals/${nextMealId}`),
 };
 
 export const shoppingListsApi = {

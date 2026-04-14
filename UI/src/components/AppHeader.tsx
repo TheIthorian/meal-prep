@@ -14,6 +14,7 @@ import { User, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { analyticsEvents, useAnalytics, withWorkspaceProperties } from '@/lib/analytics';
 import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function AppHeader() {
     const { user, logout } = useAuth();
@@ -35,11 +36,16 @@ export function AppHeader() {
             </div>
 
             <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant='ghost' size='icon' className='shrink-0'>
-                        <User className='h-5 w-5' />
-                    </Button>
-                </DropdownMenuTrigger>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant='ghost' size='icon' className='shrink-0' aria-label='Open user menu'>
+                                <User className='h-5 w-5' />
+                            </Button>
+                        </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side='bottom'>User menu</TooltipContent>
+                </Tooltip>
                 <DropdownMenuContent align='end'>
                     <DropdownMenuLabel>{user?.displayName || user?.email}</DropdownMenuLabel>
                     <DropdownMenuSeparator />

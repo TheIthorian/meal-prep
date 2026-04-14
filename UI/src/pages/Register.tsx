@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +17,9 @@ export default function Register() {
     const [isLoading, setLoading] = useState(false);
     const { register } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const { capture } = useAnalytics();
+    const from = (location.state as { from?: { pathname?: string } })?.from;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -40,7 +42,7 @@ export default function Register() {
                 title: 'Success',
                 description: 'Your account has been created. Please log in.',
             });
-            navigate('/login', { replace: true });
+            navigate('/login', { replace: true, state: from ? { from } : undefined });
         } finally {
             setLoading(false);
         }
@@ -132,7 +134,11 @@ export default function Register() {
 
                             <p className='text-center text-sm text-muted-foreground'>
                                 Already have an account?{' '}
-                                <Link to='/login' className='font-medium text-primary hover:underline'>
+                                <Link
+                                    to='/login'
+                                    state={from ? { from } : undefined}
+                                    className='font-medium text-primary hover:underline'
+                                >
                                     Sign In
                                 </Link>
                             </p>

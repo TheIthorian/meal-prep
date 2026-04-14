@@ -27,7 +27,7 @@ public record ShoppingListItemResponse(
     string[] SourceNames
 );
 
-public record ShoppingListSourceResponse(Guid Id, Guid? RecipeId, Guid? MealPlanEntryId, string SourceName);
+public record ShoppingListSourceResponse(Guid Id, Guid? RecipeId, Guid? NextMealId, string SourceName);
 
 public record ShoppingListResponse(
     Guid Id,

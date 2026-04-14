@@ -3,6 +3,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useState } from 'react';
 import {
     Home,
@@ -527,13 +528,19 @@ export function IconPicker({ value, onChange }: IconPickerProps) {
     return (
         <Popover modal={true}>
             <PopoverTrigger asChild>
-                <Button
-                    variant='outline'
-                    size='icon'
-                    className={cn('h-9 w-9 shrink-0', !value && 'text-muted-foreground')}
-                >
-                    {SelectedIcon ? <SelectedIcon className='h-4 w-4' /> : <HelpCircle className='h-4 w-4' />}
-                </Button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant='outline'
+                            size='icon'
+                            className={cn('h-9 w-9 shrink-0', !value && 'text-muted-foreground')}
+                            aria-label='Choose icon'
+                        >
+                            {SelectedIcon ? <SelectedIcon className='h-4 w-4' /> : <HelpCircle className='h-4 w-4' />}
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side='bottom'>Choose icon</TooltipContent>
+                </Tooltip>
             </PopoverTrigger>
             <PopoverContent className='w-80 p-0'>
                 <div className='p-2 border-b'>

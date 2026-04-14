@@ -23,11 +23,20 @@ public record RecipeCollectionDetailResponse(
     RecipeCollectionSharedWorkspaceResponse[] SharedWithWorkspaces
 );
 
-public record RecipeCollectionExportRecipe(string Title, SaveRecipeRequest Payload);
+public record RecipeCollectionExportRecipe(Guid RecipeId, string Title, string? ImageFileName, SaveRecipeRequest Payload);
 
 public record RecipeCollectionExportResponse(
     string CollectionName,
     string? Description,
     DateTime ExportedAtUtc,
     RecipeCollectionExportRecipe[] Recipes
+);
+
+public record RecipeCollectionShareLinkResponse(string ShareToken, string ImportPath, DateTime CreatedAtUtc);
+
+public record RecipeCollectionShareLinkPreviewResponse(
+    string CollectionName,
+    string? Description,
+    string OwnerWorkspaceName,
+    int RecipeCount
 );

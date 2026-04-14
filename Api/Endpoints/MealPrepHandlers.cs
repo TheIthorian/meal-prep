@@ -316,6 +316,7 @@ internal static class RecipesHandlers
         CurrentUserService currentUserService,
         ApiDbContext db,
         RecipeImportService recipeImportService,
+        RecipeImageProcessingService recipeImageProcessingService,
         IS3StorageService s3StorageService,
         Guid workspaceId,
         [FromBody] SaveRecipeRequest body,
@@ -327,7 +328,14 @@ internal static class RecipesHandlers
         var currentUserId = workspaceUser.UserId;
         var recipe = Recipe.CreateNew(workspaceUser.Workspace, body.Title, body.Servings);
         ApplyRecipe(recipe, body);
-        await TryApplyImportedImageAsync(body, recipe, recipeImportService, s3StorageService, cancellationToken);
+        await TryApplyImportedImageAsync(
+            body,
+            recipe,
+            recipeImportService,
+            recipeImageProcessingService,
+            s3StorageService,
+            cancellationToken
+        );
 
         await db.Recipes.AddAsync(recipe);
         await db.SaveChangesAsync(cancellationToken);
@@ -348,6 +356,7 @@ internal static class RecipesHandlers
         CurrentUserService currentUserService,
         ApiDbContext db,
         RecipeImportService recipeImportService,
+        RecipeImageProcessingService recipeImageProcessingService,
         IS3StorageService s3StorageService,
         ILoggerFactory loggerFactory,
         Guid workspaceId,
@@ -441,7 +450,17 @@ internal static class RecipesHandlers
                     await s3StorageService.DeleteFileAsync(existingImageKey);
 
                 await using var stream = new MemoryStream(payload.Data);
-                var key = await s3StorageService.UploadFileAsync(stream, payload.FileName, payload.ContentType);
+                var optimized = await recipeImageProcessingService.OptimizeForWebAsync(
+                    stream,
+                    payload.FileName,
+                    cancellationToken
+                );
+                await using var optimizedStream = new MemoryStream(optimized.Data);
+                var key = await s3StorageService.UploadFileAsync(
+                    optimizedStream,
+                    optimized.FileName,
+                    optimized.ContentType
+                );
                 await recipeQuery.ExecuteUpdateAsync(
                     setters => setters
                         .SetProperty(value => value.ImageObjectKey, key)
@@ -530,6 +549,7 @@ internal static class RecipesHandlers
     public static async Task<JsonHttpResult<RecipeResponse>> PostRecipeImage(
         CurrentUserService currentUserService,
         ApiDbContext db,
+        RecipeImageProcessingService recipeImageProcessingService,
         IS3StorageService s3StorageService,
         Guid workspaceId,
         Guid recipeId,
@@ -564,9 +584,18 @@ internal static class RecipesHandlers
             throw new InvalidFormatException("Unsupported image type", "Use JPEG, PNG, WebP, or GIF.");
         }
 
-        var safeFileName = RecipeImageUploadConstants.FileNameForUpload(file.FileName, file.ContentType);
         await using var readStream = file.OpenReadStream();
-        var newKey = await s3StorageService.UploadFileAsync(readStream, safeFileName, file.ContentType);
+        var optimized = await recipeImageProcessingService.OptimizeForWebAsync(
+            readStream,
+            file.FileName,
+            cancellationToken
+        );
+        await using var optimizedStream = new MemoryStream(optimized.Data);
+        var newKey = await s3StorageService.UploadFileAsync(
+            optimizedStream,
+            optimized.FileName,
+            optimized.ContentType
+        );
 
         if (!string.IsNullOrEmpty(recipe.ImageObjectKey)) {
             await s3StorageService.DeleteFileAsync(recipe.ImageObjectKey);
@@ -691,6 +720,7 @@ internal static class RecipesHandlers
         CurrentUserService currentUserService,
         ApiDbContext db,
         RecipeImportService recipeImportService,
+        RecipeImageProcessingService recipeImageProcessingService,
         IS3StorageService s3StorageService,
         Guid workspaceId,
         [FromBody] ImportRecipeRequest body,
@@ -709,7 +739,14 @@ internal static class RecipesHandlers
 
         var recipe = Recipe.CreateNew(workspaceUser.Workspace, saveRequest.Title, saveRequest.Servings);
         ApplyRecipe(recipe, saveRequest);
-        await TryApplyImportedImageAsync(saveRequest, recipe, recipeImportService, s3StorageService, cancellationToken);
+        await TryApplyImportedImageAsync(
+            saveRequest,
+            recipe,
+            recipeImportService,
+            recipeImageProcessingService,
+            s3StorageService,
+            cancellationToken
+        );
 
         await db.Recipes.AddAsync(recipe, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
@@ -729,6 +766,7 @@ internal static class RecipesHandlers
         SaveRecipeRequest body,
         Recipe recipe,
         RecipeImportService recipeImportService,
+        RecipeImageProcessingService recipeImageProcessingService,
         IS3StorageService s3StorageService,
         CancellationToken cancellationToken
     ) {
@@ -744,7 +782,13 @@ internal static class RecipesHandlers
         if (!string.IsNullOrEmpty(recipe.ImageObjectKey)) await s3StorageService.DeleteFileAsync(recipe.ImageObjectKey);
 
         await using var stream = new MemoryStream(payload.Data);
-        var key = await s3StorageService.UploadFileAsync(stream, payload.FileName, payload.ContentType);
+        var optimized = await recipeImageProcessingService.OptimizeForWebAsync(
+            stream,
+            payload.FileName,
+            cancellationToken
+        );
+        await using var optimizedStream = new MemoryStream(optimized.Data);
+        var key = await s3StorageService.UploadFileAsync(optimizedStream, optimized.FileName, optimized.ContentType);
         recipe.SetImageObjectKey(key);
     }
 
@@ -918,17 +962,16 @@ internal static class MealPlanEntriesHandlers
         var currentUserId = currentUserService.UserId;
         if (currentUserId is null) throw new UnauthorizedException();
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var start = from ?? today.AddDays(-(int)today.DayOfWeek + 1);
-        var end = to ?? start.AddDays(6);
-
         var entries = await db.MealPlanEntries
             .Include(entry => entry.Recipe)
             .AsNoTracking()
             .ForCurrentUser(currentUserId)
             .WhereIsNotDeleted()
-            .Where(entry => entry.WorkspaceId == workspaceId && entry.PlannedDate >= start && entry.PlannedDate <= end)
-            .OrderBy(entry => entry.PlannedDate)
+            .Where(entry => entry.WorkspaceId == workspaceId)
+            .Where(entry => from == null || entry.PlannedDate >= from.Value)
+            .Where(entry => to == null || entry.PlannedDate <= to.Value)
+            .OrderBy(entry => entry.Status == MealPlanEntryStatuses.Completed ? 1 : 0)
+            .ThenBy(entry => entry.PlannedDate)
             .ThenBy(entry => entry.MealType)
             .ToArrayAsync();
 
@@ -955,7 +998,7 @@ internal static class MealPlanEntriesHandlers
         if (recipe is null) throw new EntityNotFoundException("Recipe not found", null);
 
         var entry = MealPlanEntry.CreateNew(workspaceUser.Workspace, recipe, body.PlannedDate, body.MealType);
-        entry.Update(body.PlannedDate, body.MealType, body.TargetServings, body.Notes, body.Status);
+        entry.Update(body.PlannedDate, body.MealType, body.TargetServings, body.Notes, body.Status, body.CompletedAtUtc);
 
         await db.MealPlanEntries.AddAsync(entry);
         await db.SaveChangesAsync();
@@ -1000,7 +1043,7 @@ internal static class MealPlanEntriesHandlers
             entry.ChangeRecipe(recipe);
         }
 
-        entry.Update(body.PlannedDate, body.MealType, body.TargetServings, body.Notes, body.Status);
+        entry.Update(body.PlannedDate, body.MealType, body.TargetServings, body.Notes, body.Status, body.CompletedAtUtc);
         await db.SaveChangesAsync();
 
         return TypedResults.Json(entry.ToMealPlanEntryResponse());
@@ -1103,7 +1146,7 @@ internal static class ShoppingListsHandlers
             .ThenInclude(recipe => recipe.Ingredients)
             .ForCurrentUser(currentUserId)
             .WhereIsNotDeleted()
-            .Where(entry => entry.WorkspaceId == workspaceId && body.MealPlanEntryIds.Contains(entry.Id))
+            .Where(entry => entry.WorkspaceId == workspaceId && body.NextMealIds.Contains(entry.Id))
             .ToArrayAsync();
 
         var sources = recipes.Select(recipe => new ShoppingListGenerationSource(

@@ -16,6 +16,7 @@ public class RecipeCollection : DeletableWorkspaceEntity
 
     public ICollection<RecipeCollectionRecipe> RecipeLinks { get; private set; } = new List<RecipeCollectionRecipe>();
     public ICollection<RecipeCollectionShare> Shares { get; private set; } = new List<RecipeCollectionShare>();
+    public ICollection<RecipeCollectionShareLink> ShareLinks { get; private set; } = new List<RecipeCollectionShareLink>();
 
     [MaxLength(255)] public string Name { get; private set; } = string.Empty;
     [MaxLength(2000)] public string? Description { get; private set; }
@@ -73,5 +74,30 @@ public class RecipeCollectionShare : Entity
 
     public static RecipeCollectionShare CreateNew(Guid recipeCollectionId, Guid sharedWithWorkspaceId) {
         return new RecipeCollectionShare(recipeCollectionId, sharedWithWorkspaceId);
+    }
+}
+
+/// <summary>
+///     A share token that allows importing a collection into a workspace chosen by the recipient.
+/// </summary>
+public class RecipeCollectionShareLink : Entity
+{
+    private RecipeCollectionShareLink() { }
+
+    private RecipeCollectionShareLink(Guid recipeCollectionId, Guid createdByUserId, string token) {
+        RecipeCollectionId = recipeCollectionId;
+        CreatedByUserId = createdByUserId;
+        Token = token;
+    }
+
+    public Guid RecipeCollectionId { get; private set; }
+    public RecipeCollection RecipeCollection { get; private set; } = null!;
+    public Guid CreatedByUserId { get; private set; }
+    public AppUser CreatedByUser { get; private set; } = null!;
+
+    [MaxLength(128)] public string Token { get; private set; } = string.Empty;
+
+    public static RecipeCollectionShareLink CreateNew(Guid recipeCollectionId, Guid createdByUserId, string token) {
+        return new RecipeCollectionShareLink(recipeCollectionId, createdByUserId, token);
     }
 }

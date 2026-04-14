@@ -160,7 +160,7 @@ Requirements:
 Run:
 
 ```bash
-docker compose -f compose.pi-https.yaml up -d --build
+docker compose -f compose.pi-http.yaml up --build
 ```
 
 ### HTTP profile

@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
 import { BookOpen, Star, Users } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 import type { RecipeListItem } from '@/models/meal-prep';
 import { formatRecipeTagLabel } from '@/lib/meal-prep';
 import { motion } from 'framer-motion';
 import { RecipeCoverImage } from '@/components/meal-prep/RecipeCoverImage';
-import { AddToRecipeCollectionMenu } from '@/components/meal-prep/AddToRecipeCollectionMenu';
 import { recipesApi } from '@/lib/api';
 import { analyticsEvents, useAnalytics, withWorkspaceProperties } from '@/lib/analytics';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -14,9 +14,10 @@ interface RecipeCardProps {
     workspaceId: string;
     recipe: RecipeListItem;
     index: number;
+    bottomRightAction?: ReactNode;
 }
 
-export function RecipeCard({ workspaceId, recipe, index }: RecipeCardProps) {
+export function RecipeCard({ workspaceId, recipe, index, bottomRightAction }: RecipeCardProps) {
     const to = `/workspaces/${workspaceId}/recipe/${recipe.id}`;
     const entranceDelay = Math.min(index, 5) * 0.02;
     const queryClient = useQueryClient();
@@ -93,11 +94,6 @@ export function RecipeCard({ workspaceId, recipe, index }: RecipeCardProps) {
                     </div>
                 </div>
             </Link>
-            <AddToRecipeCollectionMenu
-                workspaceId={workspaceId}
-                recipeId={recipe.id}
-                className='absolute left-3 top-3 z-10 opacity-0 transition-opacity group-hover/card:opacity-100 focus-within:opacity-100'
-            />
             <button
                 type='button'
                 aria-label={recipe.isFavorite ? 'Remove from favourites' : 'Add to favourites'}
@@ -114,6 +110,7 @@ export function RecipeCard({ workspaceId, recipe, index }: RecipeCardProps) {
                     className={`h-4 w-4 ${recipe.isFavorite ? 'fill-amber-400 text-amber-500' : 'text-amber-600/90'}`}
                 />
             </button>
+            {bottomRightAction ? <div className='absolute bottom-4 right-3 z-10'>{bottomRightAction}</div> : null}
         </motion.div>
     );
 }

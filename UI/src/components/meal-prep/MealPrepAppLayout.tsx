@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useParams } from 'react-router-dom';
-import { BookOpen, Calendar, ChefHat, FolderOpen, ShoppingCart, Settings } from 'lucide-react';
+import { BookOpen, ChefHat, FolderOpen, ListOrdered, ShoppingCart, Settings } from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import NotFoundError from '@/pages/NotFoundError';
 import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher';
@@ -28,7 +28,7 @@ export function MealPrepAppLayout() {
     const navItems = [
         { to: workspacePath(workspaceId, '/'), icon: BookOpen, label: 'Recipes', end: true },
         { to: workspacePath(workspaceId, 'collections'), icon: FolderOpen, label: 'Collections', end: false },
-        { to: workspacePath(workspaceId, 'planner'), icon: Calendar, label: 'Planner', end: false },
+        { to: workspacePath(workspaceId, 'next-meals'), icon: ListOrdered, label: 'Next Meals', end: false },
         { to: workspacePath(workspaceId, 'shopping'), icon: ShoppingCart, label: 'Shopping', end: false },
         { to: workspacePath(workspaceId, 'settings'), icon: Settings, label: 'Settings', end: false },
     ];

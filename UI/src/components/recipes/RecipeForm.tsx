@@ -6,6 +6,7 @@ import type { Recipe } from '@/models/meal-prep';
 import { buildIngredientDisplay, getNutrientAmount, setNutrientAmount, setServingBasis } from '@/lib/meal-prep';
 import { RecipeTagsField } from '@/components/recipes/RecipeTagsField';
 import { Trash2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface RecipeFormProps {
     recipe: Recipe;
@@ -236,20 +237,26 @@ export function RecipeForm({ recipe, isSaving, onChange, onSubmit, onDelete, wor
                                     />
                                 </div>
                                 <div className='flex items-end md:col-span-1'>
-                                    <Button
-                                        variant='ghost'
-                                        size='icon'
-                                        onClick={() =>
-                                            onChange({
-                                                ...recipe,
-                                                ingredients: recipe.ingredients.filter(
-                                                    (_, ingredientIndex) => ingredientIndex !== index,
-                                                ),
-                                            })
-                                        }
-                                    >
-                                        <Trash2 className='h-4 w-4' />
-                                    </Button>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant='ghost'
+                                                size='icon'
+                                                aria-label='Remove ingredient'
+                                                onClick={() =>
+                                                    onChange({
+                                                        ...recipe,
+                                                        ingredients: recipe.ingredients.filter(
+                                                            (_, ingredientIndex) => ingredientIndex !== index,
+                                                        ),
+                                                    })
+                                                }
+                                            >
+                                                <Trash2 className='h-4 w-4' />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side='bottom'>Remove ingredient</TooltipContent>
+                                    </Tooltip>
                                 </div>
                             </div>
                         </div>
@@ -302,18 +309,24 @@ export function RecipeForm({ recipe, isSaving, onChange, onSubmit, onDelete, wor
                                     />
                                 </div>
                                 <div className='flex items-end md:col-span-1'>
-                                    <Button
-                                        variant='ghost'
-                                        size='icon'
-                                        onClick={() =>
-                                            onChange({
-                                                ...recipe,
-                                                steps: recipe.steps.filter((_, stepIndex) => stepIndex !== index),
-                                            })
-                                        }
-                                    >
-                                        <Trash2 className='h-4 w-4' />
-                                    </Button>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant='ghost'
+                                                size='icon'
+                                                aria-label='Remove step'
+                                                onClick={() =>
+                                                    onChange({
+                                                        ...recipe,
+                                                        steps: recipe.steps.filter((_, stepIndex) => stepIndex !== index),
+                                                    })
+                                                }
+                                            >
+                                                <Trash2 className='h-4 w-4' />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side='bottom'>Remove step</TooltipContent>
+                                    </Tooltip>
                                 </div>
                             </div>
                         </div>

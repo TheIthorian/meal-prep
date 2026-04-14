@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace Api.Endpoints.Requests.MealPrep;
 
-public record GenerateShoppingListRequest(string Name, string? Notes, Guid[] RecipeIds, Guid[] MealPlanEntryIds);
+public record GenerateShoppingListRequest(string Name, string? Notes, Guid[] RecipeIds, Guid[] NextMealIds);
 
 public record SaveShoppingListRequest(string Name, string? Notes);
 
@@ -25,8 +25,8 @@ public class GenerateShoppingListRequestValidator : AbstractValidator<GenerateSh
     public GenerateShoppingListRequestValidator() {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(255);
         RuleFor(x => x)
-            .Must(x => x.RecipeIds.Length > 0 || x.MealPlanEntryIds.Length > 0)
-            .WithMessage("Select at least one recipe or meal-plan entry.");
+            .Must(x => x.RecipeIds.Length > 0 || x.NextMealIds.Length > 0)
+            .WithMessage("Select at least one recipe or next meal.");
     }
 }
 

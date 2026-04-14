@@ -95,7 +95,11 @@ export default function Login() {
 
                             <p className='text-center text-sm text-muted-foreground'>
                                 Don't have an account?{' '}
-                                <Link to='/register' className='font-medium text-primary hover:underline'>
+                                <Link
+                                    to='/register'
+                                    state={{ from: (location.state as LocationState)?.from }}
+                                    className='font-medium text-primary hover:underline'
+                                >
                                     Register
                                 </Link>
                             </p>

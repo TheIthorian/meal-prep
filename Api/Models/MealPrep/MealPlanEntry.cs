@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace Api.Models;
 
 /// <summary>
-///     Represents one planned meal in a workspace calendar.
+///     Represents one queued meal in a workspace's upcoming meals list.
 /// </summary>
 public class MealPlanEntry : DeletableWorkspaceEntity
 {
@@ -23,6 +23,7 @@ public class MealPlanEntry : DeletableWorkspaceEntity
     public decimal? TargetServings { get; private set; }
     [MaxLength(2000)] public string? Notes { get; private set; }
     [MaxLength(64)] public string Status { get; private set; } = MealPlanEntryStatuses.Planned;
+    public DateTime? CompletedAtUtc { get; private set; }
 
     public static MealPlanEntry CreateNew(Workspace workspace, Recipe recipe, DateOnly plannedDate, string mealType) {
         return new MealPlanEntry(workspace, recipe, plannedDate, mealType);
@@ -33,17 +34,25 @@ public class MealPlanEntry : DeletableWorkspaceEntity
         RecipeId = recipe.Id;
     }
 
-    public void Update(DateOnly plannedDate, string mealType, decimal? targetServings, string? notes, string status) {
+    public void Update(
+        DateOnly plannedDate,
+        string mealType,
+        decimal? targetServings,
+        string? notes,
+        string status,
+        DateTime? completedAtUtc
+    ) {
         PlannedDate = plannedDate;
         MealType = mealType;
         TargetServings = targetServings;
         Notes = notes;
         Status = status;
+        CompletedAtUtc = status == MealPlanEntryStatuses.Completed ? (completedAtUtc ?? DateTime.UtcNow) : null;
     }
 }
 
 /// <summary>
-///     Defines the supported meal types for planned meals.
+///     Defines the supported meal types for next meals.
 /// </summary>
 public static class MealPlanEntryMealTypes
 {

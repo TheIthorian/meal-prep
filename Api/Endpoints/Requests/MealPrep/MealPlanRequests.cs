@@ -9,7 +9,8 @@ public record SaveMealPlanEntryRequest(
     string MealType,
     decimal? TargetServings,
     string? Notes,
-    string Status
+    string Status,
+    DateTime? CompletedAtUtc
 );
 
 public class SaveMealPlanEntryRequestValidator : AbstractValidator<SaveMealPlanEntryRequest>

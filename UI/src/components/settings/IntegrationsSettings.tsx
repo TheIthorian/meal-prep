@@ -35,6 +35,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { analyticsEvents, useAnalytics, withWorkspaceProperties } from '@/lib/analytics';
 import type { McpAccessTokenCreated, McpAccessTokenListItem } from '@/models/mcp';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 function formatTokenTimestamp(iso: string) {
     try {
@@ -254,16 +255,21 @@ export function IntegrationsSettings() {
                                                             {row.revokedAt ? (
                                                                 <Badge variant='secondary'>Revoked</Badge>
                                                             ) : (
-                                                                <Button
-                                                                    variant='ghost'
-                                                                    size='icon'
-                                                                    className='h-8 w-8'
-                                                                    onClick={() => setTokenToRevoke(row)}
-                                                                    disabled={revokeToken.isPending}
-                                                                    aria-label='Revoke connection'
-                                                                >
-                                                                    <Trash2 className='h-4 w-4 text-destructive' />
-                                                                </Button>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            variant='ghost'
+                                                                            size='icon'
+                                                                            className='h-8 w-8'
+                                                                            onClick={() => setTokenToRevoke(row)}
+                                                                            disabled={revokeToken.isPending}
+                                                                            aria-label='Revoke connection'
+                                                                        >
+                                                                            <Trash2 className='h-4 w-4 text-destructive' />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent side='bottom'>Revoke connection</TooltipContent>
+                                                                </Tooltip>
                                                             )}
                                                         </div>
                                                     </div>
@@ -311,15 +317,20 @@ export function IntegrationsSettings() {
                                                         </TableCell>
                                                         <TableCell>
                                                             {!row.revokedAt && (
-                                                                <Button
-                                                                    variant='ghost'
-                                                                    size='icon'
-                                                                    onClick={() => setTokenToRevoke(row)}
-                                                                    disabled={revokeToken.isPending}
-                                                                    aria-label='Revoke connection'
-                                                                >
-                                                                    <Trash2 className='h-4 w-4 text-destructive' />
-                                                                </Button>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            variant='ghost'
+                                                                            size='icon'
+                                                                            onClick={() => setTokenToRevoke(row)}
+                                                                            disabled={revokeToken.isPending}
+                                                                            aria-label='Revoke connection'
+                                                                        >
+                                                                            <Trash2 className='h-4 w-4 text-destructive' />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent side='bottom'>Revoke connection</TooltipContent>
+                                                                </Tooltip>
                                                             )}
                                                         </TableCell>
                                                     </TableRow>

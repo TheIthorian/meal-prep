@@ -27,6 +27,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { MemberListItem } from '@/models/workspace';
 import { analyticsEvents, useAnalytics, withWorkspaceProperties } from '@/lib/analytics';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const workspaceSchema = z.object({
     name: z.string().min(1, 'Name is required'),
@@ -238,15 +239,20 @@ export function WorkspaceSettings() {
                                         {workspace.id === currentWorkspace?.workspaceId && (
                                             <Badge className='font-normal'>Current</Badge>
                                         )}
-                                        <Button
-                                            variant='ghost'
-                                            size='icon'
-                                            className='h-9 w-9'
-                                            onClick={() => handleEditClick(workspace)}
-                                            aria-label={`Edit ${workspace.name}`}
-                                        >
-                                            <Pencil className='h-4 w-4' />
-                                        </Button>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant='ghost'
+                                                    size='icon'
+                                                    className='h-9 w-9'
+                                                    onClick={() => handleEditClick(workspace)}
+                                                    aria-label={`Edit ${workspace.name}`}
+                                                >
+                                                    <Pencil className='h-4 w-4' />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side='bottom'>Edit workspace</TooltipContent>
+                                        </Tooltip>
                                     </div>
                                 </li>
                             ))}
@@ -314,14 +320,20 @@ export function WorkspaceSettings() {
                                                                         <SelectItem value='member'>Member</SelectItem>
                                                                     </SelectContent>
                                                                 </Select>
-                                                                <Button
-                                                                    variant='ghost'
-                                                                    size='icon'
-                                                                    className='h-8 w-8'
-                                                                    onClick={() => removeMember.mutate(member.userId)}
-                                                                >
-                                                                    <Trash2 className='h-4 w-4 text-destructive' />
-                                                                </Button>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            variant='ghost'
+                                                                            size='icon'
+                                                                            className='h-8 w-8'
+                                                                            onClick={() => removeMember.mutate(member.userId)}
+                                                                            aria-label={`Remove ${member.displayName}`}
+                                                                        >
+                                                                            <Trash2 className='h-4 w-4 text-destructive' />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent side='bottom'>Remove member</TooltipContent>
+                                                                </Tooltip>
                                                             </>
                                                         )}
                                                     </div>
@@ -376,13 +388,19 @@ export function WorkspaceSettings() {
                                                     </TableCell>
                                                     <TableCell>
                                                         {!isOwner && !isCurrentUser && (
-                                                            <Button
-                                                                variant='ghost'
-                                                                size='icon'
-                                                                onClick={() => removeMember.mutate(member.userId)}
-                                                            >
-                                                                <Trash2 className='h-4 w-4 text-destructive' />
-                                                            </Button>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant='ghost'
+                                                                        size='icon'
+                                                                        onClick={() => removeMember.mutate(member.userId)}
+                                                                        aria-label={`Remove ${member.displayName}`}
+                                                                    >
+                                                                        <Trash2 className='h-4 w-4 text-destructive' />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side='bottom'>Remove member</TooltipContent>
+                                                            </Tooltip>
                                                         )}
                                                     </TableCell>
                                                 </TableRow>

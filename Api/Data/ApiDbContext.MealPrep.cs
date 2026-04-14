@@ -9,6 +9,7 @@ public partial class ApiDbContext
     public DbSet<RecipeCollection> RecipeCollections => Set<RecipeCollection>();
     public DbSet<RecipeCollectionRecipe> RecipeCollectionRecipes => Set<RecipeCollectionRecipe>();
     public DbSet<RecipeCollectionShare> RecipeCollectionShares => Set<RecipeCollectionShare>();
+    public DbSet<RecipeCollectionShareLink> RecipeCollectionShareLinks => Set<RecipeCollectionShareLink>();
     public DbSet<RecipeFavorite> RecipeFavorites => Set<RecipeFavorite>();
     public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
     public DbSet<RecipeStep> RecipeSteps => Set<RecipeStep>();
@@ -54,6 +55,20 @@ public partial class ApiDbContext
             .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<RecipeCollectionShare>()
             .HasIndex(share => new { share.RecipeCollectionId, share.SharedWithWorkspaceId })
+            .IsUnique();
+
+        modelBuilder.Entity<RecipeCollectionShareLink>()
+            .HasOne(link => link.RecipeCollection)
+            .WithMany(collection => collection.ShareLinks)
+            .HasForeignKey(link => link.RecipeCollectionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RecipeCollectionShareLink>()
+            .HasOne(link => link.CreatedByUser)
+            .WithMany()
+            .HasForeignKey(link => link.CreatedByUserId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RecipeCollectionShareLink>()
+            .HasIndex(link => link.Token)
             .IsUnique();
 
         modelBuilder.Entity<RecipeFavorite>().HasKey(favorite => new { favorite.UserId, favorite.RecipeId });

@@ -6,6 +6,9 @@ namespace Api.Services.MealPrep;
 public static class RecipeImageUploadConstants
 {
     public const long MaxBytes = 15 * 1024 * 1024;
+    public const int MaxPixelDimension = 1600;
+    public const string OptimizedContentType = "image/webp";
+    public const string OptimizedExtension = ".webp";
 
     public static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase) {
         "image/jpeg", "image/png", "image/webp", "image/gif",

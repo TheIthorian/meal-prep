@@ -238,18 +238,24 @@ public static class EndpointRouteBuilderExtensions
 
             apiGroup.MapPost(
                     "/workspaces/{workspaceId:guid}/recipe-collections/{collectionId:guid}/share",
-                    RecipeCollectionsHandlers.PostShareRecipeCollection
+                    RecipeCollectionsHandlers.PostCreateShareLink
                 )
-                .WithBodyValidation<ShareRecipeCollectionRequest>()
-                .Produces<RecipeCollectionSharedWorkspaceResponse[]>()
-                .WithName("ShareRecipeCollection");
+                .Produces<RecipeCollectionShareLinkResponse>()
+                .WithName("CreateRecipeCollectionShareLink");
 
-            apiGroup.MapDelete(
-                    "/workspaces/{workspaceId:guid}/recipe-collections/{collectionId:guid}/share/{targetWorkspaceId:guid}",
-                    RecipeCollectionsHandlers.DeleteShareRecipeCollection
+            apiGroup.MapGet(
+                    "/recipe-collection-share/{shareToken}",
+                    RecipeCollectionsHandlers.GetShareLinkPreview
                 )
-                .Produces<RecipeCollectionSharedWorkspaceResponse[]>()
-                .WithName("UnshareRecipeCollection");
+                .Produces<RecipeCollectionShareLinkPreviewResponse>()
+                .WithName("GetRecipeCollectionShareLinkPreview");
+
+            apiGroup.MapPost(
+                    "/workspaces/{workspaceId:guid}/recipe-collection-import/{shareToken}",
+                    RecipeCollectionsHandlers.PostImportFromShareLink
+                )
+                .Produces<RecipeCollectionDetailResponse>()
+                .WithName("ImportRecipeCollectionFromShareLink");
 
             apiGroup.MapGet(
                     "/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}/image",
@@ -275,34 +281,34 @@ public static class EndpointRouteBuilderExtensions
                 .WithName("DeleteRecipeImage");
 
             apiGroup.MapGet(
-                    "/workspaces/{workspaceId:guid}/meal-plan-entries",
+                    "/workspaces/{workspaceId:guid}/next-meals",
                     MealPlanEntriesHandlers.GetMealPlanEntries
                 )
                 .Produces<MealPlanEntryResponse[]>()
-                .WithName("GetMealPlanEntries");
+                .WithName("GetNextMeals");
 
             apiGroup.MapPost(
-                    "/workspaces/{workspaceId:guid}/meal-plan-entries",
+                    "/workspaces/{workspaceId:guid}/next-meals",
                     MealPlanEntriesHandlers.PostMealPlanEntry
                 )
                 .WithBodyValidation<SaveMealPlanEntryRequest>()
                 .Produces<MealPlanEntryResponse>()
-                .WithName("CreateMealPlanEntry");
+                .WithName("CreateNextMeal");
 
             apiGroup.MapPatch(
-                    "/workspaces/{workspaceId:guid}/meal-plan-entries/{mealPlanEntryId:guid}",
+                    "/workspaces/{workspaceId:guid}/next-meals/{mealPlanEntryId:guid}",
                     MealPlanEntriesHandlers.PatchMealPlanEntry
                 )
                 .WithBodyValidation<SaveMealPlanEntryRequest>()
                 .Produces<MealPlanEntryResponse>()
-                .WithName("UpdateMealPlanEntry");
+                .WithName("UpdateNextMeal");
 
             apiGroup.MapDelete(
-                    "/workspaces/{workspaceId:guid}/meal-plan-entries/{mealPlanEntryId:guid}",
+                    "/workspaces/{workspaceId:guid}/next-meals/{mealPlanEntryId:guid}",
                     MealPlanEntriesHandlers.DeleteMealPlanEntry
                 )
                 .Produces(StatusCodes.Status200OK)
-                .WithName("DeleteMealPlanEntry");
+                .WithName("DeleteNextMeal");
 
             apiGroup.MapGet("/workspaces/{workspaceId:guid}/shopping-lists", ShoppingListsHandlers.GetShoppingLists)
                 .Produces<ShoppingListListItemResponse[]>()

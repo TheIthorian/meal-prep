@@ -38,6 +38,9 @@ export function MealPlanEntryDialog({
     const [targetServings, setTargetServings] = useState<string>(entry?.targetServings?.toString() ?? '');
     const [notes, setNotes] = useState(entry?.notes ?? '');
     const [status, setStatus] = useState(entry?.status ?? 'planned');
+    const [completedAtUtc, setCompletedAtUtc] = useState<string>(() =>
+        entry?.completedAtUtc ? entry.completedAtUtc.slice(0, 10) : '',
+    );
 
     useEffect(() => {
         if (!open) return;
@@ -47,6 +50,7 @@ export function MealPlanEntryDialog({
         setTargetServings(entry?.targetServings?.toString() ?? '');
         setNotes(entry?.notes ?? '');
         setStatus(entry?.status ?? 'planned');
+        setCompletedAtUtc(entry?.completedAtUtc ? entry.completedAtUtc.slice(0, 10) : '');
     }, [defaultMealType, entry, open, recipes, selectedDate]);
 
     const handleSave = async () => {
@@ -59,6 +63,12 @@ export function MealPlanEntryDialog({
                 targetServings: targetServings === '' ? null : Number(targetServings),
                 notes: notes || null,
                 status,
+                completedAtUtc:
+                    status === 'completed'
+                        ? completedAtUtc
+                            ? `${completedAtUtc}T12:00:00Z`
+                            : new Date().toISOString()
+                        : null,
             };
 
             const savedEntry = entry
@@ -93,7 +103,7 @@ export function MealPlanEntryDialog({
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>{entry ? 'Edit planned meal' : 'Plan a meal'}</DialogTitle>
+                    <DialogTitle>{entry ? 'Edit next meal' : 'Add next meal'}</DialogTitle>
                 </DialogHeader>
 
                 <div className='space-y-4'>
@@ -113,7 +123,7 @@ export function MealPlanEntryDialog({
                     </div>
                     <div className='grid gap-4 md:grid-cols-2'>
                         <div className='space-y-2'>
-                            <label className='text-sm font-medium'>Date</label>
+                            <label className='text-sm font-medium'>Target Date</label>
                             <Input
                                 type='date'
                                 value={plannedDate}
@@ -158,6 +168,16 @@ export function MealPlanEntryDialog({
                             </select>
                         </div>
                     </div>
+                    {status === 'completed' && (
+                        <div className='space-y-2'>
+                            <label className='text-sm font-medium'>Completed On</label>
+                            <Input
+                                type='date'
+                                value={completedAtUtc}
+                                onChange={event => setCompletedAtUtc(event.target.value)}
+                            />
+                        </div>
+                    )}
                     <div className='space-y-2'>
                         <label className='text-sm font-medium'>Notes</label>
                         <Textarea
@@ -175,7 +195,7 @@ export function MealPlanEntryDialog({
                             <span />
                         )}
                         <Button onClick={handleSave} disabled={!recipeId || isSaving}>
-                            {isSaving ? 'Saving...' : entry ? 'Save Changes' : 'Add Meal'}
+                            {isSaving ? 'Saving...' : entry ? 'Save Changes' : 'Add to Next Meals'}
                         </Button>
                     </div>
                 </div>

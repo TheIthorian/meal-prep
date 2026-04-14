@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Download, Share2, Trash2, X } from 'lucide-react';
-import { recipeCollectionsApi } from '@/lib/api';
+import { ArrowLeft, ChevronsUpDown, Download, Minus, Plus, Share2, Trash2, Upload } from 'lucide-react';
+import { recipeCollectionsApi, recipesApi } from '@/lib/api';
 import { RecipeCard } from '@/components/meal-prep/RecipeCard';
 import { LoadingState } from '@/components/common/LoadingState';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -17,15 +17,20 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from '@/hooks/use-toast';
 import { analyticsEvents, useAnalytics, withWorkspaceProperties } from '@/lib/analytics';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import type { RecipeCollectionExport } from '@/models/meal-prep';
 
 function workspacePath(workspaceId: string, subPath: string) {
     const trimmed = subPath.replace(/^\//, '');
@@ -36,6 +41,29 @@ function slugifyDownloadName(name: string) {
     return name.replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').slice(0, 80) || 'recipes';
 }
 
+async function writeExportToDirectory(
+    targetDir: FileSystemDirectoryHandle,
+    ownerWorkspaceId: string,
+    data: RecipeCollectionExport,
+) {
+    const jsonHandle = await targetDir.getFileHandle('collection-export.json', { create: true });
+    const jsonWriter = await jsonHandle.createWritable();
+    await jsonWriter.write(JSON.stringify(data, null, 2));
+    await jsonWriter.close();
+
+    const imagesDir = await targetDir.getDirectoryHandle('images', { create: true });
+    for (const recipe of data.recipes) {
+        if (!recipe.imageFileName) continue;
+        const response = await fetch(`/api/v1/workspaces/${ownerWorkspaceId}/recipes/${recipe.recipeId}/image`);
+        if (!response.ok) continue;
+        const blob = await response.blob();
+        const imageHandle = await imagesDir.getFileHandle(recipe.imageFileName, { create: true });
+        const imageWriter = await imageHandle.createWritable();
+        await imageWriter.write(blob);
+        await imageWriter.close();
+    }
+}
+
 export default function RecipeCollectionPage() {
     const { workspaceId = '', collectionId = '' } = useParams<{
         workspaceId: string;
@@ -43,10 +71,12 @@ export default function RecipeCollectionPage() {
     }>();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const { workspaces, currentWorkspace } = useWorkspace();
+    const { currentWorkspace } = useWorkspace();
     const { capture } = useAnalytics();
     const [deleteOpen, setDeleteOpen] = useState(false);
-    const [shareTargetId, setShareTargetId] = useState<string>('');
+    const [recipePickerOpen, setRecipePickerOpen] = useState(false);
+    const [shareDialogOpen, setShareDialogOpen] = useState(false);
+    const [lastShareLink, setLastShareLink] = useState<string | null>(null);
 
     const { data: detail, isLoading } = useQuery({
         queryKey: ['recipe-collection', workspaceId, collectionId],
@@ -55,13 +85,23 @@ export default function RecipeCollectionPage() {
     });
 
     const ownerWorkspaceId = detail?.ownerWorkspaceId ?? workspaceId;
+    const collectionRecipeIds = useMemo(() => new Set(detail?.recipes.map(recipe => recipe.id) ?? []), [detail?.recipes]);
 
-    const shareOptions = useMemo(() => {
-        if (!detail) return [];
-        return workspaces.filter(
-            w => w.workspaceId !== detail.ownerWorkspaceId && !detail.sharedWithWorkspaces.some(s => s.workspaceId === w.workspaceId),
-        );
-    }, [detail, workspaces]);
+    const { data: allRecipesPage, isLoading: isLoadingAllRecipes } = useQuery({
+        queryKey: ['recipes', ownerWorkspaceId, '', 'collection-add'],
+        queryFn: () =>
+            recipesApi.getAll(ownerWorkspaceId, {
+                page: 1,
+                pageSize: 500,
+                includeArchived: false,
+            }),
+        enabled: Boolean(ownerWorkspaceId) && Boolean(detail?.canEdit),
+    });
+
+    const availableRecipes = useMemo(
+        () => (allRecipesPage?.data ?? []).filter(recipe => !collectionRecipeIds.has(recipe.id)),
+        [allRecipesPage?.data, collectionRecipeIds],
+    );
 
     const deleteCollection = useMutation({
         mutationFn: () => recipeCollectionsApi.remove(detail!.ownerWorkspaceId, collectionId),
@@ -73,44 +113,35 @@ export default function RecipeCollectionPage() {
         },
     });
 
-    const shareMutation = useMutation({
-        mutationFn: (targetWorkspaceId: string) =>
-            recipeCollectionsApi.share(detail!.ownerWorkspaceId, collectionId, targetWorkspaceId),
-        onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ['recipe-collection', workspaceId, collectionId] });
-            void queryClient.invalidateQueries({ queryKey: ['recipe-collections', workspaceId] });
-            setShareTargetId('');
-            toast({ title: 'Collection shared' });
-            if (currentWorkspace) {
-                capture(
-                    analyticsEvents.recipeCollectionShared,
-                    withWorkspaceProperties(currentWorkspace, { collection_id: collectionId }),
-                );
-            }
+    const createShareLink = useMutation({
+        mutationFn: () => recipeCollectionsApi.createShareLink(detail!.ownerWorkspaceId, collectionId),
+        onSuccess: async data => {
+            const absoluteUrl = `${window.location.origin}${data.importPath}`;
+            await navigator.clipboard.writeText(absoluteUrl);
+            setLastShareLink(absoluteUrl);
+            toast({ title: 'Magic link copied' });
         },
     });
 
-    const unshareMutation = useMutation({
-        mutationFn: (targetWorkspaceId: string) =>
-            recipeCollectionsApi.unshare(detail!.ownerWorkspaceId, collectionId, targetWorkspaceId),
-        onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ['recipe-collection', workspaceId, collectionId] });
-            void queryClient.invalidateQueries({ queryKey: ['recipe-collections', workspaceId] });
-            toast({ title: 'Sharing removed' });
-        },
-    });
-
-    async function handleExport() {
+    async function handleExportDirectory() {
         if (!detail) return;
         try {
             const data = await recipeCollectionsApi.exportJson(workspaceId, collectionId);
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${slugifyDownloadName(data.collectionName)}-collection.json`;
-            a.click();
-            URL.revokeObjectURL(url);
+            const picker = (window as Window & { showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle> })
+                .showDirectoryPicker;
+            if (!picker) {
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${slugifyDownloadName(data.collectionName)}-collection.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                toast({ title: 'Directory export unavailable, downloaded JSON instead' });
+                return;
+            }
+            const exportDir = await picker();
+            await writeExportToDirectory(exportDir, ownerWorkspaceId, data);
             if (currentWorkspace) {
                 capture(
                     analyticsEvents.recipeCollectionExported,
@@ -120,9 +151,57 @@ export default function RecipeCollectionPage() {
                     }),
                 );
             }
-            toast({ title: 'Download started' });
+            toast({ title: 'Export complete' });
         } catch {
             toast({ title: 'Export failed', variant: 'destructive' });
+        }
+    }
+
+    async function handleImportDirectory() {
+        if (!detail) return;
+        try {
+            const picker = (window as Window & { showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle> })
+                .showDirectoryPicker;
+            if (!picker) {
+                toast({ title: 'Import not supported in this browser', variant: 'destructive' });
+                return;
+            }
+            const importDir = await picker();
+            const fileHandle = await importDir.getFileHandle('collection-export.json');
+            const file = await fileHandle.getFile();
+            const json = (await file.text()) as string;
+            const data = JSON.parse(json) as RecipeCollectionExport;
+
+            const created = await recipeCollectionsApi.create(workspaceId, {
+                name: `${data.collectionName} (Imported)`,
+                description: data.description ?? null,
+            });
+
+            let imagesDir: FileSystemDirectoryHandle | null = null;
+            try {
+                imagesDir = await importDir.getDirectoryHandle('images');
+            } catch {
+                imagesDir = null;
+            }
+
+            for (const item of data.recipes) {
+                const recipe = await recipesApi.create(workspaceId, item.payload);
+                await recipeCollectionsApi.addRecipe(workspaceId, created.id, recipe.id);
+                if (imagesDir && item.imageFileName) {
+                    try {
+                        const imageHandle = await imagesDir.getFileHandle(item.imageFileName);
+                        const imageFile = await imageHandle.getFile();
+                        await recipesApi.uploadImage(workspaceId, recipe.id, new File([imageFile], imageFile.name));
+                    } catch {
+                        // Continue importing even if one image is missing.
+                    }
+                }
+            }
+
+            toast({ title: 'Import complete' });
+            navigate(workspacePath(workspaceId, `collections/${created.id}`));
+        } catch {
+            toast({ title: 'Import failed', variant: 'destructive' });
         }
     }
 
@@ -133,6 +212,30 @@ export default function RecipeCollectionPage() {
             void queryClient.invalidateQueries({ queryKey: ['recipe-collection', workspaceId, collectionId] });
             void queryClient.invalidateQueries({ queryKey: ['recipe-collections', workspaceId] });
             toast({ title: 'Removed from collection' });
+        },
+    });
+
+    const addRecipe = useMutation({
+        mutationFn: (recipeId: string) => recipeCollectionsApi.addRecipe(detail!.ownerWorkspaceId, collectionId, recipeId),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ['recipe-collection', workspaceId, collectionId] });
+            void queryClient.invalidateQueries({ queryKey: ['recipe-collections', workspaceId] });
+            void queryClient.invalidateQueries({ queryKey: ['recipes', ownerWorkspaceId, '', 'collection-add'] });
+            toast({ title: 'Added to collection' });
+        },
+    });
+
+    const addAllRecipes = useMutation({
+        mutationFn: async () => {
+            for (const recipe of availableRecipes) {
+                await recipeCollectionsApi.addRecipe(detail!.ownerWorkspaceId, collectionId, recipe.id);
+            }
+        },
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ['recipe-collection', workspaceId, collectionId] });
+            void queryClient.invalidateQueries({ queryKey: ['recipe-collections', workspaceId] });
+            void queryClient.invalidateQueries({ queryKey: ['recipes', ownerWorkspaceId, '', 'collection-add'] });
+            toast({ title: `Added ${availableRecipes.length} recipes` });
         },
     });
 
@@ -167,10 +270,38 @@ export default function RecipeCollectionPage() {
                         ) : null}
                     </div>
                     <div className='flex flex-wrap gap-2'>
-                        <Button type='button' variant='outline' size='sm' className='gap-1.5' onClick={() => void handleExport()}>
+                        <Button
+                            type='button'
+                            variant='outline'
+                            size='sm'
+                            className='gap-1.5'
+                            onClick={() => void handleExportDirectory()}
+                        >
                             <Download className='h-4 w-4' />
-                            Download JSON
+                            Export
                         </Button>
+                        {detail.canEdit ? (
+                            <Button type='button' variant='outline' size='sm' className='gap-1.5' onClick={() => void handleImportDirectory()}>
+                                <Upload className='h-4 w-4' />
+                                Import
+                            </Button>
+                        ) : null}
+                        {detail.canEdit ? (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        type='button'
+                                        variant='outline'
+                                        size='icon'
+                                        aria-label='Share collection'
+                                        onClick={() => setShareDialogOpen(true)}
+                                    >
+                                        <Share2 className='h-4 w-4' />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side='bottom'>Share with magic link</TooltipContent>
+                            </Tooltip>
+                        ) : null}
                         {detail.canEdit ? (
                             <>
                                 <Button
@@ -191,58 +322,68 @@ export default function RecipeCollectionPage() {
 
             {detail.canEdit && (
                 <div className='mb-8 rounded-lg border border-border bg-card p-4'>
-                    <div className='mb-3 flex items-center gap-2 text-sm font-medium text-foreground'>
-                        <Share2 className='h-4 w-4' />
-                        Share with another workspace
-                    </div>
-                    <p className='mb-3 text-xs text-muted-foreground'>
-                        Members of that workspace will see this collection in their sidebar. They still need access to
-                        recipes in the owner workspace to open them.
-                    </p>
-                    <div className='flex flex-wrap items-end gap-2'>
-                        <div className='min-w-[200px] flex-1'>
-                            <Select value={shareTargetId} onValueChange={setShareTargetId}>
-                                <SelectTrigger aria-label='Workspace to share with'>
-                                    <SelectValue placeholder='Choose workspace…' />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {shareOptions.map(w => (
-                                        <SelectItem key={w.workspaceId} value={w.workspaceId}>
-                                            {w.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                    <div className='mb-3 flex items-center justify-between gap-3'>
+                        <div>
+                            <p className='text-sm font-medium text-foreground'>Add recipes</p>
+                            <p className='text-xs text-muted-foreground'>
+                                Search your library and add one recipe, or bulk add everything not yet in this collection.
+                            </p>
                         </div>
                         <Button
                             type='button'
+                            variant='outline'
                             size='sm'
-                            disabled={!shareTargetId || shareMutation.isPending}
-                            onClick={() => void shareMutation.mutateAsync(shareTargetId)}
+                            disabled={availableRecipes.length === 0 || addAllRecipes.isPending}
+                            onClick={() => void addAllRecipes.mutateAsync()}
                         >
-                            Share
+                            Add all ({availableRecipes.length})
                         </Button>
                     </div>
-                    {detail.sharedWithWorkspaces.length > 0 && (
-                        <ul className='mt-4 flex flex-wrap gap-2'>
-                            {detail.sharedWithWorkspaces.map(sw => (
-                                <li
-                                    key={sw.workspaceId}
-                                    className='flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-xs'
-                                >
-                                    <span>{sw.workspaceName}</span>
-                                    <button
-                                        type='button'
-                                        className='rounded p-0.5 text-muted-foreground hover:bg-background hover:text-foreground'
-                                        aria-label={`Stop sharing with ${sw.workspaceName}`}
-                                        onClick={() => void unshareMutation.mutateAsync(sw.workspaceId)}
-                                    >
-                                        <X className='h-3.5 w-3.5' />
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
+
+                    <Popover open={recipePickerOpen} onOpenChange={setRecipePickerOpen}>
+                        <PopoverTrigger asChild>
+                            <Button
+                                type='button'
+                                variant='outline'
+                                role='combobox'
+                                aria-expanded={recipePickerOpen}
+                                className='w-full justify-between'
+                                disabled={isLoadingAllRecipes || availableRecipes.length === 0 || addRecipe.isPending}
+                            >
+                                <span className='truncate text-left'>
+                                    {isLoadingAllRecipes
+                                        ? 'Loading recipes...'
+                                        : availableRecipes.length > 0
+                                          ? 'Search recipes to add...'
+                                          : 'All recipes are already in this collection'}
+                                </span>
+                                <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className='w-[var(--radix-popover-trigger-width)] p-0' align='start'>
+                            <Command>
+                                <CommandInput placeholder='Search recipes...' />
+                                <CommandList>
+                                    <CommandEmpty>No matching recipes</CommandEmpty>
+                                    <CommandGroup>
+                                        {availableRecipes.map(recipe => (
+                                            <CommandItem
+                                                key={recipe.id}
+                                                value={`${recipe.title} ${recipe.description ?? ''}`}
+                                                onSelect={() => {
+                                                    void addRecipe.mutateAsync(recipe.id);
+                                                    setRecipePickerOpen(false);
+                                                }}
+                                            >
+                                                <Plus className='mr-2 h-4 w-4 text-muted-foreground' />
+                                                <span className='truncate'>{recipe.title}</span>
+                                            </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
                 </div>
             )}
 
@@ -256,22 +397,36 @@ export default function RecipeCollectionPage() {
             {detail.recipes.length > 0 && (
                 <div className='grid gap-6 sm:grid-cols-2 lg:grid-cols-3'>
                     {detail.recipes.map((recipe, index) => (
-                        <div key={recipe.id} className='flex flex-col gap-2 sm:flex-row sm:items-stretch'>
-                            <div className='min-w-0 flex-1'>
-                                <RecipeCard workspaceId={ownerWorkspaceId} recipe={recipe} index={index} />
-                            </div>
-                            {detail.canEdit ? (
-                                <Button
-                                    type='button'
-                                    variant='outline'
-                                    size='sm'
-                                    className='shrink-0 self-start sm:mt-2 sm:self-start'
-                                    onClick={() => void removeRecipe.mutateAsync(recipe.id)}
-                                    disabled={removeRecipe.isPending}
-                                >
-                                    Remove
-                                </Button>
-                            ) : null}
+                        <div key={recipe.id} className='min-w-0'>
+                            <RecipeCard
+                                workspaceId={ownerWorkspaceId}
+                                recipe={recipe}
+                                index={index}
+                                bottomRightAction={
+                                    detail.canEdit ? (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    type='button'
+                                                    variant='secondary'
+                                                    size='icon'
+                                                    className='h-8 w-8'
+                                                    aria-label={`Remove ${recipe.title} from collection`}
+                                                    onClick={e => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        void removeRecipe.mutateAsync(recipe.id);
+                                                    }}
+                                                    disabled={removeRecipe.isPending}
+                                                >
+                                                    <Minus className='h-4 w-4' />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side='left'>Remove from collection</TooltipContent>
+                                        </Tooltip>
+                                    ) : null
+                                }
+                            />
                         </div>
                     ))}
                 </div>
@@ -297,6 +452,33 @@ export default function RecipeCollectionPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Share with magic link</DialogTitle>
+                        <DialogDescription>
+                            Generate a link you can send to anyone. When opened, they can import this collection into a workspace of their choice.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {lastShareLink ? (
+                        <div className='rounded-md border border-border bg-muted/30 p-3 text-sm text-muted-foreground break-all'>
+                            {lastShareLink}
+                        </div>
+                    ) : null}
+
+                    <DialogFooter>
+                        <Button
+                            type='button'
+                            onClick={() => void createShareLink.mutateAsync()}
+                            disabled={createShareLink.isPending}
+                        >
+                            {lastShareLink ? 'Generate new link and copy' : 'Generate and copy link'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

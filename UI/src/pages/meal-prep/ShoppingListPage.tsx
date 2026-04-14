@@ -21,7 +21,7 @@ import { ShoppingListGeneratorDialog } from '@/components/shopping/ShoppingListG
 import { LoadingState } from '@/components/common/LoadingState';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { ShoppingList as ShoppingListModel, ShoppingListItem, ShoppingListListItem } from '@/models/meal-prep';
-import { getShoppingListProgress, startOfWeek, toDateInputValue, addDays } from '@/lib/meal-prep';
+import { getShoppingListProgress } from '@/lib/meal-prep';
 
 function formatShoppingListDate(iso: string | null | undefined) {
     if (!iso) return null;
@@ -37,12 +37,6 @@ export default function ShoppingListPage() {
     const { capture } = useAnalytics();
     const [activeListId, setActiveListId] = useState<string | null>(null);
     const [listPendingDelete, setListPendingDelete] = useState<ShoppingListListItem | null>(null);
-
-    const weekRange = useMemo(() => {
-        const start = startOfWeek(new Date());
-        const end = addDays(start, 6);
-        return { from: toDateInputValue(start), to: toDateInputValue(end) };
-    }, []);
 
     const { data: listSummaries = [], isLoading: listsLoading } = useQuery({
         queryKey: ['shopping-lists', workspaceId],
@@ -65,8 +59,8 @@ export default function ShoppingListPage() {
     });
 
     const { data: planEntries = [] } = useQuery({
-        queryKey: ['meal-plan', workspaceId, weekRange.from, weekRange.to, 'shop'],
-        queryFn: () => mealPlanApi.getAll(workspaceId, { from: weekRange.from, to: weekRange.to }),
+        queryKey: ['meal-plan', workspaceId, 'shop'],
+        queryFn: () => mealPlanApi.getAll(workspaceId),
         enabled: Boolean(workspaceId),
     });
 
@@ -136,7 +130,7 @@ export default function ShoppingListPage() {
                 <div className='space-y-6'>
                     <EmptyState
                         title='No shopping list yet'
-                        description='Generate a list from your recipes and planned meals.'
+                        description='Generate a list from your recipes and next meals.'
                     />
                     <div className='flex justify-center'>
                         <ShoppingListGeneratorDialog

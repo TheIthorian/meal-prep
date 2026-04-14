@@ -26,7 +26,7 @@ export function ShoppingListGeneratorDialog({
     const [name, setName] = useState('Weekly shop');
     const [notes, setNotes] = useState('');
     const [selectedRecipeIds, setSelectedRecipeIds] = useState<string[]>([]);
-    const [selectedMealPlanEntryIds, setSelectedMealPlanEntryIds] = useState<string[]>(entries.map(entry => entry.id));
+    const [selectedNextMealIds, setSelectedNextMealIds] = useState<string[]>(entries.map(entry => entry.id));
 
     const sortedEntries = useMemo(
         () =>
@@ -46,7 +46,7 @@ export function ShoppingListGeneratorDialog({
                 name,
                 notes: notes || null,
                 recipeIds: selectedRecipeIds,
-                mealPlanEntryIds: selectedMealPlanEntryIds,
+                nextMealIds: selectedNextMealIds,
             });
 
             onGenerated(shoppingList);
@@ -83,11 +83,11 @@ export function ShoppingListGeneratorDialog({
                     </div>
 
                     <div className='space-y-3'>
-                        <h3 className='text-sm font-semibold'>Planned Meals</h3>
+                        <h3 className='text-sm font-semibold'>Next Meals</h3>
                         <div className='space-y-2'>
                             {sortedEntries.length === 0 && (
                                 <p className='text-sm text-muted-foreground'>
-                                    No meal-plan entries found for the current view.
+                                    No next meals found yet.
                                 </p>
                             )}
                             {sortedEntries.map(entry => (
@@ -96,9 +96,9 @@ export function ShoppingListGeneratorDialog({
                                     className='flex items-start gap-3 rounded-lg border border-border p-3'
                                 >
                                     <Checkbox
-                                        checked={selectedMealPlanEntryIds.includes(entry.id)}
+                                        checked={selectedNextMealIds.includes(entry.id)}
                                         onCheckedChange={() =>
-                                            setSelectedMealPlanEntryIds(currentValue =>
+                                            setSelectedNextMealIds(currentValue =>
                                                 toggleValue(currentValue, entry.id),
                                             )
                                         }
@@ -142,9 +142,7 @@ export function ShoppingListGeneratorDialog({
                     <div className='flex justify-end'>
                         <Button
                             onClick={handleGenerate}
-                            disabled={
-                                isSaving || (selectedMealPlanEntryIds.length === 0 && selectedRecipeIds.length === 0)
-                            }
+                            disabled={isSaving || (selectedNextMealIds.length === 0 && selectedRecipeIds.length === 0)}
                         >
                             {isSaving ? 'Generating...' : 'Generate List'}
                         </Button>

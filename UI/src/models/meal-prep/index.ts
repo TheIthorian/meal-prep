@@ -171,7 +171,9 @@ export interface PatchRecipeCollectionRequest {
 }
 
 export interface RecipeCollectionExportRecipe {
+    recipeId: string;
     title: string;
+    imageFileName?: string | null;
     payload: SaveRecipeRequest;
 }
 
@@ -180,6 +182,19 @@ export interface RecipeCollectionExport {
     description?: string | null;
     exportedAtUtc: string;
     recipes: RecipeCollectionExportRecipe[];
+}
+
+export interface RecipeCollectionShareLink {
+    shareToken: string;
+    importPath: string;
+    createdAtUtc: string;
+}
+
+export interface RecipeCollectionShareLinkPreview {
+    collectionName: string;
+    description?: string | null;
+    ownerWorkspaceName: string;
+    recipeCount: number;
 }
 
 export interface RecipeImportPreview {
@@ -196,7 +211,7 @@ export interface RecipeImportPreview {
     imageUrl?: string | null;
 }
 
-export interface MealPlanEntry {
+export interface NextMeal {
     id: string;
     workspaceId: string;
     recipeId: string;
@@ -207,15 +222,17 @@ export interface MealPlanEntry {
     targetServings?: number | null;
     notes?: string | null;
     status: string;
+    completedAtUtc?: string | null;
 }
 
-export interface SaveMealPlanEntryRequest {
+export interface SaveNextMealRequest {
     recipeId: string;
     plannedDate: string;
     mealType: string;
     targetServings?: number | null;
     notes?: string | null;
     status: string;
+    completedAtUtc?: string | null;
 }
 
 export interface ShoppingListListItem {
@@ -247,7 +264,7 @@ export interface ShoppingListItem {
 export interface ShoppingListSource {
     id: string;
     recipeId?: string | null;
-    mealPlanEntryId?: string | null;
+    nextMealId?: string | null;
     sourceName: string;
 }
 
@@ -265,8 +282,12 @@ export interface GenerateShoppingListRequest {
     name: string;
     notes?: string | null;
     recipeIds: string[];
-    mealPlanEntryIds: string[];
+    nextMealIds: string[];
 }
+
+// Backward-compat aliases while UI migrates off "meal plan" naming.
+export type MealPlanEntry = NextMeal;
+export type SaveMealPlanEntryRequest = SaveNextMealRequest;
 
 export interface SaveShoppingListRequest {
     name: string;

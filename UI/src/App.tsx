@@ -16,6 +16,7 @@ import RecipeLibraryPage from './pages/meal-prep/RecipeLibraryPage';
 import RecipeDetailPage from './pages/meal-prep/RecipeDetailPage';
 import RecipeCollectionsListPage from './pages/meal-prep/RecipeCollectionsListPage';
 import RecipeCollectionPage from './pages/meal-prep/RecipeCollectionPage';
+import RecipeCollectionShareImportPage from './pages/meal-prep/RecipeCollectionShareImportPage';
 import WeeklyPlannerPage from './pages/meal-prep/WeeklyPlannerPage';
 import ShoppingListPage from './pages/meal-prep/ShoppingListPage';
 import ShoppingModePage from './pages/meal-prep/ShoppingModePage';
@@ -83,7 +84,7 @@ const App = () => (
                                             <Route path='collections' element={<RecipeCollectionsListPage />} />
                                             <Route path='collections/:collectionId' element={<RecipeCollectionPage />} />
                                             <Route path='recipe/:recipeId' element={<RecipeDetailPage />} />
-                                            <Route path='planner' element={<WeeklyPlannerPage />} />
+                                            <Route path='next-meals' element={<WeeklyPlannerPage />} />
                                             <Route path='shopping' element={<ShoppingListPage />} />
                                             <Route path='settings' element={<Settings />} />
                                         </Route>
@@ -93,6 +94,14 @@ const App = () => (
                                             element={
                                                 <ProtectedRoute>
                                                     <ShoppingModePage />
+                                                </ProtectedRoute>
+                                            }
+                                        />
+                                        <Route
+                                            path='/share/recipe-collections/:shareToken'
+                                            element={
+                                                <ProtectedRoute>
+                                                    <RecipeCollectionShareImportPage />
                                                 </ProtectedRoute>
                                             }
                                         />

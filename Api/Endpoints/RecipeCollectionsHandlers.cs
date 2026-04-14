@@ -124,12 +124,12 @@ internal static class RecipeCollectionsHandlers
             sharedWith = await db.RecipeCollectionShares
                 .AsNoTracking()
                 .Where(share => share.RecipeCollectionId == collectionId)
+                .OrderBy(share => share.SharedWithWorkspace.Name)
                 .Select(share => new RecipeCollectionSharedWorkspaceResponse(
                         share.SharedWithWorkspaceId,
                         share.SharedWithWorkspace.Name
                     )
                 )
-                .OrderBy(share => share.WorkspaceName)
                 .ToArrayAsync(cancellationToken);
         }
 
@@ -353,7 +353,13 @@ internal static class RecipeCollectionsHandlers
         recipes = recipes.OrderBy(recipe => order.GetValueOrDefault(recipe.Id, int.MaxValue)).ToArray();
 
         var exportRecipes = recipes
-            .Select(recipe => new RecipeCollectionExportRecipe(recipe.Title, RecipeExportMapper.ToSaveRecipeRequest(recipe)))
+            .Select(recipe => new RecipeCollectionExportRecipe(
+                    recipe.Id,
+                    recipe.Title,
+                    string.IsNullOrEmpty(recipe.ImageObjectKey) ? null : $"{recipe.Id}.webp",
+                    RecipeExportMapper.ToSaveRecipeRequest(recipe)
+                )
+            )
             .ToArray();
 
         return TypedResults.Json(
@@ -367,101 +373,212 @@ internal static class RecipeCollectionsHandlers
     }
 
     [Authorize]
-    public static async Task<JsonHttpResult<RecipeCollectionSharedWorkspaceResponse[]>> PostShareRecipeCollection(
+    public static async Task<JsonHttpResult<RecipeCollectionShareLinkResponse>> PostCreateShareLink(
         CurrentUserService currentUserService,
         ApiDbContext db,
         Guid workspaceId,
         Guid collectionId,
-        [FromBody] ShareRecipeCollectionRequest body,
         CancellationToken cancellationToken
     ) {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
-        var userId = workspaceUser.UserId;
-
         var collection = await db.RecipeCollections
             .Where(c => c.Id == collectionId && c.WorkspaceId == workspaceId && !c.IsDeleted)
-            .ForCurrentUser(userId)
+            .ForCurrentUser(workspaceUser.UserId)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (collection is null) throw new EntityNotFoundException("Collection not found", null);
 
-        if (body.TargetWorkspaceId == workspaceId)
-            throw new InvalidFormatException("Invalid share target", "Choose a different workspace than the collection owner.");
-
-        var targetOk = await db.WorkspaceUsers.AnyAsync(
-            wu => wu.UserId == userId && wu.WorkspaceId == body.TargetWorkspaceId,
-            cancellationToken
-        );
-
-        if (!targetOk)
-            throw new ForbiddenActionException("Cannot share with that workspace", "You are not a member of the target workspace.");
-
-        var exists = await db.RecipeCollectionShares.AnyAsync(
-            share => share.RecipeCollectionId == collectionId && share.SharedWithWorkspaceId == body.TargetWorkspaceId,
-            cancellationToken
-        );
-
-        if (!exists) {
-            await db.RecipeCollectionShares.AddAsync(
-                RecipeCollectionShare.CreateNew(collectionId, body.TargetWorkspaceId),
-                cancellationToken
-            );
-            await db.SaveChangesAsync(cancellationToken);
-        }
+        var token = Guid.NewGuid().ToString("N");
+        var link = RecipeCollectionShareLink.CreateNew(collectionId, workspaceUser.UserId, token);
+        await db.RecipeCollectionShareLinks.AddAsync(link, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
 
         return TypedResults.Json(
-            await db.RecipeCollectionShares
-                .AsNoTracking()
-                .Where(share => share.RecipeCollectionId == collectionId)
-                .Select(share => new RecipeCollectionSharedWorkspaceResponse(
-                        share.SharedWithWorkspaceId,
-                        share.SharedWithWorkspace.Name
-                    )
-                )
-                .OrderBy(share => share.WorkspaceName)
-                .ToArrayAsync(cancellationToken)
+            new RecipeCollectionShareLinkResponse(
+                token,
+                $"/share/recipe-collections/{token}",
+                DateTime.UtcNow
+            )
         );
     }
 
     [Authorize]
-    public static async Task<JsonHttpResult<RecipeCollectionSharedWorkspaceResponse[]>> DeleteShareRecipeCollection(
+    public static async Task<JsonHttpResult<RecipeCollectionShareLinkPreviewResponse>> GetShareLinkPreview(
         CurrentUserService currentUserService,
         ApiDbContext db,
+        string shareToken,
+        CancellationToken cancellationToken
+    ) {
+        var currentUserId = currentUserService.UserId;
+        if (currentUserId is null) throw new UnauthorizedException();
+
+        var link = await db.RecipeCollectionShareLinks
+            .AsNoTracking()
+            .Where(link => link.Token == shareToken)
+            .Include(link => link.RecipeCollection)
+            .ThenInclude(collection => collection.Workspace)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (link is null || link.RecipeCollection.IsDeleted)
+            throw new EntityNotFoundException("Share link not found", null);
+
+        var recipeCount = await db.RecipeCollectionRecipes
+            .AsNoTracking()
+            .CountAsync(recipe => recipe.RecipeCollectionId == link.RecipeCollectionId, cancellationToken);
+
+        return TypedResults.Json(
+            new RecipeCollectionShareLinkPreviewResponse(
+                link.RecipeCollection.Name,
+                link.RecipeCollection.Description,
+                link.RecipeCollection.Workspace.Name,
+                recipeCount
+            )
+        );
+    }
+
+    [Authorize]
+    public static async Task<JsonHttpResult<RecipeCollectionDetailResponse>> PostImportFromShareLink(
+        CurrentUserService currentUserService,
+        ApiDbContext db,
+        IS3StorageService s3StorageService,
         Guid workspaceId,
-        Guid collectionId,
-        Guid targetWorkspaceId,
+        string shareToken,
         CancellationToken cancellationToken
     ) {
         var workspaceUser = await currentUserService.GetCurrentWorkspaceUserAsync(workspaceId);
         if (workspaceUser is null) throw new EntityNotFoundException("workspace not found", null);
 
-        var userId = workspaceUser.UserId;
-
-        var collection = await db.RecipeCollections
-            .Where(c => c.Id == collectionId && c.WorkspaceId == workspaceId && !c.IsDeleted)
-            .ForCurrentUser(userId)
+        var link = await db.RecipeCollectionShareLinks
+            .Where(value => value.Token == shareToken)
+            .Include(value => value.RecipeCollection)
+            .ThenInclude(collection => collection.Workspace)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (collection is null) throw new EntityNotFoundException("Collection not found", null);
+        if (link is null || link.RecipeCollection.IsDeleted)
+            throw new EntityNotFoundException("Share link not found", null);
 
-        await db.RecipeCollectionShares
-            .Where(share => share.RecipeCollectionId == collectionId && share.SharedWithWorkspaceId == targetWorkspaceId)
-            .ExecuteDeleteAsync(cancellationToken);
+        var sourceCollection = link.RecipeCollection;
+        var sourceRecipeIds = await db.RecipeCollectionRecipes
+            .AsNoTracking()
+            .Where(value => value.RecipeCollectionId == sourceCollection.Id)
+            .OrderBy(value => value.SortOrder)
+            .Select(value => value.RecipeId)
+            .ToArrayAsync(cancellationToken);
+
+        var sourceRecipes = await db.Recipes
+            .AsNoTracking()
+            .WhereIsNotDeleted()
+            .Where(value => sourceRecipeIds.Contains(value.Id) && value.WorkspaceId == sourceCollection.WorkspaceId)
+            .Include(value => value.Ingredients)
+            .Include(value => value.Steps)
+            .Include(value => value.Nutrition)
+            .ToArrayAsync(cancellationToken);
+
+        var sourceOrder = sourceRecipeIds.Select((id, idx) => (id, idx)).ToDictionary(x => x.id, x => x.idx);
+        sourceRecipes = sourceRecipes.OrderBy(value => sourceOrder.GetValueOrDefault(value.Id, int.MaxValue)).ToArray();
+
+        var targetCollection = RecipeCollection.CreateNew(
+            workspaceUser.Workspace,
+            $"{sourceCollection.Name} (Imported)",
+            sourceCollection.Description
+        );
+        await db.RecipeCollections.AddAsync(targetCollection, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var importedRecipes = new List<Recipe>();
+        var sortOrder = 0;
+        foreach (var sourceRecipe in sourceRecipes) {
+            var importedRecipe = await CloneRecipeToWorkspaceAsync(
+                sourceRecipe,
+                workspaceUser.Workspace,
+                s3StorageService,
+                cancellationToken
+            );
+            importedRecipes.Add(importedRecipe);
+            await db.Recipes.AddAsync(importedRecipe, cancellationToken);
+            await db.RecipeCollectionRecipes.AddAsync(
+                RecipeCollectionRecipe.CreateNew(targetCollection.Id, importedRecipe.Id, sortOrder++),
+                cancellationToken
+            );
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        var listItems = importedRecipes
+            .Select(recipe => recipe.ToRecipeListItemResponse(isFavorite: false))
+            .ToArray();
 
         return TypedResults.Json(
-            await db.RecipeCollectionShares
-                .AsNoTracking()
-                .Where(share => share.RecipeCollectionId == collectionId)
-                .Select(share => new RecipeCollectionSharedWorkspaceResponse(
-                        share.SharedWithWorkspaceId,
-                        share.SharedWithWorkspace.Name
+            new RecipeCollectionDetailResponse(
+                targetCollection.Id,
+                targetCollection.Name,
+                targetCollection.Description,
+                targetCollection.WorkspaceId,
+                true,
+                listItems,
+                []
+            )
+        );
+    }
+
+    private static async Task<Recipe> CloneRecipeToWorkspaceAsync(
+        Recipe sourceRecipe,
+        Workspace targetWorkspace,
+        IS3StorageService s3StorageService,
+        CancellationToken cancellationToken
+    ) {
+        var recipe = Recipe.CreateNew(targetWorkspace, sourceRecipe.Title, sourceRecipe.Servings);
+        recipe.UpdateDetails(
+            sourceRecipe.Title,
+            sourceRecipe.Description,
+            sourceRecipe.Servings,
+            sourceRecipe.SourceUrl,
+            sourceRecipe.Notes,
+            sourceRecipe.PrepMinutes,
+            sourceRecipe.CookMinutes,
+            sourceRecipe.IsArchived,
+            RecipeTagWhitelist.NormalizeToWhitelist(sourceRecipe.Tags)
+        );
+        recipe.ReplaceIngredients(
+            sourceRecipe.Ingredients
+                .OrderBy(value => value.SortOrder)
+                .Select((value, index) => RecipeIngredient.CreateNew(
+                        index,
+                        value.Name,
+                        value.DisplayText,
+                        value.Amount,
+                        value.Unit,
+                        value.NormalizedIngredientName,
+                        value.PreparationNote,
+                        value.Section
                     )
                 )
-                .OrderBy(share => share.WorkspaceName)
-                .ToArrayAsync(cancellationToken)
         );
+        recipe.ReplaceSteps(
+            sourceRecipe.Steps
+                .OrderBy(value => value.SortOrder)
+                .Select((value, index) => RecipeStep.CreateNew(index, value.Instruction, value.TimerSeconds))
+        );
+        recipe.SetNutrition(
+            sourceRecipe.NutritionServingBasis,
+            sourceRecipe.Nutrition
+                .Select(value => RecipeNutrition.CreateNew(value.NutrientType, value.Amount))
+                .ToArray()
+        );
+
+        if (!string.IsNullOrEmpty(sourceRecipe.ImageObjectKey)) {
+            await using var imageStream = await s3StorageService.DownloadFileAsync(sourceRecipe.ImageObjectKey);
+            var imageObjectKey = await s3StorageService.UploadFileAsync(
+                imageStream,
+                $"{recipe.Id}.webp",
+                "image/webp"
+            );
+            recipe.SetImageObjectKey(imageObjectKey);
+        }
+
+        return recipe;
     }
 
     private static async Task<(RecipeCollection? Collection, bool CanEdit)> TryResolveCollectionAsync(

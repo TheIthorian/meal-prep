@@ -12,7 +12,8 @@ public record MealPlanEntryResponse(
     string MealType,
     decimal? TargetServings,
     string? Notes,
-    string Status
+    string Status,
+    DateTime? CompletedAtUtc
 );
 
 /// <summary>
@@ -33,7 +34,8 @@ public static class MealPlanResponseTransforms
                 entry.MealType,
                 entry.TargetServings,
                 entry.Notes,
-                entry.Status
+                entry.Status,
+                entry.CompletedAtUtc
             );
         }
     }
