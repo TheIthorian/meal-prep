@@ -22,6 +22,7 @@ builder.Services.AddMealPrepMcpServer();
 var app = builder.Build();
 
 app.LogStartupConfiguration();
+app.LogStartupUrls();
 await app.ApplyMigrationsAsync();
 
 var forwardedHeadersOptions = new ForwardedHeadersOptions {

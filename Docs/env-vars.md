@@ -26,6 +26,8 @@ For Railway-style production setup, start from `Infra/environments/production.en
 - `ASPNETCORE_ENVIRONMENT`: ASP.NET Core environment (`Development`, `Production`, etc.).
 - `ASPNETCORE_HTTP_PORTS`: HTTP port(s) Kestrel should listen on.
 - `ASPNETCORE_HTTPS_PORTS`: HTTPS port(s) Kestrel should listen on (optional if TLS is terminated by a proxy).
+- `Logging__LogLevel__Default`: Default API log level override (for example `Warning`).
+- `Logging__LogLevel__Microsoft__AspNetCore`: ASP.NET Core framework log level override.
 
 ## App roles
 

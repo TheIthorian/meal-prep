@@ -32,7 +32,7 @@ CORS_ORIGINS=http://localhost,http://localhost:80,http://localhost:5001
 From repo root:
 
 ```bash
-docker compose up -d --build
+docker compose -f compose.http.yaml up -d --build
 ```
 
 This starts API + PostgreSQL + Redis + MinIO.
