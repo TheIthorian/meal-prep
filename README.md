@@ -132,3 +132,69 @@ The main workspace package names are:
 - Storage: MinIO
 - Observability: OpenTelemetry
 - CI/CD: GitHub Actions
+
+## Raspberry Pi Deploy Profiles
+
+Two Pi-oriented compose profiles are available at the repo root:
+
+- `compose.pi-https.yaml`: HTTPS LAN deployment with Caddy TLS termination.
+- `compose.pi-http.yaml`: HTTP-only LAN deployment (no certificates required).
+
+### HTTPS profile
+
+Files used:
+
+- `compose.pi-https.yaml`
+- `Infra/Caddyfile.pi`
+- `UI/Dockerfile`
+- `UI/Caddyfile`
+
+Requirements:
+
+- Place certificate files at:
+  - `Infra/certs/cert.pem`
+  - `Infra/certs/key.pem`
+- Ensure your Pi deploy step writes runtime env vars to `.docker.env`.
+- Include your HTTPS origin in `CORS_ORIGINS` (for example `https://mealprep.local`).
+
+Run:
+
+```bash
+docker compose -f compose.pi-https.yaml up -d --build
+```
+
+### HTTP profile
+
+Files used:
+
+- `compose.pi-http.yaml`
+- `Infra/Caddyfile.pi-http`
+- `UI/Dockerfile`
+- `UI/Caddyfile`
+
+Notes:
+
+- This profile sets `ASPNETCORE_ENVIRONMENT=Development` for API cookie compatibility over plain HTTP.
+- Include your HTTP origin in `CORS_ORIGINS` (for example `http://192.168.1.98` or `http://mealprep.local`).
+
+Run:
+
+```bash
+docker compose -f compose.pi-http.yaml up -d --build
+```
+
+### Verify deployment
+
+HTTPS:
+
+```bash
+curl -kI https://mealprep.local
+curl -kI https://mealprep.local/api/v1/me
+```
+
+HTTP:
+
+```bash
+curl -I http://192.168.1.98
+curl -I http://192.168.1.98/api/v1/me
+```
