@@ -35,7 +35,15 @@ export default function RecipeLibraryPage() {
                 includeArchived: false,
             }),
         initialPageParam: 1,
-        getNextPageParam: lastPage => (lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined),
+        getNextPageParam: lastPage => {
+            // Defensive guard for stale cache entries with unexpected shape.
+            if (!lastPage || typeof lastPage !== 'object') return undefined;
+            if (!('page' in lastPage) || !('totalPages' in lastPage)) return undefined;
+
+            const page = typeof lastPage.page === 'number' ? lastPage.page : 1;
+            const totalPages = typeof lastPage.totalPages === 'number' ? lastPage.totalPages : 1;
+            return page < totalPages ? page + 1 : undefined;
+        },
         enabled: Boolean(workspaceId),
     });
 
@@ -57,7 +65,7 @@ export default function RecipeLibraryPage() {
         return () => observer.disconnect();
     }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-    const recipes = useMemo(() => data?.pages.flatMap(page => page.data) ?? [], [data?.pages]);
+    const recipes = useMemo(() => data?.pages.flatMap(page => page?.data ?? []) ?? [], [data?.pages]);
     const totalCount = data?.pages[0]?.totalCount ?? recipes.length;
 
     const allTags = useMemo(

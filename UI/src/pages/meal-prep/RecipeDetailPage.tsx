@@ -88,7 +88,7 @@ export default function RecipeDetailPage() {
     const [isEditing, setIsEditing] = useState(false);
     const [draftRecipe, setDraftRecipe] = useState<Recipe | null>(null);
 
-    const { data: recipe, isLoading } = useQuery({
+    const { data: recipe, isLoading, isError, error, refetch } = useQuery({
         queryKey: ['recipe', workspaceId, recipeId],
         queryFn: () => recipesApi.getById(workspaceId, recipeId),
         enabled: Boolean(workspaceId && recipeId),
@@ -97,7 +97,8 @@ export default function RecipeDetailPage() {
 
     /** Same request as the library with an empty search — order matches prev/next in the grid (title, API default). */
     const { data: recipesPage } = useQuery({
-        queryKey: ['recipes', workspaceId, ''],
+        // Keep this key distinct from the library's infinite query to avoid cache-shape collisions.
+        queryKey: ['recipes-page', workspaceId, 'detail-nav'],
         queryFn: () =>
             recipesApi.getAll(workspaceId, {
                 page: 1,
@@ -151,6 +152,12 @@ export default function RecipeDetailPage() {
         navigate,
         deleteDialogOpen,
     ]);
+
+    useEffect(() => {
+        setDeleteDialogOpen(false);
+        setIsEditing(false);
+        setDraftRecipe(null);
+    }, [recipeId]);
 
     const setFavoriteRecipe = useMutation({
         mutationFn: (next: boolean) => recipesApi.setFavorite(workspaceId, recipeId, next),
@@ -258,6 +265,26 @@ export default function RecipeDetailPage() {
         if (!recipe) return [];
         return scaleRecipeIngredients(recipe.ingredients, baseServings, targetServings);
     }, [recipe, baseServings, targetServings]);
+
+    if (isError) {
+        const description = error instanceof Error ? error.message : 'Something went wrong while loading this recipe.';
+        return (
+            <div className='mx-auto max-w-3xl px-4 py-10 md:px-8'>
+                <div className='rounded-xl border border-destructive/30 bg-card p-5'>
+                    <h2 className='font-heading text-xl text-foreground'>Could not load recipe</h2>
+                    <p className='mt-2 text-sm text-muted-foreground'>{description}</p>
+                    <div className='mt-4 flex gap-2'>
+                        <Button type='button' variant='outline' onClick={() => void refetch()}>
+                            Try again
+                        </Button>
+                        <Button type='button' variant='ghost' asChild>
+                            <Link to={`/workspaces/${workspaceId}/`}>Back to recipes</Link>
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     if (isLoading || !recipe) {
         return (
