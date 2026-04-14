@@ -104,6 +104,10 @@ public class RecipeImportService(
         string imageUrl,
         CancellationToken cancellationToken = default
     ) {
+        var inlinePayload = TryParseInlineImageDataUrl(imageUrl);
+        if (inlinePayload is not null)
+            return inlinePayload;
+
         if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri)) return null;
 
         var imageClient = httpClientFactory.CreateClient(RecipeImageImportHttpClientName);
@@ -166,6 +170,47 @@ public class RecipeImportService(
         }
 
         return null;
+    }
+
+    private static ImportedRecipeImagePayload? TryParseInlineImageDataUrl(string imageUrl) {
+        if (string.IsNullOrWhiteSpace(imageUrl)
+            || !imageUrl.StartsWith("data:", StringComparison.OrdinalIgnoreCase)) {
+            return null;
+        }
+
+        var commaIndex = imageUrl.IndexOf(',');
+        if (commaIndex < 0)
+            return null;
+
+        var header = imageUrl[..commaIndex];
+        var payload = imageUrl[(commaIndex + 1)..];
+        var mediaTypeToken = header["data:".Length..];
+        var headerParts = mediaTypeToken.Split(';', StringSplitOptions.RemoveEmptyEntries);
+
+        if (headerParts.Length == 0)
+            return null;
+
+        var mediaType = headerParts[0].Trim();
+        if (!RecipeImageUploadConstants.IsAllowedContentType(mediaType))
+            return null;
+
+        var isBase64 = headerParts.Skip(1)
+            .Any(value => string.Equals(value.Trim(), "base64", StringComparison.OrdinalIgnoreCase));
+        if (!isBase64)
+            return null;
+
+        byte[] bytes;
+        try {
+            bytes = Convert.FromBase64String(payload.Trim());
+        } catch (FormatException) {
+            return null;
+        }
+
+        if (bytes.Length == 0 || bytes.Length > RecipeImageUploadConstants.MaxBytes)
+            return null;
+
+        var fileName = RecipeImageUploadConstants.FileNameForUpload("imported-image", mediaType);
+        return new ImportedRecipeImagePayload(bytes, mediaType, fileName);
     }
 
     private static bool IsRecipeImageRedirect(HttpStatusCode statusCode) {

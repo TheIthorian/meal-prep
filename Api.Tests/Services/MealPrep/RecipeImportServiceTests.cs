@@ -175,6 +175,35 @@ public class RecipeImportServiceTests
     }
 
     [Fact]
+    public async Task TryDownloadImportImageAsync_AcceptsBase64DataUrl() {
+        var imageClient = new HttpClient(new StubHttpMessageHandler("<html></html>"));
+        var factory = new StubRecipeImageClientFactory(imageClient);
+        var previewClient = new HttpClient(new StubHttpMessageHandler("<html></html>"));
+        var service = CreateRecipeImportService(previewClient, factory);
+        var dataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9p8Qh3cAAAAASUVORK5CYII=";
+
+        var payload = await service.TryDownloadImportImageAsync(dataUrl);
+
+        Assert.NotNull(payload);
+        Assert.Equal("image/png", payload.ContentType);
+        Assert.Equal("imported-image.png", payload.FileName);
+        Assert.True(payload.Data.Length > 0);
+    }
+
+    [Fact]
+    public async Task TryDownloadImportImageAsync_RejectsDataUrlWithoutBase64Flag() {
+        var imageClient = new HttpClient(new StubHttpMessageHandler("<html></html>"));
+        var factory = new StubRecipeImageClientFactory(imageClient);
+        var previewClient = new HttpClient(new StubHttpMessageHandler("<html></html>"));
+        var service = CreateRecipeImportService(previewClient, factory);
+        var dataUrl = "data:image/png,not-base64";
+
+        var payload = await service.TryDownloadImportImageAsync(dataUrl);
+
+        Assert.Null(payload);
+    }
+
+    [Fact]
     public async Task PreviewAsync_WhenHeuristicsFailAndLlmDisabled_Throws() {
         var html = """
                    <html>
