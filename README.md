@@ -23,9 +23,18 @@ Then update at least these keys in `.docker.env`:
 Jwt__Issuer=meal-prep.local
 Jwt__Audience=meal-prep.local
 Jwt__Key=replace-with-a-long-random-secret
+OpenAI__BaseUrl=https://api.openai.com/v1
 OpenAI__ApiKey=replace-with-your-api-key
 CORS_ORIGINS=http://localhost,http://localhost:80,http://localhost:5001
 ```
+
+Notes:
+
+- `OpenAI__ApiKey` is required for AI-powered features such as AI recipe import/OCR, ingredient categorization, and AI tag suggestions.
+- The app can still start and non-AI features can still work without an OpenAI key.
+- `OpenAI__BaseUrl` lets you switch to an OpenAI-compatible provider such as OpenRouter.
+- [OpenRouter](https://openrouter.ai/) is encouraged for better observability and uptime across AI requests.
+- Get an OpenRouter API key from [OpenRouter Keys](https://openrouter.ai/keys).
 
 ### 2) Build and run
 

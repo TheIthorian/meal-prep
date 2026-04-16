@@ -61,9 +61,9 @@ For Railway-style production setup, start from `Infra/environments/production.en
 
 ## OpenAI-compatible API
 
-- `OpenAI__ApiKey`: API key used for LLM features.
-- `OpenAI__BaseUrl`: Optional custom OpenAI-compatible base URL (for OpenRouter or other providers).
-- `OpenAI__Model`: Model ID used by LLM features.
+- `OpenAI__ApiKey`: API key used for LLM features. Required for AI-powered features, but not required for the app to boot.
+- `OpenAI__BaseUrl`: OpenAI-compatible base URL. The example files default to OpenRouter (`https://openrouter.ai/api/v1`).
+- `OpenAI__Model`: Model ID used by LLM features. The example files default to `openai/gpt-4o-mini` for OpenRouter compatibility.
 
 ## CORS
 
