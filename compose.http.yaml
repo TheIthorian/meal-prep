@@ -49,6 +49,7 @@ services:
       - db
       - minio
       - redis
+    restart: unless-stopped
     networks:
       - meal-prep-net
 
@@ -80,6 +81,7 @@ services:
       - "9001:9001"
     volumes:
       - miniodata:/data
+    restart: unless-stopped
     networks:
       - meal-prep-net
 
