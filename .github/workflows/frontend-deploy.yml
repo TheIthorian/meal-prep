@@ -35,7 +35,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
 
@@ -59,7 +59,16 @@ jobs:
             exit 0
           fi
 
-          MESSAGES=$(jq -r '[.[].message | gsub("\\r?\\n"; " ")] | join("; ")' <<< "$COMMITS_JSON")
+          # Subject lines only, with quotes/backticks/$ stripped: the result is interpolated into
+          # the deploy step's shell command, where those characters would end the --commit-message
+          # argument early or execute as shell. The field is cosmetic, so length is capped too.
+          MESSAGES=$(
+            jq -r '[.[].message | split("\n")[0]] | join("; ")' <<< "$COMMITS_JSON" \
+              | tr -d '"`$\\' \
+              | tr -d "'" \
+              | tr '\n' ' ' \
+              | cut -c1-300
+          )
 
           if [ -z "$MESSAGES" ]; then
             MESSAGES="No Commit Messages"
