@@ -21,22 +21,18 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { toast } from '@/hooks/use-toast';
 import { analyticsEvents, useAnalytics, withWorkspaceProperties } from '@/lib/analytics';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import {
+    CollectionBundleTooLargeError,
+    MAX_IMPORT_RECIPES,
+    pickCollectionBundleFile,
+    readCollectionArchive,
+} from '@/lib/collection-transfer';
 import type { RecipeCollectionExport } from '@/models/meal-prep';
 import { Progress } from '@/components/ui/progress';
 
 function workspacePath(workspaceId: string, subPath: string) {
     const trimmed = subPath.replace(/^\//, '');
     return `/workspaces/${workspaceId}/${trimmed}`;
-}
-
-async function pickJsonFile(): Promise<File | null> {
-    return await new Promise(resolve => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'application/json,.json';
-        input.onchange = () => resolve(input.files?.[0] ?? null);
-        input.click();
-    });
 }
 
 function toRecipeIdentityKey(title?: string | null, sourceUrl?: string | null) {
@@ -54,18 +50,22 @@ function dedupeExportRecipes(data: RecipeCollectionExport) {
     return { unique, duplicatesOmitted: data.recipes.length - unique.length };
 }
 
-async function loadExistingRecipeIdentityKeys(workspaceId: string) {
-    const keys = new Set<string>();
+/** Recipes already in the workspace, keyed by title+sourceUrl so an import can reuse them. */
+async function loadExistingRecipesByIdentity(workspaceId: string) {
+    const existing = new Map<string, string>();
     const pageSize = 100;
     let page = 1;
     let totalCount = 0;
     do {
         const response = await recipesApi.getAll(workspaceId, { page, pageSize, includeArchived: true });
         totalCount = response.totalCount;
-        for (const recipe of response.data) keys.add(toRecipeIdentityKey(recipe.title, recipe.sourceUrl ?? null));
+        for (const recipe of response.data) {
+            const key = toRecipeIdentityKey(recipe.title, recipe.sourceUrl ?? null);
+            if (!existing.has(key)) existing.set(key, recipe.id);
+        }
         page += 1;
     } while ((page - 1) * pageSize < totalCount);
-    return keys;
+    return existing;
 }
 
 export default function RecipeCollectionsListPage() {
@@ -87,14 +87,14 @@ export default function RecipeCollectionsListPage() {
         createdCollectionId: string | null;
         importedCount: number;
         duplicatesOmitted: number;
-        skippedExisting: number;
+        linkedExisting: number;
         failedTitles: string[];
     }>({
         isOpen: false,
         createdCollectionId: null,
         importedCount: 0,
         duplicatesOmitted: 0,
-        skippedExisting: 0,
+        linkedExisting: 0,
         failedTitles: [],
     });
 
@@ -129,46 +129,38 @@ export default function RecipeCollectionsListPage() {
 
     async function handleImport() {
         try {
-            const picker = (window as Window & { showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle> })
-                .showDirectoryPicker;
+            const bundleFile = await pickCollectionBundleFile();
+            if (!bundleFile) return;
 
             let data: RecipeCollectionExport;
-            let imagesDir: FileSystemDirectoryHandle | null = null;
-
-            if (picker) {
-                const importDir = await picker();
-                const fileHandle = await importDir.getFileHandle('collection-export.json');
-                const file = await fileHandle.getFile();
-                data = JSON.parse(await file.text()) as RecipeCollectionExport;
-                try {
-                    imagesDir = await importDir.getDirectoryHandle('images');
-                } catch {
-                    imagesDir = null;
-                }
-            } else {
-                const jsonFile = await pickJsonFile();
-                if (!jsonFile) return;
-                data = JSON.parse(await jsonFile.text()) as RecipeCollectionExport;
-                toast({ title: 'Directory import unavailable, imported from JSON instead' });
+            let images: Map<string, Blob>;
+            try {
+                ({ data, images } = await readCollectionArchive(bundleFile));
+            } catch (error) {
+                toast(
+                    error instanceof CollectionBundleTooLargeError
+                        ? {
+                              title: 'Bundle too large',
+                              description: `That bundle holds ${error.recipeCount} recipes. Imports are capped at ${MAX_IMPORT_RECIPES}.`,
+                              variant: 'destructive',
+                          }
+                        : {
+                              title: 'Could not read that file',
+                              description: 'Pick the .zip (or .json) file produced by Export.',
+                              variant: 'destructive',
+                          },
+                );
+                return;
             }
 
             const deduped = dedupeExportRecipes(data);
-            const existingKeys = await loadExistingRecipeIdentityKeys(workspaceId);
-            const candidates = deduped.unique.filter(
-                item => !existingKeys.has(toRecipeIdentityKey(item.payload.title, item.payload.sourceUrl ?? null)),
-            );
-            const skippedExisting = deduped.unique.length - candidates.length;
+            const existingRecipes = await loadExistingRecipesByIdentity(workspaceId);
             const failedTitles: string[] = [];
             let importedCount = 0;
+            let linkedExisting = 0;
 
-            if (candidates.length === 0) {
-                toast({
-                    title: 'Nothing to import',
-                    description:
-                        skippedExisting > 0
-                            ? `All ${skippedExisting} recipe${skippedExisting === 1 ? '' : 's'} already exist in this workspace.`
-                            : 'No importable recipes found.',
-                });
+            if (deduped.unique.length === 0) {
+                toast({ title: 'Nothing to import', description: 'No recipes found in that bundle.' });
                 return;
             }
 
@@ -177,26 +169,34 @@ export default function RecipeCollectionsListPage() {
                 description: data.description ?? null,
             });
 
-            setImportState({
-                isOpen: true,
-                current: 0,
-                total: candidates.length,
-                label: `Importing 0 of ${candidates.length} recipes`,
-            });
+            const total = deduped.unique.length;
+            setImportState({ isOpen: true, current: 0, total, label: `Importing 0 of ${total} recipes` });
 
-            for (const [index, item] of candidates.entries()) {
+            for (const [index, item] of deduped.unique.entries()) {
+                const identityKey = toRecipeIdentityKey(item.payload.title, item.payload.sourceUrl ?? null);
                 try {
-                    const recipe = await recipesApi.create(workspaceId, item.payload);
-                    await recipeCollectionsApi.addRecipe(workspaceId, created.id, recipe.id);
-                    existingKeys.add(toRecipeIdentityKey(item.payload.title, item.payload.sourceUrl ?? null));
-                    importedCount += 1;
-                    if (imagesDir && item.imageFileName) {
-                        try {
-                            const imageHandle = await imagesDir.getFileHandle(item.imageFileName);
-                            const imageFile = await imageHandle.getFile();
-                            await recipesApi.uploadImage(workspaceId, recipe.id, new File([imageFile], imageFile.name));
-                        } catch {
-                            // non-blocking image error
+                    // A recipe already in this workspace is linked into the new collection rather than
+                    // duplicated, so re-importing a bundle still produces a usable collection.
+                    const existingId = existingRecipes.get(identityKey);
+                    if (existingId) {
+                        await recipeCollectionsApi.addRecipe(workspaceId, created.id, existingId);
+                        linkedExisting += 1;
+                    } else {
+                        const recipe = await recipesApi.create(workspaceId, item.payload);
+                        await recipeCollectionsApi.addRecipe(workspaceId, created.id, recipe.id);
+                        existingRecipes.set(identityKey, recipe.id);
+                        importedCount += 1;
+                        const imageBlob = item.imageFileName ? images.get(item.imageFileName) : undefined;
+                        if (imageBlob && item.imageFileName) {
+                            try {
+                                await recipesApi.uploadImage(
+                                    workspaceId,
+                                    recipe.id,
+                                    new File([imageBlob], item.imageFileName, { type: 'image/webp' }),
+                                );
+                            } catch {
+                                // non-blocking image error
+                            }
                         }
                     }
                 } catch {
@@ -204,23 +204,19 @@ export default function RecipeCollectionsListPage() {
                 }
 
                 const current = index + 1;
-                setImportState({
-                    isOpen: true,
-                    current,
-                    total: candidates.length,
-                    label: `Importing ${current} of ${candidates.length} recipes`,
-                });
+                setImportState({ isOpen: true, current, total, label: `Importing ${current} of ${total} recipes` });
             }
 
             void queryClient.invalidateQueries({ queryKey: ['recipe-collections', workspaceId] });
             toast({
                 title: failedTitles.length > 0 ? 'Import complete with skipped items' : 'Import complete',
                 description: [
+                    `Added ${importedCount} new recipe${importedCount === 1 ? '' : 's'}.`,
+                    linkedExisting > 0
+                        ? `Linked ${linkedExisting} recipe${linkedExisting === 1 ? '' : 's'} already in this workspace.`
+                        : null,
                     deduped.duplicatesOmitted > 0
                         ? `Omitted ${deduped.duplicatesOmitted} duplicate recipe${deduped.duplicatesOmitted === 1 ? '' : 's'}.`
-                        : null,
-                    skippedExisting > 0
-                        ? `Skipped ${skippedExisting} existing recipe${skippedExisting === 1 ? '' : 's'}.`
                         : null,
                     failedTitles.length > 0
                         ? `Failed and skipped ${failedTitles.length} item${failedTitles.length === 1 ? '' : 's'}.`
@@ -231,18 +227,13 @@ export default function RecipeCollectionsListPage() {
                 variant: failedTitles.length > 0 ? 'destructive' : 'default',
             });
 
-            setImportState({
-                isOpen: false,
-                current: candidates.length,
-                total: candidates.length,
-                label: '',
-            });
+            setImportState({ isOpen: false, current: total, total, label: '' });
             setImportSummary({
                 isOpen: true,
                 createdCollectionId: created.id,
                 importedCount,
                 duplicatesOmitted: deduped.duplicatesOmitted,
-                skippedExisting,
+                linkedExisting,
                 failedTitles,
             });
         } catch {
@@ -379,10 +370,11 @@ export default function RecipeCollectionsListPage() {
                                 {importSummary.duplicatesOmitted === 1 ? '' : 's'} from the import file.
                             </p>
                         ) : null}
-                        {importSummary.skippedExisting > 0 ? (
+                        {importSummary.linkedExisting > 0 ? (
                             <p>
-                                Skipped {importSummary.skippedExisting} existing recipe
-                                {importSummary.skippedExisting === 1 ? '' : 's'} already in this workspace.
+                                Linked {importSummary.linkedExisting} recipe
+                                {importSummary.linkedExisting === 1 ? '' : 's'} already in this workspace instead of
+                                duplicating {importSummary.linkedExisting === 1 ? 'it' : 'them'}.
                             </p>
                         ) : null}
                         {importSummary.failedTitles.length > 0 ? (

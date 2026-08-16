@@ -27,10 +27,11 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Progress } from '@/components/ui/progress';
 import { toast } from '@/hooks/use-toast';
 import { analyticsEvents, useAnalytics, withWorkspaceProperties } from '@/lib/analytics';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { buildCollectionZip, downloadBlob, slugifyDownloadName } from '@/lib/collection-transfer';
+import { recipeImageRequestUrl } from '@/lib/meal-prep';
 import type { RecipeCollectionExport, RecipeListItem } from '@/models/meal-prep';
 
 function workspacePath(workspaceId: string, subPath: string) {
@@ -38,64 +39,22 @@ function workspacePath(workspaceId: string, subPath: string) {
     return `/workspaces/${workspaceId}/${trimmed}`;
 }
 
-function slugifyDownloadName(name: string) {
-    return name.replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').slice(0, 80) || 'recipes';
-}
-
-async function writeExportToDirectory(
-    targetDir: FileSystemDirectoryHandle,
-    ownerWorkspaceId: string,
-    data: RecipeCollectionExport,
-) {
-    const jsonHandle = await targetDir.getFileHandle('collection-export.json', { create: true });
-    const jsonWriter = await jsonHandle.createWritable();
-    await jsonWriter.write(JSON.stringify(data, null, 2));
-    await jsonWriter.close();
-
-    const imagesDir = await targetDir.getDirectoryHandle('images', { create: true });
+/** Fetches the cover image bytes for every recipe in the export that has one. */
+async function loadExportImages(ownerWorkspaceId: string, data: RecipeCollectionExport) {
+    const images = new Map<string, Uint8Array>();
     for (const recipe of data.recipes) {
         if (!recipe.imageFileName) continue;
-        const response = await fetch(`/api/v1/workspaces/${ownerWorkspaceId}/recipes/${recipe.recipeId}/image`);
-        if (!response.ok) continue;
-        const blob = await response.blob();
-        const imageHandle = await imagesDir.getFileHandle(recipe.imageFileName, { create: true });
-        const imageWriter = await imageHandle.createWritable();
-        await imageWriter.write(blob);
-        await imageWriter.close();
+        try {
+            const response = await fetch(recipeImageRequestUrl(ownerWorkspaceId, recipe.recipeId), {
+                credentials: 'include',
+            });
+            if (!response.ok) continue;
+            images.set(recipe.imageFileName, new Uint8Array(await response.arrayBuffer()));
+        } catch {
+            // A missing image must not fail the whole export.
+        }
     }
-}
-
-async function pickJsonFile(): Promise<File | null> {
-    return await new Promise(resolve => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'application/json,.json';
-        input.onchange = () => {
-            const file = input.files?.[0] ?? null;
-            resolve(file);
-        };
-        input.click();
-    });
-}
-
-function dedupeExportRecipes(data: RecipeCollectionExport) {
-    const seen = new Set<string>();
-    const unique = data.recipes.filter(recipe => {
-        const key = JSON.stringify(recipe.payload);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-    });
-    return {
-        unique,
-        duplicatesOmitted: data.recipes.length - unique.length,
-    };
-}
-
-function toRecipeIdentityKey(title?: string | null, sourceUrl?: string | null) {
-    const normalizedTitle = (title ?? '').trim().toLowerCase();
-    const normalizedSourceUrl = (sourceUrl ?? '').trim().toLowerCase();
-    return `${normalizedTitle}|${normalizedSourceUrl}`;
+    return images;
 }
 
 async function loadAllRecipes(workspaceId: string, options: { includeArchived: boolean }) {
@@ -118,28 +77,6 @@ async function loadAllRecipes(workspaceId: string, options: { includeArchived: b
     return recipes;
 }
 
-async function loadExistingRecipeIdentityKeys(workspaceId: string) {
-    const existingKeys = new Set<string>();
-    const pageSize = 100;
-    let page = 1;
-    let totalCount = 0;
-
-    do {
-        const response = await recipesApi.getAll(workspaceId, {
-            page,
-            pageSize,
-            includeArchived: true,
-        });
-        totalCount = response.totalCount;
-        for (const recipe of response.data) {
-            existingKeys.add(toRecipeIdentityKey(recipe.title, recipe.sourceUrl ?? null));
-        }
-        page += 1;
-    } while ((page - 1) * pageSize < totalCount);
-
-    return existingKeys;
-}
-
 export default function RecipeCollectionPage() {
     const { workspaceId = '', collectionId = '' } = useParams<{
         workspaceId: string;
@@ -153,12 +90,7 @@ export default function RecipeCollectionPage() {
     const [recipePickerOpen, setRecipePickerOpen] = useState(false);
     const [shareDialogOpen, setShareDialogOpen] = useState(false);
     const [lastShareLink, setLastShareLink] = useState<string | null>(null);
-    const [importState, setImportState] = useState({
-        isActive: false,
-        current: 0,
-        total: 0,
-        label: '',
-    });
+    const [isExporting, setIsExporting] = useState(false);
 
     const { data: detail, isLoading } = useQuery({
         queryKey: ['recipe-collection', workspaceId, collectionId],
@@ -211,25 +143,14 @@ export default function RecipeCollectionPage() {
         },
     });
 
-    async function handleExportDirectory() {
+    async function handleExport() {
         if (!detail) return;
+        setIsExporting(true);
         try {
             const data = await recipeCollectionsApi.exportJson(workspaceId, collectionId);
-            const picker = (window as Window & { showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle> })
-                .showDirectoryPicker;
-            if (!picker) {
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${slugifyDownloadName(data.collectionName)}-collection.json`;
-                a.click();
-                URL.revokeObjectURL(url);
-                toast({ title: 'Directory export unavailable, downloaded JSON instead' });
-                return;
-            }
-            const exportDir = await picker();
-            await writeExportToDirectory(exportDir, ownerWorkspaceId, data);
+            const images = await loadExportImages(ownerWorkspaceId, data);
+            const zip = buildCollectionZip(data, images);
+            downloadBlob(zip, `${slugifyDownloadName(data.collectionName)}-collection.zip`);
             if (currentWorkspace) {
                 capture(
                     analyticsEvents.recipeCollectionExported,
@@ -239,201 +160,14 @@ export default function RecipeCollectionPage() {
                     }),
                 );
             }
-            toast({ title: 'Export complete' });
+            toast({
+                title: 'Export downloaded',
+                description: `${data.recipes.length} recipe${data.recipes.length === 1 ? '' : 's'} and ${images.size} image${images.size === 1 ? '' : 's'}. Import it from the Collections page.`,
+            });
         } catch {
             toast({ title: 'Export failed', variant: 'destructive' });
-        }
-    }
-
-    async function handleImportDirectory() {
-        if (!detail) return;
-        try {
-            async function importFromJsonPayload(data: RecipeCollectionExport) {
-                const deduped = dedupeExportRecipes(data);
-                const existingKeys = await loadExistingRecipeIdentityKeys(workspaceId);
-                const candidates = deduped.unique.filter(
-                    item => !existingKeys.has(toRecipeIdentityKey(item.payload.title, item.payload.sourceUrl ?? null)),
-                );
-                const skippedExisting = deduped.unique.length - candidates.length;
-                const failedTitles: string[] = [];
-
-                if (candidates.length === 0) {
-                    toast({
-                        title: 'Nothing to import',
-                        description:
-                            skippedExisting > 0
-                                ? `All ${skippedExisting} recipe${skippedExisting === 1 ? '' : 's'} already exist in this workspace.`
-                                : 'No importable recipes found.',
-                    });
-                    return;
-                }
-
-                setImportState({
-                    isActive: true,
-                    current: 0,
-                    total: candidates.length,
-                    label: `Importing 0 of ${candidates.length} recipes`,
-                });
-
-                const created = await recipeCollectionsApi.create(workspaceId, {
-                    name: `${data.collectionName} (Imported)`,
-                    description: data.description ?? null,
-                });
-
-                for (const [index, item] of candidates.entries()) {
-                    try {
-                        const recipe = await recipesApi.create(workspaceId, item.payload);
-                        await recipeCollectionsApi.addRecipe(workspaceId, created.id, recipe.id);
-                        existingKeys.add(toRecipeIdentityKey(item.payload.title, item.payload.sourceUrl ?? null));
-                    } catch {
-                        failedTitles.push(item.title || item.payload.title || `Recipe ${index + 1}`);
-                    }
-                    const current = index + 1;
-                    setImportState({
-                        isActive: true,
-                        current,
-                        total: candidates.length,
-                        label: `Importing ${current} of ${candidates.length} recipes`,
-                    });
-                }
-
-                toast({
-                    title: failedTitles.length > 0 ? 'Import complete with skipped items' : 'Import complete',
-                    description: [
-                        deduped.duplicatesOmitted > 0
-                            ? `Omitted ${deduped.duplicatesOmitted} duplicate recipe${deduped.duplicatesOmitted === 1 ? '' : 's'}.`
-                            : null,
-                        skippedExisting > 0
-                            ? `Skipped ${skippedExisting} existing recipe${skippedExisting === 1 ? '' : 's'}.`
-                            : null,
-                        failedTitles.length > 0
-                            ? `Failed and skipped ${failedTitles.length} item${failedTitles.length === 1 ? '' : 's'}: ${failedTitles.slice(0, 5).join(', ')}${failedTitles.length > 5 ? '…' : ''}`
-                            : null,
-                    ]
-                        .filter(Boolean)
-                        .join(' '),
-                    variant: failedTitles.length > 0 ? 'destructive' : 'default',
-                });
-                setImportState({
-                    isActive: false,
-                    current: candidates.length,
-                    total: candidates.length,
-                    label: '',
-                });
-                navigate(workspacePath(workspaceId, `collections/${created.id}`));
-            }
-
-            const picker = (window as Window & { showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle> })
-                .showDirectoryPicker;
-            if (!picker) {
-                const jsonFile = await pickJsonFile();
-                if (!jsonFile) return;
-                const json = await jsonFile.text();
-                const data = JSON.parse(json) as RecipeCollectionExport;
-                await importFromJsonPayload(data);
-                toast({ title: 'Directory import unavailable, imported from JSON instead' });
-                return;
-            }
-            const importDir = await picker();
-            const fileHandle = await importDir.getFileHandle('collection-export.json');
-            const file = await fileHandle.getFile();
-            const json = (await file.text()) as string;
-            const data = JSON.parse(json) as RecipeCollectionExport;
-            const deduped = dedupeExportRecipes(data);
-            const existingKeys = await loadExistingRecipeIdentityKeys(workspaceId);
-            const candidates = deduped.unique.filter(
-                item => !existingKeys.has(toRecipeIdentityKey(item.payload.title, item.payload.sourceUrl ?? null)),
-            );
-            const skippedExisting = deduped.unique.length - candidates.length;
-            const failedTitles: string[] = [];
-
-            if (candidates.length === 0) {
-                toast({
-                    title: 'Nothing to import',
-                    description:
-                        skippedExisting > 0
-                            ? `All ${skippedExisting} recipe${skippedExisting === 1 ? '' : 's'} already exist in this workspace.`
-                            : 'No importable recipes found.',
-                });
-                return;
-            }
-
-            const created = await recipeCollectionsApi.create(workspaceId, {
-                name: `${data.collectionName} (Imported)`,
-                description: data.description ?? null,
-            });
-            setImportState({
-                isActive: true,
-                current: 0,
-                total: candidates.length,
-                label: `Importing 0 of ${candidates.length} recipes`,
-            });
-
-            let imagesDir: FileSystemDirectoryHandle | null = null;
-            try {
-                imagesDir = await importDir.getDirectoryHandle('images');
-            } catch {
-                imagesDir = null;
-            }
-
-            for (const [index, item] of candidates.entries()) {
-                try {
-                    const recipe = await recipesApi.create(workspaceId, item.payload);
-                    await recipeCollectionsApi.addRecipe(workspaceId, created.id, recipe.id);
-                    existingKeys.add(toRecipeIdentityKey(item.payload.title, item.payload.sourceUrl ?? null));
-                    if (imagesDir && item.imageFileName) {
-                        try {
-                            const imageHandle = await imagesDir.getFileHandle(item.imageFileName);
-                            const imageFile = await imageHandle.getFile();
-                            await recipesApi.uploadImage(workspaceId, recipe.id, new File([imageFile], imageFile.name));
-                        } catch {
-                            // Continue importing even if one image is missing.
-                        }
-                    }
-                } catch {
-                    failedTitles.push(item.title || item.payload.title || `Recipe ${index + 1}`);
-                }
-                const current = index + 1;
-                setImportState({
-                    isActive: true,
-                    current,
-                    total: candidates.length,
-                    label: `Importing ${current} of ${candidates.length} recipes`,
-                });
-            }
-
-            toast({
-                title: failedTitles.length > 0 ? 'Import complete with skipped items' : 'Import complete',
-                description: [
-                    deduped.duplicatesOmitted > 0
-                        ? `Omitted ${deduped.duplicatesOmitted} duplicate recipe${deduped.duplicatesOmitted === 1 ? '' : 's'}.`
-                        : null,
-                    skippedExisting > 0
-                        ? `Skipped ${skippedExisting} existing recipe${skippedExisting === 1 ? '' : 's'}.`
-                        : null,
-                    failedTitles.length > 0
-                        ? `Failed and skipped ${failedTitles.length} item${failedTitles.length === 1 ? '' : 's'}: ${failedTitles.slice(0, 5).join(', ')}${failedTitles.length > 5 ? '…' : ''}`
-                        : null,
-                ]
-                    .filter(Boolean)
-                    .join(' '),
-                variant: failedTitles.length > 0 ? 'destructive' : 'default',
-            });
-            setImportState({
-                isActive: false,
-                current: candidates.length,
-                total: candidates.length,
-                label: '',
-            });
-            navigate(workspacePath(workspaceId, `collections/${created.id}`));
-        } catch {
-            setImportState({
-                isActive: false,
-                current: 0,
-                total: 0,
-                label: '',
-            });
-            toast({ title: 'Import failed', variant: 'destructive' });
+        } finally {
+            setIsExporting(false);
         }
     }
 
@@ -507,10 +241,11 @@ export default function RecipeCollectionPage() {
                             variant='outline'
                             size='sm'
                             className='gap-1.5'
-                            onClick={() => void handleExportDirectory()}
+                            disabled={isExporting}
+                            onClick={() => void handleExport()}
                         >
                             <Download className='h-4 w-4' />
-                            Export
+                            {isExporting ? 'Exporting…' : 'Export'}
                         </Button>
                         {detail.canEdit ? (
                             <Tooltip>
@@ -546,16 +281,6 @@ export default function RecipeCollectionPage() {
                 </div>
             </div>
 
-            {importState.isActive && (
-                <div className='mb-6 rounded-lg border border-border bg-card p-4'>
-                    <p className='mb-2 text-sm font-medium text-foreground'>Import in progress</p>
-                    <p className='mb-3 text-xs text-muted-foreground'>{importState.label}</p>
-                    <Progress
-                        value={importState.total > 0 ? (importState.current / importState.total) * 100 : 0}
-                        className='h-2'
-                    />
-                </div>
-            )}
 
             {detail.canEdit && (
                 <div className='mb-8 rounded-lg border border-border bg-card p-4'>
