@@ -13,3 +13,4 @@ node_modules/
 Api/bin*
 pepperplate_recipes/
 .wrangler
+.playwright-mcp
