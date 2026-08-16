@@ -613,7 +613,7 @@ export default function RecipeDetailPage() {
                 </div>
 
                 <div className='min-w-0'>
-                    <div className='mb-8 flex gap-3'>
+                    <div className='mb-8 flex items-center gap-3'>
                         <Link
                             to={cookingPath}
                             className='flex-1 rounded-lg bg-primary px-4 py-3 text-center text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90'
