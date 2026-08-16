@@ -50,6 +50,60 @@ function shouldSuppressRecipeArrowNavigation(target: EventTarget | null): boolea
     return false;
 }
 
+interface RecipeNeighbors {
+    showNav: boolean;
+    prevId: string | null;
+    nextId: string | null;
+}
+
+const NO_RECIPE_NEIGHBORS: RecipeNeighbors = { showNav: false, prevId: null, nextId: null };
+
+const NEIGHBOR_PAGE_SIZE = 100;
+
+/**
+ * Finds the recipes either side of `recipeId` in the library's default order, paging until the
+ * recipe turns up. Pages are fetched one at a time so a library that fits on the first page
+ * still costs a single request.
+ */
+async function findRecipeNeighbors(workspaceId: string, recipeId: string): Promise<RecipeNeighbors> {
+    let page = 1;
+    let totalPages = 1;
+    // Last id of the previous page, which is the previous neighbour when the recipe is first on its page.
+    let idBeforePage: string | null = null;
+
+    while (page <= totalPages) {
+        const result = await recipesApi.getAll(workspaceId, {
+            page,
+            pageSize: NEIGHBOR_PAGE_SIZE,
+            includeArchived: false,
+        });
+        const list = result.data ?? [];
+        totalPages = result.totalPages ?? 1;
+
+        const index = list.findIndex(item => item.id === recipeId);
+        if (index >= 0) {
+            const prevId = index > 0 ? (list[index - 1]?.id ?? null) : idBeforePage;
+            let nextId = index < list.length - 1 ? (list[index + 1]?.id ?? null) : null;
+
+            if (nextId === null && page < totalPages) {
+                const nextPage = await recipesApi.getAll(workspaceId, {
+                    page: page + 1,
+                    pageSize: NEIGHBOR_PAGE_SIZE,
+                    includeArchived: false,
+                });
+                nextId = nextPage.data?.[0]?.id ?? null;
+            }
+
+            return { showNav: prevId !== null || nextId !== null, prevId, nextId };
+        }
+
+        idBeforePage = list.at(-1)?.id ?? idBeforePage;
+        page += 1;
+    }
+
+    return NO_RECIPE_NEIGHBORS;
+}
+
 function recipeToListItem(recipe: {
     id: string;
     title: string;
@@ -100,31 +154,17 @@ export default function RecipeDetailPage() {
         enabled: Boolean(workspaceId && recipeId),
     });
 
-    /** Same request as the library with an empty search — order matches prev/next in the grid (title, API default). */
-    const { data: recipesPage } = useQuery({
+    /**
+     * Same request as the library with an empty search — order matches prev/next in the grid
+     * (title, API default). Only the first page used to be fetched, so anything past it had no
+     * neighbours at all; walk pages until the recipe is found instead.
+     */
+    const { data: recipeNeighbors = NO_RECIPE_NEIGHBORS } = useQuery({
         // Keep this key distinct from the library's infinite query to avoid cache-shape collisions.
-        queryKey: ['recipes-page', workspaceId, 'detail-nav'],
-        queryFn: () =>
-            recipesApi.getAll(workspaceId, {
-                page: 1,
-                pageSize: 100,
-                includeArchived: false,
-            }),
-        enabled: Boolean(workspaceId),
+        queryKey: ['recipe-neighbors', workspaceId, recipeId],
+        queryFn: () => findRecipeNeighbors(workspaceId, recipeId),
+        enabled: Boolean(workspaceId && recipeId),
     });
-
-    const recipeNeighbors = useMemo(() => {
-        const list = recipesPage?.data ?? [];
-        if (list.length < 2)
-            return { showNav: false as const, prevId: null as string | null, nextId: null as string | null };
-        const idx = list.findIndex(r => r.id === recipeId);
-        if (idx < 0) return { showNav: false as const, prevId: null, nextId: null };
-        return {
-            showNav: true as const,
-            prevId: idx > 0 ? list[idx - 1]!.id : null,
-            nextId: idx < list.length - 1 ? list[idx + 1]!.id : null,
-        };
-    }, [recipesPage?.data, recipeId]);
 
     useEffect(() => {
         if (!workspaceId || !recipeId) return;
