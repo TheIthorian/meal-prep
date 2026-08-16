@@ -66,6 +66,22 @@ dotnet run
 - Containerized multi-service architecture
 - Explicit dependency injection
 
+### Dependencies
+
+Pin every dependency to an exact version — no `^`, `~`, or floating ranges in any
+`package.json`, and no wildcard `Version=` in `.csproj`. Builds must be reproducible from
+the lockfile alone.
+
+```bash
+# Adding a package (pnpm workspaces)
+pnpm add --save-exact <package>          # run inside the workspace that needs it, e.g. UI/
+pnpm install --frozen-lockfile           # verify the lockfile still resolves
+```
+
+Commit the updated `pnpm-lock.yaml` with the `package.json` change. If a lockfile edit
+produces churn unrelated to the package being added (peer-dependency rewrites from a
+different pnpm version), revert it and re-apply only the intended lines.
+
 ## Configuration Management
 
 ### Environment Variables
