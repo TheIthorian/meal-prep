@@ -345,6 +345,9 @@ export default function RecipeDetailPage() {
                 <div className='flex flex-wrap items-center gap-2'>
                     <Link
                         to={`/workspaces/${workspaceId}/`}
+                        // Pushes a new entry rather than popping, so tell the library this is a
+                        // "back" and it should restore where the user was scrolled to.
+                        state={{ restoreScroll: true }}
                         className='inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground'
                     >
                         <ArrowLeft className='h-4 w-4' />
