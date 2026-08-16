@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <!--
+            Source for public/og-image.png (the social share card).
+            Regenerate at 1200x630 after editing, e.g. from E2eTests/:
+
+              node -e "const {chromium}=require('@playwright/test');(async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:1200,height:630},deviceScaleFactor:1});await p.goto('file://'+require('path').resolve('../UI/design/og-image.html'));await p.evaluate(()=>document.fonts.ready);await p.waitForTimeout(500);await p.screenshot({path:'../UI/public/og-image.png'});await b.close();})()"
+        -->
+        <meta charset="UTF-8" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --cream: #f9f8f4;
+                --ink: #212630;
+                --green: #3c8663;
+                --green-deep: #1c4536;
+                --green-dark: #14332800;
+                --accent: #eb7a2b;
+                --line: #e4e1d9;
+            }
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                width: 1200px;
+                height: 630px;
+                font-family: 'DM Sans', system-ui, sans-serif;
+                background: var(--green-deep);
+                color: var(--cream);
+                overflow: hidden;
+            }
+            .card {
+                position: relative;
+                width: 1200px;
+                height: 630px;
+                display: grid;
+                grid-template-columns: 1fr 470px;
+                align-items: center;
+                gap: 56px;
+                padding: 76px 72px;
+                background: radial-gradient(900px 620px at 8% 0%, #2a604a 0%, transparent 62%), var(--green-deep);
+            }
+            .left {
+                display: flex;
+                flex-direction: column;
+                gap: 30px;
+            }
+            .brand {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                font-weight: 600;
+                font-size: 25px;
+                letter-spacing: 0.16em;
+                text-transform: uppercase;
+                color: #cfe3d8;
+            }
+            .brand svg {
+                width: 46px;
+                height: 46px;
+            }
+            h1 {
+                font-family: 'DM Serif Display', serif;
+                font-weight: 400;
+                font-size: 92px;
+                line-height: 0.98;
+                letter-spacing: -0.015em;
+            }
+            h1 em {
+                font-style: italic;
+                color: var(--accent);
+            }
+            p {
+                font-size: 30px;
+                line-height: 1.34;
+                color: #bcd2c6;
+                max-width: 20ch;
+            }
+
+            /* Signature: recipe page folding into a checked-off shopping list */
+            .stack {
+                position: relative;
+                height: 460px;
+            }
+            .sheet {
+                position: absolute;
+                inset: 0;
+                border-radius: 22px;
+                background: var(--cream);
+                color: var(--ink);
+                box-shadow: 0 30px 70px rgba(8, 30, 22, 0.45);
+            }
+            .sheet.back {
+                transform: rotate(-5deg) translate(-26px, 12px) scale(0.96);
+                background: #efece3;
+                opacity: 0.85;
+            }
+            .sheet.front {
+                padding: 38px 36px;
+                display: flex;
+                flex-direction: column;
+                gap: 26px;
+            }
+            .sheet.back .recipe {
+                padding: 40px 34px;
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+            }
+            .recipe .rtitle {
+                font-family: 'DM Serif Display', serif;
+                font-size: 32px;
+                color: #6c6a63;
+            }
+            .recipe .rline {
+                height: 12px;
+                border-radius: 6px;
+                background: #d8d4c9;
+            }
+            .head {
+                display: flex;
+                align-items: baseline;
+                justify-content: space-between;
+                border-bottom: 2px solid var(--line);
+                padding-bottom: 18px;
+            }
+            .head .t {
+                font-family: 'DM Serif Display', serif;
+                font-size: 36px;
+            }
+            .head .n {
+                font-size: 20px;
+                font-weight: 600;
+                color: var(--green);
+            }
+            ul {
+                list-style: none;
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+            }
+            li {
+                display: flex;
+                align-items: center;
+                gap: 18px;
+                font-size: 26px;
+                font-weight: 500;
+            }
+            .box {
+                width: 32px;
+                height: 32px;
+                border-radius: 9px;
+                border: 2.5px solid #c9c5ba;
+                flex: none;
+            }
+            li.done .box {
+                background: var(--green);
+                border-color: var(--green);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            li.done .box svg {
+                width: 20px;
+                height: 20px;
+            }
+            li.done .label {
+                color: #8d8a82;
+                text-decoration: line-through;
+                text-decoration-thickness: 2px;
+            }
+            .qty {
+                margin-left: auto;
+                font-size: 21px;
+                font-weight: 600;
+                color: #8d8a82;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <div class="left">
+                <div class="brand">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                            d="M17 21a1 1 0 0 0 1-1v-5.35c0-.457.316-.844.727-1.041a4 4 0 0 0-2.134-7.589 5 5 0 0 0-9.186 0 4 4 0 0 0-2.134 7.588c.411.198.727.585.727 1.041V20a1 1 0 0 0 1 1Z"
+                            stroke="#eb7a2b"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        />
+                        <path
+                            d="M6 17h12"
+                            stroke="#eb7a2b"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        />
+                    </svg>
+                    Meal Prep
+                </div>
+                <h1>Recipes in.<br /><em>Shopping list</em> out.</h1>
+                <p>Save recipes, import them from any site, and shop from one combined list.</p>
+            </div>
+
+            <div class="stack">
+                <div class="sheet back">
+                    <div class="recipe">
+                        <div class="rtitle">Tomato &amp; basil orzo</div>
+                        <div class="rline" style="width: 78%"></div>
+                        <div class="rline" style="width: 92%"></div>
+                        <div class="rline" style="width: 64%"></div>
+                        <div class="rline" style="width: 84%"></div>
+                    </div>
+                </div>
+                <div class="sheet front">
+                    <div class="head">
+                        <span class="t">Shopping list</span>
+                        <span class="n">3 recipes</span>
+                    </div>
+                    <ul>
+                        <li class="done">
+                            <span class="box"
+                                ><svg viewBox="0 0 24 24" fill="none">
+                                    <path
+                                        d="m4 12 5.5 5.5L20 7"
+                                        stroke="#fff"
+                                        stroke-width="3.4"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    /></svg
+                            ></span>
+                            <span class="label">Orzo</span>
+                            <span class="qty">500 g</span>
+                        </li>
+                        <li>
+                            <span class="box"></span>
+                            <span class="label">Cherry tomatoes</span>
+                            <span class="qty">2 punnets</span>
+                        </li>
+                        <li class="done">
+                            <span class="box"
+                                ><svg viewBox="0 0 24 24" fill="none">
+                                    <path
+                                        d="m4 12 5.5 5.5L20 7"
+                                        stroke="#fff"
+                                        stroke-width="3.4"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    /></svg
+                            ></span>
+                            <span class="label">Garlic</span>
+                            <span class="qty">4 cloves</span>
+                        </li>
+                        <li>
+                            <span class="box"></span>
+                            <span class="label">Basil</span>
+                            <span class="qty">1 bunch</span>
+                        </li>
+                        <li>
+                            <span class="box"></span>
+                            <span class="label">Parmesan</span>
+                            <span class="qty">120 g</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
