@@ -88,12 +88,17 @@ export default function RecipeDetailPage() {
     const [isEditing, setIsEditing] = useState(false);
     const [draftRecipe, setDraftRecipe] = useState<Recipe | null>(null);
 
-    const { data: recipe, isLoading, isError, error, refetch } = useQuery({
+    const {
+        data: recipe,
+        isLoading,
+        isError,
+        error,
+        refetch,
+    } = useQuery({
         queryKey: ['recipe', workspaceId, recipeId],
         queryFn: () => recipesApi.getById(workspaceId, recipeId),
         enabled: Boolean(workspaceId && recipeId),
     });
-
 
     /** Same request as the library with an empty search — order matches prev/next in the grid (title, API default). */
     const { data: recipesPage } = useQuery({
@@ -346,7 +351,7 @@ export default function RecipeDetailPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
-            className='mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10'
+            className='mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10 xl:max-w-7xl'
         >
             <div className='mb-6 flex flex-wrap items-center justify-between gap-3'>
                 <div className='flex flex-wrap items-center gap-2'>
@@ -446,14 +451,16 @@ export default function RecipeDetailPage() {
                             {recipe.isFavorite ? 'Remove from favourites' : 'Add to favourites'}
                         </TooltipContent>
                     </Tooltip>
-                    <AddToRecipeCollectionMenu
-                        workspaceId={workspaceId}
-                        recipeId={recipeId}
-                        variant='compact'
-                    />
+                    <AddToRecipeCollectionMenu workspaceId={workspaceId} recipeId={recipeId} variant='compact' />
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button type='button' variant='outline' size='icon' className='h-9 w-9 shrink-0' onClick={startEditing}>
+                            <Button
+                                type='button'
+                                variant='outline'
+                                size='icon'
+                                className='h-9 w-9 shrink-0'
+                                onClick={startEditing}
+                            >
                                 <Pencil className='h-4 w-4' />
                             </Button>
                         </TooltipTrigger>
@@ -476,196 +483,202 @@ export default function RecipeDetailPage() {
                 </div>
             </div>
 
-            <div className='mb-6'>
-                <div className='mb-3 flex flex-wrap items-center gap-2'>
-                    <div className='flex min-w-0 flex-1 flex-wrap gap-1.5'>
-                        {recipe.tags.length === 0 ? (
-                            <span className='text-sm text-muted-foreground'>No tags yet</span>
-                        ) : (
-                            recipe.tags.map(tag => (
-                                <span
-                                    key={tag}
-                                    className='rounded-full bg-primary/8 px-2 py-0.5 text-xs font-medium text-primary'
-                                >
-                                    {formatRecipeTagLabel(tag)}
+            <div className='xl:grid xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] xl:items-start xl:gap-12'>
+                <div className='min-w-0'>
+                    <div className='mb-6'>
+                        <div className='mb-3 flex flex-wrap items-center gap-2'>
+                            <div className='flex min-w-0 flex-1 flex-wrap gap-1.5'>
+                                {recipe.tags.length === 0 ? (
+                                    <span className='text-sm text-muted-foreground'>No tags yet</span>
+                                ) : (
+                                    recipe.tags.map(tag => (
+                                        <span
+                                            key={tag}
+                                            className='rounded-full bg-primary/8 px-2 py-0.5 text-xs font-medium text-primary'
+                                        >
+                                            {formatRecipeTagLabel(tag)}
+                                        </span>
+                                    ))
+                                )}
+                            </div>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        type='button'
+                                        variant='outline'
+                                        size='icon'
+                                        className='h-9 w-9 shrink-0'
+                                        disabled={autotagRecipe.isPending}
+                                        aria-label='Auto-tag with AI'
+                                        onClick={() => void autotagRecipe.mutateAsync()}
+                                    >
+                                        <Sparkles className='h-4 w-4' />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side='bottom'>
+                                    Auto-tag with AI (uses title, description, ingredients, and steps)
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
+                        <h1 className='font-heading text-3xl text-foreground md:text-4xl'>{recipe.title}</h1>
+                        {(recipe.collections?.length ?? 0) > 0 ? (
+                            <div className='mt-3 flex flex-wrap gap-2'>
+                                {recipe.collections!.map(collection => (
+                                    <Link
+                                        key={collection.collectionId}
+                                        to={`/workspaces/${collection.ownerWorkspaceId}/collections/${collection.collectionId}`}
+                                        className='rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary'
+                                    >
+                                        {collection.collectionName}
+                                    </Link>
+                                ))}
+                            </div>
+                        ) : null}
+                    </div>
+
+                    <RecipePhotoSection
+                        workspaceId={workspaceId}
+                        recipeId={recipe.id}
+                        hasImage={recipe.hasImage}
+                        title={recipe.title}
+                        onImageChanged={handleRecipeImageChanged}
+                    />
+
+                    <div className='mb-8'>
+                        <p className='text-muted-foreground'>{recipe.description ?? '—'}</p>
+
+                        {recipe.sourceUrl ? (
+                            <div className='mt-3'>
+                                {sourceHref ? (
+                                    <a
+                                        href={sourceHref}
+                                        target='_blank'
+                                        rel='noopener noreferrer'
+                                        className='inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline'
+                                    >
+                                        <ExternalLink className='h-4 w-4 shrink-0' />
+                                        View original recipe
+                                    </a>
+                                ) : (
+                                    <p className='text-sm text-muted-foreground break-all'>
+                                        <span className='font-medium text-foreground'>Source: </span>
+                                        {recipe.sourceUrl}
+                                    </p>
+                                )}
+                            </div>
+                        ) : null}
+
+                        <div className='mt-4 flex flex-wrap items-center gap-6 text-sm text-muted-foreground'>
+                            {(recipe.prepMinutes ?? recipe.cookMinutes) ? (
+                                <span className='flex items-center gap-1.5'>
+                                    <Clock className='h-4 w-4' />
+                                    {totalTime > 0 ? `${totalTime} min` : '—'}
                                 </span>
-                            ))
-                        )}
+                            ) : null}
+                            {calories != null && (
+                                <span className='flex items-center gap-1.5'>
+                                    <Flame className='h-4 w-4' />
+                                    {calories} cal
+                                </span>
+                            )}
+                        </div>
+
+                        <RecipeYieldScale
+                            className='mt-5'
+                            baseServings={baseServings}
+                            targetServings={targetServings}
+                            onTargetServingsChange={setTargetServings}
+                        />
                     </div>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                type='button'
-                                variant='outline'
-                                size='icon'
-                                className='h-9 w-9 shrink-0'
-                                disabled={autotagRecipe.isPending}
-                                aria-label='Auto-tag with AI'
-                                onClick={() => void autotagRecipe.mutateAsync()}
-                            >
-                                <Sparkles className='h-4 w-4' />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side='bottom'>
-                            Auto-tag with AI (uses title, description, ingredients, and steps)
-                        </TooltipContent>
-                    </Tooltip>
-                </div>
-                <h1 className='font-heading text-3xl text-foreground md:text-4xl'>{recipe.title}</h1>
-                {(recipe.collections?.length ?? 0) > 0 ? (
-                    <div className='mt-3 flex flex-wrap gap-2'>
-                        {recipe.collections!.map(collection => (
-                            <Link
-                                key={collection.collectionId}
-                                to={`/workspaces/${collection.ownerWorkspaceId}/collections/${collection.collectionId}`}
-                                className='rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary'
-                            >
-                                {collection.collectionName}
-                            </Link>
-                        ))}
-                    </div>
-                ) : null}
-            </div>
 
-            <RecipePhotoSection
-                workspaceId={workspaceId}
-                recipeId={recipe.id}
-                hasImage={recipe.hasImage}
-                title={recipe.title}
-                onImageChanged={handleRecipeImageChanged}
-            />
-
-            <div className='mb-8'>
-                <p className='text-muted-foreground'>{recipe.description ?? '—'}</p>
-
-                {recipe.sourceUrl ? (
-                    <div className='mt-3'>
-                        {sourceHref ? (
-                            <a
-                                href={sourceHref}
-                                target='_blank'
-                                rel='noopener noreferrer'
-                                className='inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline'
-                            >
-                                <ExternalLink className='h-4 w-4 shrink-0' />
-                                View original recipe
-                            </a>
-                        ) : (
-                            <p className='text-sm text-muted-foreground break-all'>
-                                <span className='font-medium text-foreground'>Source: </span>
-                                {recipe.sourceUrl}
-                            </p>
-                        )}
-                    </div>
-                ) : null}
-
-                <div className='mt-4 flex flex-wrap items-center gap-6 text-sm text-muted-foreground'>
-                    {(recipe.prepMinutes ?? recipe.cookMinutes) ? (
-                        <span className='flex items-center gap-1.5'>
-                            <Clock className='h-4 w-4' />
-                            {totalTime > 0 ? `${totalTime} min` : '—'}
-                        </span>
-                    ) : null}
-                    {calories != null && (
-                        <span className='flex items-center gap-1.5'>
-                            <Flame className='h-4 w-4' />
-                            {calories} cal
-                        </span>
+                    {recipe.nutrition && recipe.nutrition.nutrients.length > 0 && (
+                        <div className='mb-8'>
+                            <h2 className='font-heading mb-4 text-xl text-foreground'>Nutrition per serving</h2>
+                            <div className='grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-2'>
+                                {[
+                                    { label: 'Calories', value: calories, unit: 'kcal' },
+                                    { label: 'Protein', value: protein, unit: 'g' },
+                                    { label: 'Carbs', value: carbs, unit: 'g' },
+                                    { label: 'Fat', value: fat, unit: 'g' },
+                                ].map(n =>
+                                    n.value != null ? (
+                                        <div
+                                            key={n.label}
+                                            className='rounded-lg border border-border/50 bg-card p-3 text-center'
+                                        >
+                                            <p className='text-lg font-semibold tabular-nums text-foreground'>
+                                                {n.value}
+                                                <span className='ml-0.5 text-xs text-muted-foreground'>{n.unit}</span>
+                                            </p>
+                                            <p className='mt-0.5 text-xs text-muted-foreground'>{n.label}</p>
+                                        </div>
+                                    ) : null,
+                                )}
+                            </div>
+                        </div>
                     )}
                 </div>
 
-                <RecipeYieldScale
-                    className='mt-5'
-                    baseServings={baseServings}
-                    targetServings={targetServings}
-                    onTargetServingsChange={setTargetServings}
-                />
-            </div>
+                <div className='min-w-0'>
+                    <div className='mb-8 flex items-center gap-3'>
+                        <Link
+                            to={cookingPath}
+                            className='flex-1 rounded-lg bg-primary px-4 py-3 text-center text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90'
+                        >
+                            Start cooking
+                        </Link>
+                        <MealPlanEntryDialog
+                            workspaceId={workspaceId}
+                            recipes={[listItem]}
+                            selectedDate={new Date().toISOString().slice(0, 10)}
+                            triggerLabel='Add to next meals'
+                            onSaved={() => {
+                                queryClient.invalidateQueries({ queryKey: ['meal-plan', workspaceId] });
+                            }}
+                        />
+                    </div>
 
-            <div className='mb-8 flex gap-3'>
-                <Link
-                    to={cookingPath}
-                    className='flex-1 rounded-lg bg-primary px-4 py-3 text-center text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90'
-                >
-                    Start cooking
-                </Link>
-                <MealPlanEntryDialog
-                    workspaceId={workspaceId}
-                    recipes={[listItem]}
-                    selectedDate={new Date().toISOString().slice(0, 10)}
-                    triggerLabel='Add to next meals'
-                    onSaved={() => {
-                        queryClient.invalidateQueries({ queryKey: ['meal-plan', workspaceId] });
-                    }}
-                />
-            </div>
+                    <div className='grid gap-8 md:grid-cols-[280px_1fr]'>
+                        <div>
+                            <h2 className='font-heading mb-4 text-xl text-foreground'>Ingredients</h2>
+                            <div className='rounded-xl border border-border/50 bg-card p-4'>
+                                <ul className='space-y-2.5'>
+                                    {scaledIngredients.map(ing => (
+                                        <li key={ing.id} className='text-sm text-foreground/90'>
+                                            <RecipeIngredientListRow ingredient={ing} />
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
 
-            <div className='grid gap-8 md:grid-cols-[280px_1fr]'>
-                <div>
-                    <h2 className='font-heading mb-4 text-xl text-foreground'>Ingredients</h2>
-                    <div className='rounded-xl border border-border/50 bg-card p-4'>
-                        <ul className='space-y-2.5'>
-                            {scaledIngredients.map(ing => (
-                                <li key={ing.id} className='text-sm text-foreground/90'>
-                                    <RecipeIngredientListRow ingredient={ing} />
-                                </li>
-                            ))}
-                        </ul>
+                        <div>
+                            <h2 className='font-heading mb-4 text-xl text-foreground'>Instructions</h2>
+                            <ol className='space-y-4'>
+                                {recipe.steps.map((step, i) => (
+                                    <motion.li
+                                        key={step.id}
+                                        initial={{ opacity: 0, y: 8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: i * 0.06, duration: 0.3 }}
+                                        className='flex gap-3'
+                                    >
+                                        <span className='mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary'>
+                                            {i + 1}
+                                        </span>
+                                        <p className='text-sm leading-relaxed text-foreground/90'>
+                                            <InstructionWithInlineAmounts
+                                                instruction={step.instruction}
+                                                scaledIngredients={scaledIngredients}
+                                            />
+                                        </p>
+                                    </motion.li>
+                                ))}
+                            </ol>
+                        </div>
                     </div>
                 </div>
-
-                <div>
-                    <h2 className='font-heading mb-4 text-xl text-foreground'>Instructions</h2>
-                    <ol className='space-y-4'>
-                        {recipe.steps.map((step, i) => (
-                            <motion.li
-                                key={step.id}
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.06, duration: 0.3 }}
-                                className='flex gap-3'
-                            >
-                                <span className='mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary'>
-                                    {i + 1}
-                                </span>
-                                <p className='text-sm leading-relaxed text-foreground/90'>
-                                    <InstructionWithInlineAmounts
-                                        instruction={step.instruction}
-                                        scaledIngredients={scaledIngredients}
-                                    />
-                                </p>
-                            </motion.li>
-                        ))}
-                    </ol>
-                </div>
             </div>
-
-            {recipe.nutrition && recipe.nutrition.nutrients.length > 0 && (
-                <div className='mt-10'>
-                    <h2 className='font-heading mb-4 text-xl text-foreground'>Nutrition per serving</h2>
-                    <div className='grid grid-cols-2 gap-3 sm:grid-cols-4'>
-                        {[
-                            { label: 'Calories', value: calories, unit: 'kcal' },
-                            { label: 'Protein', value: protein, unit: 'g' },
-                            { label: 'Carbs', value: carbs, unit: 'g' },
-                            { label: 'Fat', value: fat, unit: 'g' },
-                        ].map(n =>
-                            n.value != null ? (
-                                <div
-                                    key={n.label}
-                                    className='rounded-lg border border-border/50 bg-card p-3 text-center'
-                                >
-                                    <p className='text-lg font-semibold tabular-nums text-foreground'>
-                                        {n.value}
-                                        <span className='ml-0.5 text-xs text-muted-foreground'>{n.unit}</span>
-                                    </p>
-                                    <p className='mt-0.5 text-xs text-muted-foreground'>{n.label}</p>
-                                </div>
-                            ) : null,
-                        )}
-                    </div>
-                </div>
-            )}
 
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <AlertDialogContent>
