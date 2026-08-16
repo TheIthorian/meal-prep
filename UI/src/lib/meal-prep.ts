@@ -287,11 +287,14 @@ export function safeHttpUrlHref(raw: string | null | undefined): string | null {
 }
 
 /** Full URL for authenticated GET of the recipe cover image (uses session cookies). */
-export function recipeImageRequestUrl(workspaceId: string, recipeId: string) {
+export function recipeImageRequestUrl(workspaceId: string, recipeId: string, version?: number) {
     const path = `/api/v1/workspaces/${workspaceId}/recipes/${recipeId}/image`;
     // Same-origin by default in dev and production alike: dev goes through the vite proxy,
     // production through the Pages function in UI/functions/api. Both keep the Identity
     // session cookie first-party, which a cross-origin base URL would not.
     const base = import.meta.env.VITE_API_BASE_URL || '';
-    return `${base}${path}`;
+    // The API caches this response for a few minutes, so the URL has to change for a freshly
+    // uploaded image to be shown straight away. `version` is a timestamp taken at upload time.
+    const query = version ? `?v=${version}` : '';
+    return `${base}${path}${query}`;
 }

@@ -24,10 +24,13 @@ export function RecipePhotoSection({
 }: RecipePhotoSectionProps) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [busy, setBusy] = useState(false);
-    const [imageRevision, setImageRevision] = useState(0);
+    // Upload timestamp, used as the image URL's cache buster. A timestamp rather than a counter:
+    // the API caches image responses, and a counter restarting at 1 in a later session would point
+    // back at a URL the browser still has the old image cached for.
+    const [imageVersion, setImageVersion] = useState<number | undefined>(undefined);
 
     useEffect(() => {
-        setImageRevision(0);
+        setImageVersion(undefined);
     }, [recipeId]);
 
     async function applyFile(file: File | null | undefined) {
@@ -35,7 +38,7 @@ export function RecipePhotoSection({
         setBusy(true);
         try {
             await recipesApi.uploadImage(workspaceId, recipeId, file);
-            setImageRevision(r => r + 1);
+            setImageVersion(Date.now());
             onImageChanged(true);
         } finally {
             setBusy(false);
@@ -92,10 +95,10 @@ export function RecipePhotoSection({
                 <div className='aspect-[16/9] w-full'>
                     {hasImage ? (
                         <RecipeCoverImage
-                            key={imageRevision}
                             workspaceId={workspaceId}
                             recipeId={recipeId}
                             hasImage={hasImage}
+                            version={imageVersion}
                             alt={`Photo of ${title}`}
                             className='h-full w-full object-cover'
                         />

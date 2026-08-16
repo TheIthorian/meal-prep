@@ -546,6 +546,7 @@ internal static class RecipesHandlers
         CurrentUserService currentUserService,
         ApiDbContext db,
         IS3StorageService s3StorageService,
+        HttpContext httpContext,
         Guid workspaceId,
         Guid recipeId,
         CancellationToken cancellationToken
@@ -566,11 +567,22 @@ internal static class RecipesHandlers
 
         if (string.IsNullOrEmpty(recipe.ImageObjectKey)) return TypedResults.NotFound();
 
+        // Images are immutable once written — a replacement upload stores a new object key — so the
+        // key identifies the bytes. Clients that already hold them get a 304 and no body, and the
+        // object is never read from S3 for such a request.
+        var etag = RecipeImageCache.ETagForObjectKey(recipe.ImageObjectKey);
+        httpContext.Response.GetTypedHeaders().CacheControl = RecipeImageCache.ResponseCacheControl();
+
+        if (RecipeImageCache.IsNotModified(httpContext.Request.GetTypedHeaders(), etag)) {
+            httpContext.Response.GetTypedHeaders().ETag = etag;
+            return TypedResults.StatusCode(StatusCodes.Status304NotModified);
+        }
+
         var stream = await s3StorageService.DownloadFileAsync(recipe.ImageObjectKey);
         var contentType = RecipeImageUploadConstants.ContentTypeFromObjectKey(recipe.ImageObjectKey)
                           ?? "application/octet-stream";
 
-        return TypedResults.File(stream, contentType);
+        return TypedResults.File(stream, contentType, entityTag: etag);
     }
 
     [Authorize]

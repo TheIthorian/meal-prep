@@ -7,42 +7,34 @@ interface RecipeCoverImageProps {
     hasImage: boolean;
     className?: string;
     alt: string;
+    /** Bumped after an upload so the new image is fetched instead of the cached one. */
+    version?: number;
 }
 
-export function RecipeCoverImage({ workspaceId, recipeId, hasImage, className, alt }: RecipeCoverImageProps) {
-    const [src, setSrc] = useState<string | null>(null);
+/**
+ * Renders the recipe cover straight from the API URL rather than fetching it into a blob.
+ *
+ * The request is same-origin, so the session cookie is sent by the browser and the response is
+ * stored in the HTTP cache: revisiting a recipe reuses the cached bytes, and once stale the
+ * conditional request comes back as a 304 with no body. Fetching into an object URL bypassed all
+ * of that and re-downloaded every image on every mount.
+ */
+export function RecipeCoverImage({
+    workspaceId,
+    recipeId,
+    hasImage,
+    className,
+    alt,
+    version,
+}: RecipeCoverImageProps) {
+    const [failed, setFailed] = useState(false);
+    const src = recipeImageRequestUrl(workspaceId, recipeId, version);
 
     useEffect(() => {
-        if (!hasImage) {
-            setSrc(null);
-            return;
-        }
+        setFailed(false);
+    }, [src]);
 
-        let cancelled = false;
-        let objectUrl: string | null = null;
-        const url = recipeImageRequestUrl(workspaceId, recipeId);
+    if (!hasImage || failed) return null;
 
-        fetch(url, { credentials: 'include' })
-            .then(res => {
-                if (!res.ok) throw new Error('Failed to load image');
-                return res.blob();
-            })
-            .then(blob => {
-                if (cancelled) return;
-                objectUrl = URL.createObjectURL(blob);
-                setSrc(objectUrl);
-            })
-            .catch(() => {
-                if (!cancelled) setSrc(null);
-            });
-
-        return () => {
-            cancelled = true;
-            if (objectUrl) URL.revokeObjectURL(objectUrl);
-        };
-    }, [hasImage, workspaceId, recipeId]);
-
-    if (!hasImage || !src) return null;
-
-    return <img src={src} alt={alt} className={className} />;
+    return <img src={src} alt={alt} className={className} onError={() => setFailed(true)} />;
 }
