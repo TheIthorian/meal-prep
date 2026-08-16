@@ -105,6 +105,9 @@ export default function RecipeLibraryPage() {
                     trigger={
                         <button
                             type='button'
+                            // The label is hidden below the sm breakpoint, leaving the icon alone
+                            // and the button with no accessible name on mobile.
+                            aria-label='Add recipe'
                             className='flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90'
                         >
                             <Plus className='h-4 w-4' />
@@ -167,9 +170,18 @@ export default function RecipeLibraryPage() {
 
             {!isLoading && otherRecipes.length > 0 && (
                 <section>
-                    {favourites.length > 0 ? (
-                        <h2 className='mb-4 font-heading text-lg text-foreground'>All recipes</h2>
-                    ) : null}
+                    {/* Always rendered so the cards' h3 never follows the page h1 directly, which
+                        breaks the heading outline for screen readers. Hidden when there is no
+                        Favourites section above it to distinguish this one from. */}
+                    <h2
+                        className={
+                            favourites.length > 0
+                                ? 'mb-4 font-heading text-lg text-foreground'
+                                : 'sr-only'
+                        }
+                    >
+                        All recipes
+                    </h2>
                     <div className='grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'>
                         {otherRecipes.map((recipe, i) => (
                             <RecipeCard key={recipe.id} workspaceId={workspaceId} recipe={recipe} index={i} />
