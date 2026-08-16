@@ -235,7 +235,7 @@ export default function RecipeCollectionPage() {
                             </p>
                         ) : null}
                     </div>
-                    <div className='flex flex-wrap gap-2'>
+                    <div className='flex flex-wrap items-center gap-2'>
                         <Button
                             type='button'
                             variant='outline'
@@ -254,6 +254,7 @@ export default function RecipeCollectionPage() {
                                         type='button'
                                         variant='outline'
                                         size='icon'
+                                        className='h-9 w-9'
                                         aria-label='Share collection'
                                         onClick={() => setShareDialogOpen(true)}
                                     >
