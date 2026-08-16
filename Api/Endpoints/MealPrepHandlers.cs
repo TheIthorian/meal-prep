@@ -337,8 +337,7 @@ internal static class RecipesHandlers
         CurrentUserService currentUserService,
         ApiDbContext db,
         RecipeImportService recipeImportService,
-        RecipeImageProcessingService recipeImageProcessingService,
-        IS3StorageService s3StorageService,
+        RecipeImageStore recipeImageStore,
         Guid workspaceId,
         [FromBody] SaveRecipeRequest body,
         CancellationToken cancellationToken
@@ -354,8 +353,7 @@ internal static class RecipesHandlers
             body,
             recipe,
             recipeImportService,
-            recipeImageProcessingService,
-            s3StorageService,
+            recipeImageStore,
             cancellationToken
         );
 
@@ -378,8 +376,7 @@ internal static class RecipesHandlers
         CurrentUserService currentUserService,
         ApiDbContext db,
         RecipeImportService recipeImportService,
-        RecipeImageProcessingService recipeImageProcessingService,
-        IS3StorageService s3StorageService,
+        RecipeImageStore recipeImageStore,
         ILoggerFactory loggerFactory,
         Guid workspaceId,
         Guid recipeId,
@@ -472,20 +469,10 @@ internal static class RecipesHandlers
                 var existingImageKey = await recipeQuery.Select(value => value.ImageObjectKey)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (!string.IsNullOrEmpty(existingImageKey))
-                    await s3StorageService.DeleteFileAsync(existingImageKey);
+                    await recipeImageStore.DeleteAsync(existingImageKey, cancellationToken);
 
                 await using var stream = new MemoryStream(payload.Data);
-                var optimized = await recipeImageProcessingService.OptimizeForWebAsync(
-                    stream,
-                    payload.FileName,
-                    cancellationToken
-                );
-                await using var optimizedStream = new MemoryStream(optimized.Data);
-                var key = await s3StorageService.UploadFileAsync(
-                    optimizedStream,
-                    optimized.FileName,
-                    optimized.ContentType
-                );
+                var key = await recipeImageStore.StoreAsync(stream, payload.FileName, cancellationToken);
                 await recipeQuery.ExecuteUpdateAsync(
                     setters => setters
                         .SetProperty(value => value.ImageObjectKey, key)
@@ -514,7 +501,7 @@ internal static class RecipesHandlers
     public static async Task<Ok> DeleteRecipe(
         CurrentUserService currentUserService,
         ApiDbContext db,
-        IS3StorageService s3StorageService,
+        RecipeImageStore recipeImageStore,
         Guid workspaceId,
         Guid recipeId
     )
@@ -533,7 +520,7 @@ internal static class RecipesHandlers
 
         if (!string.IsNullOrEmpty(recipe.ImageObjectKey))
         {
-            await s3StorageService.DeleteFileAsync(recipe.ImageObjectKey);
+            await recipeImageStore.DeleteAsync(recipe.ImageObjectKey);
         }
 
         recipe.IsDeleted = true;
@@ -545,10 +532,11 @@ internal static class RecipesHandlers
     public static async Task<IResult> GetRecipeImage(
         CurrentUserService currentUserService,
         ApiDbContext db,
-        IS3StorageService s3StorageService,
+        RecipeImageStore recipeImageStore,
         HttpContext httpContext,
         Guid workspaceId,
         Guid recipeId,
+        [FromQuery] int? w,
         CancellationToken cancellationToken
     )
     {
@@ -569,8 +557,13 @@ internal static class RecipesHandlers
 
         // Images are immutable once written — a replacement upload stores a new object key — so the
         // key identifies the bytes. Clients that already hold them get a 304 and no body, and the
-        // object is never read from S3 for such a request.
-        var etag = RecipeImageCache.ETagForObjectKey(recipe.ImageObjectKey);
+        // object is never read from S3 for such a request. The requested width is folded into the
+        // key the tag is derived from so that two renditions of the same image never share a tag.
+        var servedKey = RecipeImageVariants.ResolveWidth(w) is { } width
+            ? RecipeImageVariants.KeyForWidth(recipe.ImageObjectKey, width)
+            : recipe.ImageObjectKey;
+
+        var etag = RecipeImageCache.ETagForObjectKey(servedKey);
         httpContext.Response.GetTypedHeaders().CacheControl = RecipeImageCache.ResponseCacheControl();
 
         if (RecipeImageCache.IsNotModified(httpContext.Request.GetTypedHeaders(), etag)) {
@@ -578,19 +571,21 @@ internal static class RecipesHandlers
             return TypedResults.StatusCode(StatusCodes.Status304NotModified);
         }
 
-        var stream = await s3StorageService.DownloadFileAsync(recipe.ImageObjectKey);
-        var contentType = RecipeImageUploadConstants.ContentTypeFromObjectKey(recipe.ImageObjectKey)
+        // A response varies by width, and the width is in the query string rather than a header, so
+        // no Vary is needed — but a shared cache must not serve one client's rendition to another,
+        // which the private cache-control above already prevents.
+        var image = await recipeImageStore.OpenAsync(recipe.ImageObjectKey, w, cancellationToken);
+        var contentType = RecipeImageUploadConstants.ContentTypeFromObjectKey(image.ObjectKey)
                           ?? "application/octet-stream";
 
-        return TypedResults.File(stream, contentType, entityTag: etag);
+        return TypedResults.File(image.Content, contentType, entityTag: etag);
     }
 
     [Authorize]
     public static async Task<JsonHttpResult<RecipeResponse>> PostRecipeImage(
         CurrentUserService currentUserService,
         ApiDbContext db,
-        RecipeImageProcessingService recipeImageProcessingService,
-        IS3StorageService s3StorageService,
+        RecipeImageStore recipeImageStore,
         Guid workspaceId,
         Guid recipeId,
         IFormFile? file,
@@ -628,21 +623,11 @@ internal static class RecipesHandlers
         }
 
         await using var readStream = file.OpenReadStream();
-        var optimized = await recipeImageProcessingService.OptimizeForWebAsync(
-            readStream,
-            file.FileName,
-            cancellationToken
-        );
-        await using var optimizedStream = new MemoryStream(optimized.Data);
-        var newKey = await s3StorageService.UploadFileAsync(
-            optimizedStream,
-            optimized.FileName,
-            optimized.ContentType
-        );
+        var newKey = await recipeImageStore.StoreAsync(readStream, file.FileName, cancellationToken);
 
         if (!string.IsNullOrEmpty(recipe.ImageObjectKey))
         {
-            await s3StorageService.DeleteFileAsync(recipe.ImageObjectKey);
+            await recipeImageStore.DeleteAsync(recipe.ImageObjectKey, cancellationToken);
         }
 
         recipe.SetImageObjectKey(newKey);
@@ -657,7 +642,7 @@ internal static class RecipesHandlers
     public static async Task<JsonHttpResult<RecipeResponse>> DeleteRecipeImage(
         CurrentUserService currentUserService,
         ApiDbContext db,
-        IS3StorageService s3StorageService,
+        RecipeImageStore recipeImageStore,
         Guid workspaceId,
         Guid recipeId,
         CancellationToken cancellationToken
@@ -680,7 +665,7 @@ internal static class RecipesHandlers
 
         if (!string.IsNullOrEmpty(recipe.ImageObjectKey))
         {
-            await s3StorageService.DeleteFileAsync(recipe.ImageObjectKey);
+            await recipeImageStore.DeleteAsync(recipe.ImageObjectKey, cancellationToken);
         }
 
         recipe.SetImageObjectKey(null);
@@ -772,8 +757,7 @@ internal static class RecipesHandlers
         CurrentUserService currentUserService,
         ApiDbContext db,
         RecipeImportService recipeImportService,
-        RecipeImageProcessingService recipeImageProcessingService,
-        IS3StorageService s3StorageService,
+        RecipeImageStore recipeImageStore,
         Guid workspaceId,
         [FromBody] ImportRecipeRequest body,
         CancellationToken cancellationToken
@@ -796,8 +780,7 @@ internal static class RecipesHandlers
             saveRequest,
             recipe,
             recipeImportService,
-            recipeImageProcessingService,
-            s3StorageService,
+            recipeImageStore,
             cancellationToken
         );
 
@@ -821,8 +804,7 @@ internal static class RecipesHandlers
         ApiDbContext db,
         RecipeDocumentImportService recipeDocumentImportService,
         RecipeImportService recipeImportService,
-        RecipeImageProcessingService recipeImageProcessingService,
-        IS3StorageService s3StorageService,
+        RecipeImageStore recipeImageStore,
         Guid workspaceId,
         IFormFile? file,
         CancellationToken cancellationToken
@@ -845,8 +827,7 @@ internal static class RecipesHandlers
             saveRequest,
             recipe,
             recipeImportService,
-            recipeImageProcessingService,
-            s3StorageService,
+            recipeImageStore,
             cancellationToken
         );
 
@@ -868,8 +849,7 @@ internal static class RecipesHandlers
         SaveRecipeRequest body,
         Recipe recipe,
         RecipeImportService recipeImportService,
-        RecipeImageProcessingService recipeImageProcessingService,
-        IS3StorageService s3StorageService,
+        RecipeImageStore recipeImageStore,
         CancellationToken cancellationToken
     )
     {
@@ -882,16 +862,11 @@ internal static class RecipesHandlers
 
         if (payload is null) return;
 
-        if (!string.IsNullOrEmpty(recipe.ImageObjectKey)) await s3StorageService.DeleteFileAsync(recipe.ImageObjectKey);
+        if (!string.IsNullOrEmpty(recipe.ImageObjectKey))
+            await recipeImageStore.DeleteAsync(recipe.ImageObjectKey, cancellationToken);
 
         await using var stream = new MemoryStream(payload.Data);
-        var optimized = await recipeImageProcessingService.OptimizeForWebAsync(
-            stream,
-            payload.FileName,
-            cancellationToken
-        );
-        await using var optimizedStream = new MemoryStream(optimized.Data);
-        var key = await s3StorageService.UploadFileAsync(optimizedStream, optimized.FileName, optimized.ContentType);
+        var key = await recipeImageStore.StoreAsync(stream, payload.FileName, cancellationToken);
         recipe.SetImageObjectKey(key);
     }
 

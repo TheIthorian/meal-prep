@@ -101,6 +101,10 @@ export function RecipePhotoSection({
                             version={imageVersion}
                             alt={`Photo of ${title}`}
                             className='h-full w-full object-cover'
+                            // The hero spans the content column, which is capped at the 4xl
+                            // container width.
+                            sizes='(min-width: 896px) 896px, 100vw'
+                            priority
                         />
                     ) : (
                         <div className='flex h-full w-full flex-col items-center justify-center gap-2 px-4 text-center text-muted-foreground'>
