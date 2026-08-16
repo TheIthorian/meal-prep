@@ -89,7 +89,6 @@ internal static class MealPrepMcpToolsRegistration
             nameof(MealPrepMcpTools.GetRecipe) => (true, false, true, false),
             nameof(MealPrepMcpTools.CreateRecipe) => (false, false, false, false),
             nameof(MealPrepMcpTools.UpdateRecipe) => (false, true, false, false),
-            nameof(MealPrepMcpTools.SetRecipeImageFromUrl) => (false, true, false, true),
             nameof(MealPrepMcpTools.DeleteRecipe) => (false, true, false, false),
             nameof(MealPrepMcpTools.ImportRecipe) => (false, false, false, true),
             nameof(MealPrepMcpTools.ListNextMeals) => (true, false, true, false),
