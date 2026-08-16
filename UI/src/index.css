@@ -135,7 +135,9 @@ All colors MUST be HSL.
     html,
     body {
         @apply bg-background text-foreground;
-        overflow-x: hidden;
+        /* `clip` still suppresses sideways overflow but, unlike `hidden`, does not turn the
+           document into a scroll container — which silently breaks position: sticky. */
+        overflow-x: clip;
     }
 
     body {
