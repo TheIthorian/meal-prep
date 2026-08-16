@@ -3,6 +3,8 @@
 Meal Prep is a self-hostable recipe and shopping workflow app.
 It lets you save recipes, import recipes from URLs, organize ingredients, generate shopping lists, and connect MCP clients to a workspace.
 
+The sections below describe how to run the full stack with Docker Compose (for example API, UI, reverse proxy, PostgreSQL, Redis, and MinIO depending on the compose file you use).
+
 ## Quickstart (Docker Compose)
 
 ### Prerequisites

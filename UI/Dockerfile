@@ -25,5 +25,8 @@ RUN pnpm build
 
 FROM caddy:2-alpine AS runtime
 
+RUN apk add --no-cache curl
 COPY --from=build /app/UI/dist /usr/share/caddy
 COPY UI/Caddyfile /etc/caddy/Caddyfile
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
+    CMD curl -fsS http://127.0.0.1/ || exit 1
