@@ -315,20 +315,27 @@ export default function RecipeDetailPage() {
     }
 
     if (isEditing && draftRecipe) {
+        const saveDraft = () => void updateRecipe.mutateAsync(draftRecipe);
+
         return (
             <div className='mx-auto max-w-5xl px-4 py-6 md:px-8 md:py-10'>
-                <div className='mb-6 flex items-center justify-between gap-3'>
+                <div className='mb-6 flex flex-wrap items-center justify-between gap-3'>
                     <h1 className='font-heading text-2xl text-foreground md:text-3xl'>Edit Recipe</h1>
-                    <Button type='button' variant='ghost' onClick={cancelEditing} disabled={updateRecipe.isPending}>
-                        Cancel
-                    </Button>
+                    <div className='flex items-center gap-3'>
+                        <Button type='button' variant='ghost' onClick={cancelEditing} disabled={updateRecipe.isPending}>
+                            Cancel
+                        </Button>
+                        <Button type='button' onClick={saveDraft} disabled={updateRecipe.isPending}>
+                            {updateRecipe.isPending ? 'Saving...' : 'Save Recipe'}
+                        </Button>
+                    </div>
                 </div>
                 <RecipeForm
                     recipe={draftRecipe}
                     workspaceId={workspaceId}
                     isSaving={updateRecipe.isPending}
                     onChange={setDraftRecipe}
-                    onSubmit={() => void updateRecipe.mutateAsync(draftRecipe)}
+                    onSubmit={saveDraft}
                 />
             </div>
         );
