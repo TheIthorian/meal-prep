@@ -1,4 +1,4 @@
-mealprep.local, 192.168.1.98 {
+{$SITE_ADDRESSES:mealprep.local} {
     tls /certs/cert.pem /certs/key.pem
 
     @api path /api/*
