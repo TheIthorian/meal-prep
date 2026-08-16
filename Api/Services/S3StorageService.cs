@@ -1,3 +1,4 @@
+using System.Net;
 using Amazon;
 using Amazon.S3;
 using Amazon.S3.Model;
@@ -59,6 +60,32 @@ public class S3StorageService : IS3StorageService
         await fileTransferUtility.UploadAsync(uploadRequest);
 
         return key;
+    }
+
+    public async Task UploadFileAtKeyAsync(Stream fileStream, string key, string contentType) {
+        using var methodTiming = System.Diagnostics.Activity.Current.BeginAppMethodEvent();
+
+        using var scope = _logger.BeginPropertyScope(
+            ("s3.bucket", _bucketName),
+            ("s3.key", key),
+            ("file.contentType", contentType)
+        );
+        _logger.LogInformation("Uploading file to S3 at an explicit key");
+
+        var uploadRequest = new TransferUtilityUploadRequest {
+            InputStream = fileStream, Key = key, BucketName = _bucketName, ContentType = contentType
+        };
+
+        var fileTransferUtility = new TransferUtility(_s3Client);
+        await fileTransferUtility.UploadAsync(uploadRequest);
+    }
+
+    public async Task<Stream?> TryDownloadFileAsync(string s3Key) {
+        try {
+            return await DownloadFileAsync(s3Key);
+        } catch (AmazonS3Exception exception) when (exception.StatusCode == HttpStatusCode.NotFound) {
+            return null;
+        }
     }
 
     public async Task<Stream> DownloadFileAsync(string s3Key) {

@@ -10,7 +10,7 @@ import { WorkspaceRedirect } from '@/components/WorkspaceRedirect';
 import { MealPrepAppLayout } from '@/components/meal-prep/MealPrepAppLayout';
 import { PostHogProvider } from '@posthog/react';
 import { ThemeProvider } from '@/components/theme-provider';
-import { StrictMode, Suspense, lazy } from 'react';
+import { StrictMode, Suspense, lazy, type ReactNode } from 'react';
 import { AnalyticsBridge } from '@/components/AnalyticsBridge';
 import { FullPageSpinner } from '@/components/FullPageSpinner';
 
@@ -50,9 +50,29 @@ const queryClient = new QueryClient({
 
 const posthogOptions = { api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST, defaults: '2026-01-30' } as const;
 
+const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY;
+
+/**
+ * Mounts the PostHog provider only when a key is configured.
+ *
+ * Rendering the provider without one makes posthog-js log an error on every page load
+ * ("PostHog was initialized without a token"). Builds with analytics turned off — local dev, and
+ * any deploy without the key set — should simply not have analytics rather than announce a
+ * misconfiguration. `usePostHog` falls back to an uninitialised client outside a provider and
+ * `useAnalytics` already null-checks it, so callers keep working either way.
+ */
+const AnalyticsProvider = ({ children }: { children: ReactNode }) =>
+    posthogKey ? (
+        <PostHogProvider apiKey={posthogKey} options={posthogOptions}>
+            {children}
+        </PostHogProvider>
+    ) : (
+        <>{children}</>
+    );
+
 const App = () => (
     <StrictMode>
-        <PostHogProvider apiKey={import.meta.env.VITE_PUBLIC_POSTHOG_KEY} options={posthogOptions}>
+        <AnalyticsProvider>
             <ThemeProvider defaultTheme='system' storageKey='vite-ui-theme'>
                 <QueryClientProvider client={queryClient}>
                     <TooltipProvider>
@@ -132,7 +152,7 @@ const App = () => (
                     </TooltipProvider>
                 </QueryClientProvider>
             </ThemeProvider>
-        </PostHogProvider>
+        </AnalyticsProvider>
     </StrictMode>
 );
 
