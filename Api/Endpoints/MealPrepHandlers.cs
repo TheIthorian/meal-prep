@@ -17,6 +17,20 @@ using Microsoft.Extensions.Logging;
 
 namespace Api.Endpoints;
 
+/// <summary>
+///     Which recipe child collections an update request is authoritative for. Flags that are not set keep their stored
+///     rows, so partial updates never delete ingredients, steps, or nutrition the caller did not send.
+/// </summary>
+[Flags]
+internal enum RecipeChildReplacement
+{
+    None = 0,
+    Ingredients = 1,
+    Steps = 2,
+    Nutrition = 4,
+    All = Ingredients | Steps | Nutrition
+}
+
 internal static class RecipesHandlers
 {
     [Authorize]
@@ -240,17 +254,7 @@ internal static class RecipesHandlers
         if (recipe is null) throw new EntityNotFoundException("Recipe not found", null);
 
         var isFavorite = await RecipeIsFavoriteAsync(db, currentUserId.Value, recipeId, cancellationToken);
-        var collections = recipe.CollectionLinks
-            .Where(link => !link.RecipeCollection.IsDeleted)
-            .OrderBy(link => link.RecipeCollection.Name)
-            .Select(link => new RecipeCollectionMembershipResponse(
-                    link.RecipeCollectionId,
-                    link.RecipeCollection.Name,
-                    link.RecipeCollection.WorkspaceId,
-                    link.RecipeCollection.WorkspaceId == workspaceId
-                )
-            )
-            .ToArray();
+        var collections = BuildCollectionMemberships(recipe, workspaceId);
 
         return TypedResults.Json(recipe.ToRecipeResponse(isFavorite, collections));
     }
@@ -372,7 +376,7 @@ internal static class RecipesHandlers
     }
 
     [Authorize]
-    public static async Task<JsonHttpResult<RecipeResponse>> PatchRecipe(
+    public static Task<JsonHttpResult<RecipeResponse>> PatchRecipe(
         CurrentUserService currentUserService,
         ApiDbContext db,
         RecipeImportService recipeImportService,
@@ -381,6 +385,38 @@ internal static class RecipesHandlers
         Guid workspaceId,
         Guid recipeId,
         [FromBody] SaveRecipeRequest body,
+        CancellationToken cancellationToken
+    )
+    {
+        return PatchRecipeInternal(
+            currentUserService,
+            db,
+            recipeImportService,
+            recipeImageStore,
+            loggerFactory,
+            workspaceId,
+            recipeId,
+            body,
+            RecipeChildReplacement.All,
+            cancellationToken
+        );
+    }
+
+    /// <summary>
+    ///     Shared recipe update. <paramref name="childReplacement" /> selects which child collections the request is
+    ///     authoritative for; collections left out keep their existing rows (and row ids) untouched, which is what makes
+    ///     partial updates from the MCP tools non-destructive.
+    /// </summary>
+    public static async Task<JsonHttpResult<RecipeResponse>> PatchRecipeInternal(
+        CurrentUserService currentUserService,
+        ApiDbContext db,
+        RecipeImportService recipeImportService,
+        RecipeImageStore recipeImageStore,
+        ILoggerFactory loggerFactory,
+        Guid workspaceId,
+        Guid recipeId,
+        SaveRecipeRequest body,
+        RecipeChildReplacement childReplacement,
         CancellationToken cancellationToken
     )
     {
@@ -411,15 +447,22 @@ internal static class RecipesHandlers
 
         if (updatedCount == 0) throw new EntityNotFoundException("Recipe not found", null);
 
-        await db.RecipeIngredients
-            .Where(value => value.RecipeId == recipeId)
-            .ExecuteDeleteAsync(cancellationToken);
-        await db.RecipeSteps
-            .Where(value => value.RecipeId == recipeId)
-            .ExecuteDeleteAsync(cancellationToken);
-        await db.RecipeNutrition
-            .Where(value => value.RecipeId == recipeId)
-            .ExecuteDeleteAsync(cancellationToken);
+        var replaceIngredients = childReplacement.HasFlag(RecipeChildReplacement.Ingredients);
+        var replaceSteps = childReplacement.HasFlag(RecipeChildReplacement.Steps);
+        var replaceNutrition = childReplacement.HasFlag(RecipeChildReplacement.Nutrition);
+
+        if (replaceIngredients)
+            await db.RecipeIngredients
+                .Where(value => value.RecipeId == recipeId)
+                .ExecuteDeleteAsync(cancellationToken);
+        if (replaceSteps)
+            await db.RecipeSteps
+                .Where(value => value.RecipeId == recipeId)
+                .ExecuteDeleteAsync(cancellationToken);
+        if (replaceNutrition)
+            await db.RecipeNutrition
+                .Where(value => value.RecipeId == recipeId)
+                .ExecuteDeleteAsync(cancellationToken);
 
         var newIngredients = body.Ingredients
             .Select((ingredient, index) => RecipeIngredient.CreateNew(
@@ -453,9 +496,12 @@ internal static class RecipesHandlers
         foreach (var nutrient in newNutrition)
             db.Entry(nutrient).Property(nameof(RecipeNutrition.RecipeId)).CurrentValue = recipeId;
 
-        await db.RecipeIngredients.AddRangeAsync(newIngredients, cancellationToken);
-        await db.RecipeSteps.AddRangeAsync(newSteps, cancellationToken);
-        await db.RecipeNutrition.AddRangeAsync(newNutrition, cancellationToken);
+        if (replaceIngredients)
+            await db.RecipeIngredients.AddRangeAsync(newIngredients, cancellationToken);
+        if (replaceSteps)
+            await db.RecipeSteps.AddRangeAsync(newSteps, cancellationToken);
+        if (replaceNutrition)
+            await db.RecipeNutrition.AddRangeAsync(newNutrition, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(body.ImportImageUrl))
@@ -486,6 +532,8 @@ internal static class RecipesHandlers
             .Include(value => value.Ingredients)
             .Include(value => value.Steps)
             .Include(value => value.Nutrition)
+            .Include(value => value.CollectionLinks)
+            .ThenInclude(link => link.RecipeCollection)
             .AsNoTracking()
             .ForCurrentUser(currentUserId)
             .WhereIsNotDeleted()
@@ -493,8 +541,23 @@ internal static class RecipesHandlers
             .FirstAsync(cancellationToken);
 
         var isFavorite = await RecipeIsFavoriteAsync(db, currentUserId, recipeId, cancellationToken);
+        var collections = BuildCollectionMemberships(updatedRecipe, workspaceId);
 
-        return TypedResults.Json(updatedRecipe.ToRecipeResponse(isFavorite));
+        return TypedResults.Json(updatedRecipe.ToRecipeResponse(isFavorite, collections));
+    }
+
+    private static RecipeCollectionMembershipResponse[] BuildCollectionMemberships(Recipe recipe, Guid workspaceId) {
+        return recipe.CollectionLinks
+            .Where(link => !link.RecipeCollection.IsDeleted)
+            .OrderBy(link => link.RecipeCollection.Name)
+            .Select(link => new RecipeCollectionMembershipResponse(
+                    link.RecipeCollectionId,
+                    link.RecipeCollection.Name,
+                    link.RecipeCollection.WorkspaceId,
+                    link.RecipeCollection.WorkspaceId == workspaceId
+                )
+            )
+            .ToArray();
     }
 
     [Authorize]
@@ -1409,7 +1472,10 @@ internal static class ShoppingListsHandlers
             body.SourceNames ?? Array.Empty<string>()
         );
 
-        shoppingList.Items.Add(item);
+        // Add through the DbSet: ids are client-generated, so a new entity reached only through the parent's
+        // navigation is tracked as Modified and saved as an UPDATE that matches no row.
+        db.ShoppingListItems.Add(item);
+        db.Entry(item).Property(nameof(ShoppingListItem.ShoppingListId)).CurrentValue = shoppingList.Id;
         await db.SaveChangesAsync();
 
         return TypedResults.Json(item.ToResponse());

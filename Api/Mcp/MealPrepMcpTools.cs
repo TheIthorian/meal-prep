@@ -106,6 +106,49 @@ public sealed class MealPrepMcpTools(
         return JsonSerializer.Serialize(body, McpJson.SerializerOptions);
     }
 
+    /// <summary>
+    ///     Partial-update semantics for optional text: null/omitted keeps the stored value, an empty string clears it.
+    /// </summary>
+    private static string? MergeOptionalText(string? provided, string? existing) {
+        if (provided is null)
+            return existing;
+        return string.IsNullOrWhiteSpace(provided) ? null : provided;
+    }
+
+    private static SaveRecipeIngredientRequest[] ToSaveRequests(RecipeIngredientResponse[] ingredients) {
+        return ingredients
+            .OrderBy(ingredient => ingredient.SortOrder)
+            .Select(ingredient => new SaveRecipeIngredientRequest(
+                    ingredient.Name,
+                    ingredient.NormalizedIngredientName,
+                    ingredient.Amount,
+                    ingredient.Unit,
+                    ingredient.PreparationNote,
+                    ingredient.Section,
+                    ingredient.DisplayText
+                )
+            )
+            .ToArray();
+    }
+
+    private static SaveRecipeStepRequest[] ToSaveRequests(RecipeStepResponse[] steps) {
+        return steps
+            .OrderBy(step => step.SortOrder)
+            .Select(step => new SaveRecipeStepRequest(step.Instruction, step.TimerSeconds))
+            .ToArray();
+    }
+
+    private static SaveRecipeNutritionRequest? ToSaveRequest(RecipeNutritionResponse? nutrition) {
+        if (nutrition is null)
+            return null;
+        return new SaveRecipeNutritionRequest(
+            nutrition.ServingBasis,
+            nutrition.Nutrients
+                .Select(nutrient => new SaveRecipeNutrientRequest(nutrient.NutrientType, nutrient.Amount))
+                .ToArray()
+        );
+    }
+
     private async Task<string> ExecuteToolWithErrorLoggingAsync(string toolName, Func<Task<string>> action) {
         try {
             return await action();
@@ -258,59 +301,86 @@ public sealed class MealPrepMcpTools(
     }
 
     [McpServerTool]
-    [Description("Updates a recipe by id.")]
+    [Description(
+        "Updates a recipe by id. This is a partial update: omitted arguments keep their stored value. "
+        + "To clear an optional text field, pass an empty string."
+    )]
     public async Task<string> UpdateRecipe(
         [Description("Recipe id to update.")] Guid recipeId,
-        [Description("Recipe title.")] string title,
-        [Description("Optional recipe description.")]
-        string? description,
-        [Description("Number of servings this recipe makes.")]
-        decimal servings,
-        [Description("Optional source URL for the recipe.")]
-        string? sourceUrl,
-        [Description("Optional free-form notes.")]
-        string? notes,
-        [Description("Optional prep time in minutes.")]
-        int? prepMinutes,
-        [Description("Optional cook time in minutes.")]
-        int? cookMinutes,
-        [Description("Whether the recipe should be archived.")]
-        bool isArchived,
+        [Description("Recipe title. Omit to keep the stored title.")]
+        string? title = null,
+        [Description("Recipe description. Omit to keep the stored value, empty string to clear.")]
+        string? description = null,
+        [Description("Number of servings this recipe makes. Omit to keep the stored value.")]
+        decimal? servings = null,
+        [Description("Source URL for the recipe. Omit to keep the stored value, empty string to clear.")]
+        string? sourceUrl = null,
+        [Description("Free-form notes. Omit to keep the stored value, empty string to clear.")]
+        string? notes = null,
+        [Description("Prep time in minutes. Omit to keep the stored value.")]
+        int? prepMinutes = null,
+        [Description("Cook time in minutes. Omit to keep the stored value.")]
+        int? cookMinutes = null,
+        [Description("Whether the recipe should be archived. Omit to keep the stored value.")]
+        bool? isArchived = null,
         [Description(
-            "Recipe tags from the app whitelist only (kebab-case), e.g. dinner, breakfast, eggs, spicy, dessert, quick, vegetarian."
+            "Recipe tags from the app whitelist only (kebab-case), e.g. dinner, breakfast, eggs, spicy, dessert, quick, vegetarian. "
+            + "Omit to keep the stored tags; pass an empty array to remove all tags."
         )]
-        string[] tags,
-        [Description("Recipe ingredients.")] SaveRecipeIngredientRequest[] ingredients,
-        [Description("Recipe instructions/steps.")]
-        SaveRecipeStepRequest[] steps,
-        [Description("Optional nutrition block.")]
-        SaveRecipeNutritionRequest? nutrition,
-        [Description("Optional imported image URL (must be http/https).")]
-        string? importImageUrl,
-        CancellationToken cancellationToken
+        string[]? tags = null,
+        [Description(
+            "Full replacement list of recipe ingredients. Omit to keep the stored ingredients; pass an empty array to remove them all."
+        )]
+        SaveRecipeIngredientRequest[]? ingredients = null,
+        [Description(
+            "Full replacement list of recipe instructions/steps. Omit to keep the stored steps; pass an empty array to remove them all."
+        )]
+        SaveRecipeStepRequest[]? steps = null,
+        [Description("Nutrition block. Omit to keep the stored nutrition.")]
+        SaveRecipeNutritionRequest? nutrition = null,
+        [Description("Optional imported image URL (must be http/https). Omit to keep the current image.")]
+        string? importImageUrl = null,
+        CancellationToken cancellationToken = default
     ) {
         return await ExecuteToolWithErrorLoggingAsync(
             nameof(UpdateRecipe),
             async () => {
                 var workspaceId = RequireMcpWorkspaceId();
+                var existing = (await RecipesHandlers.GetRecipe(
+                    currentUserService,
+                    db,
+                    workspaceId,
+                    recipeId,
+                    cancellationToken
+                )).Value ?? throw new EntityNotFoundException("Recipe not found", null);
+
                 var recipe = new SaveRecipeRequest(
-                    title,
-                    description,
-                    servings,
-                    sourceUrl,
-                    notes,
-                    prepMinutes,
-                    cookMinutes,
-                    isArchived,
-                    tags,
-                    ingredients,
-                    steps,
-                    nutrition,
+                    string.IsNullOrWhiteSpace(title) ? existing.Title : title,
+                    MergeOptionalText(description, existing.Description),
+                    servings ?? existing.Servings,
+                    MergeOptionalText(sourceUrl, existing.SourceUrl),
+                    MergeOptionalText(notes, existing.Notes),
+                    prepMinutes ?? existing.PrepMinutes,
+                    cookMinutes ?? existing.CookMinutes,
+                    isArchived ?? existing.IsArchived,
+                    tags ?? existing.Tags,
+                    ingredients ?? ToSaveRequests(existing.Ingredients),
+                    steps ?? ToSaveRequests(existing.Steps),
+                    nutrition ?? ToSaveRequest(existing.Nutrition),
                     importImageUrl
                 );
                 await ValidateRequestAsync(recipe, cancellationToken);
 
-                var result = await RecipesHandlers.PatchRecipe(
+                // Only rewrite the child rows the caller actually sent; the rest keep their ids and per-row state.
+                var childReplacement = RecipeChildReplacement.None;
+                if (ingredients is not null)
+                    childReplacement |= RecipeChildReplacement.Ingredients;
+                if (steps is not null)
+                    childReplacement |= RecipeChildReplacement.Steps;
+                if (nutrition is not null)
+                    childReplacement |= RecipeChildReplacement.Nutrition;
+
+                var result = await RecipesHandlers.PatchRecipeInternal(
                     currentUserService,
                     db,
                     recipeImportService,
@@ -319,10 +389,54 @@ public sealed class MealPrepMcpTools(
                     workspaceId,
                     recipeId,
                     recipe,
+                    childReplacement,
                     cancellationToken
                 );
                 return Serialize(result);
             }
+        );
+    }
+
+    [McpServerTool]
+    [Description("Renames a recipe. Touches the title only; every other field, including ingredients and steps, is left as-is.")]
+    public async Task<string> RenameRecipe(
+        [Description("Recipe id to rename.")] Guid recipeId,
+        [Description("New recipe title.")] string title,
+        CancellationToken cancellationToken = default
+    ) {
+        return await ExecuteToolWithErrorLoggingAsync(
+            nameof(RenameRecipe),
+            () => UpdateRecipe(recipeId, title, cancellationToken: cancellationToken)
+        );
+    }
+
+    [McpServerTool]
+    [Description("Replaces a recipe's tags. Touches tags only; every other field is left as-is.")]
+    public async Task<string> SetRecipeTags(
+        [Description("Recipe id to update.")] Guid recipeId,
+        [Description(
+            "Full replacement tag list, from the app whitelist only (kebab-case). Pass an empty array to remove all tags."
+        )]
+        string[] tags,
+        CancellationToken cancellationToken = default
+    ) {
+        return await ExecuteToolWithErrorLoggingAsync(
+            nameof(SetRecipeTags),
+            () => UpdateRecipe(recipeId, tags: tags, cancellationToken: cancellationToken)
+        );
+    }
+
+    [McpServerTool]
+    [Description("Archives or unarchives a recipe. Touches the archived flag only; every other field is left as-is.")]
+    public async Task<string> ArchiveRecipe(
+        [Description("Recipe id to update.")] Guid recipeId,
+        [Description("True to archive, false to restore.")]
+        bool isArchived,
+        CancellationToken cancellationToken = default
+    ) {
+        return await ExecuteToolWithErrorLoggingAsync(
+            nameof(ArchiveRecipe),
+            () => UpdateRecipe(recipeId, isArchived: isArchived, cancellationToken: cancellationToken)
         );
     }
 
@@ -452,56 +566,95 @@ public sealed class MealPrepMcpTools(
 
     [McpServerTool]
     [Description(
-        "Creates or updates a next meal. Pass nextMealId to update; otherwise pass null to create."
+        "Creates or updates a next meal. Pass nextMealId to update; otherwise pass null to create. "
+        + "When updating, this is a partial update: omitted arguments keep their stored value."
     )]
     public async Task<string> PutNextMeal(
         [Description("Next-meal id to update. Omit/null to create a new entry.")]
-        Guid? nextMealId,
-        [Description("Recipe id for the next meal.")]
-        Guid recipeId,
-        [Description("Target date in yyyy-MM-dd format.")]
-        string plannedDate,
-        [Description("Meal type value (must match allowed meal types).")]
-        string mealType,
-        [Description("Optional target servings.")]
-        decimal? targetServings,
-        [Description("Optional notes.")] string? notes,
-        [Description("Status value (must match allowed meal-plan statuses).")]
-        string status,
+        Guid? nextMealId = null,
+        [Description("Recipe id for the next meal. Required when creating; omit when updating to keep the stored recipe.")]
+        Guid? recipeId = null,
+        [Description("Target date in yyyy-MM-dd format. Required when creating; omit when updating to keep the stored date.")]
+        string? plannedDate = null,
+        [Description("Meal type value (must match allowed meal types). Required when creating; omit when updating to keep the stored value.")]
+        string? mealType = null,
+        [Description("Target servings. Omit when updating to keep the stored value.")]
+        decimal? targetServings = null,
+        [Description("Notes. Omit when updating to keep the stored value, empty string to clear.")]
+        string? notes = null,
+        [Description("Status value (must match allowed meal-plan statuses). Required when creating; omit when updating to keep the stored value.")]
+        string? status = null,
         [Description("Optional completion timestamp in UTC (ISO-8601). If omitted and status is completed, server sets current UTC time.")]
-        string? completedAtUtc,
-        CancellationToken cancellationToken
+        string? completedAtUtc = null,
+        CancellationToken cancellationToken = default
     ) {
-        _ = cancellationToken;
         var workspaceId = RequireMcpWorkspaceId();
-        if (!DateOnly.TryParse(plannedDate, out var parsedPlannedDate))
-            throw new InvalidFormatException("plannedDate must be a valid date in yyyy-MM-dd format.", null);
+
+        DateOnly? parsedPlannedDate = null;
+        if (!string.IsNullOrWhiteSpace(plannedDate)) {
+            if (!DateOnly.TryParse(plannedDate, out var parsedDate))
+                throw new InvalidFormatException("plannedDate must be a valid date in yyyy-MM-dd format.", null);
+            parsedPlannedDate = parsedDate;
+        }
+
         DateTime? parsedCompletedAtUtc = null;
         if (!string.IsNullOrWhiteSpace(completedAtUtc)) {
             if (!DateTime.TryParse(completedAtUtc, out var parsed))
                 throw new InvalidFormatException("completedAtUtc must be a valid ISO-8601 UTC datetime.", null);
             parsedCompletedAtUtc = parsed.ToUniversalTime();
         }
-        var entry = new SaveMealPlanEntryRequest(
-            recipeId,
-            parsedPlannedDate,
-            mealType,
-            targetServings,
-            notes,
-            status,
-            parsedCompletedAtUtc
-        );
-        await ValidateRequestAsync(entry, cancellationToken);
 
         if (nextMealId is null) {
+            if (recipeId is null)
+                return BuildValidationErrorResponse(nameof(recipeId), "Required when creating a next meal.");
+            if (parsedPlannedDate is null)
+                return BuildValidationErrorResponse(nameof(plannedDate), "Required when creating a next meal.");
+            if (string.IsNullOrWhiteSpace(mealType))
+                return BuildValidationErrorResponse(nameof(mealType), "Required when creating a next meal.");
+            if (string.IsNullOrWhiteSpace(status))
+                return BuildValidationErrorResponse(nameof(status), "Required when creating a next meal.");
+
+            var newEntry = new SaveMealPlanEntryRequest(
+                recipeId.Value,
+                parsedPlannedDate.Value,
+                mealType,
+                targetServings,
+                MergeOptionalText(notes, null),
+                status,
+                parsedCompletedAtUtc
+            );
+            await ValidateRequestAsync(newEntry, cancellationToken);
+
             var createResult = await MealPlanEntriesHandlers.PostMealPlanEntry(
                 currentUserService,
                 db,
                 workspaceId,
-                entry
+                newEntry
             );
             return Serialize(createResult);
         }
+
+        var entries = (await MealPlanEntriesHandlers.GetMealPlanEntries(
+            currentUserService,
+            db,
+            workspaceId,
+            null,
+            null
+        )).Value ?? [];
+
+        var existing = entries.FirstOrDefault(value => value.Id == nextMealId.Value)
+                       ?? throw new EntityNotFoundException("Meal-plan entry not found", null);
+
+        var entry = new SaveMealPlanEntryRequest(
+            recipeId ?? existing.RecipeId,
+            parsedPlannedDate ?? existing.PlannedDate,
+            string.IsNullOrWhiteSpace(mealType) ? existing.MealType : mealType,
+            targetServings ?? existing.TargetServings,
+            MergeOptionalText(notes, existing.Notes),
+            string.IsNullOrWhiteSpace(status) ? existing.Status : status,
+            parsedCompletedAtUtc ?? existing.CompletedAtUtc
+        );
+        await ValidateRequestAsync(entry, cancellationToken);
 
         var result = await MealPlanEntriesHandlers.PatchMealPlanEntry(
             currentUserService,
@@ -580,18 +733,32 @@ public sealed class MealPrepMcpTools(
     }
 
     [McpServerTool]
-    [Description("Updates shopping list metadata by id.")]
+    [Description(
+        "Updates shopping list metadata by id. This is a partial update: omitted arguments keep their stored value. "
+        + "To clear notes, pass an empty string."
+    )]
     public async Task<string> UpdateShoppingList(
         [Description("Shopping list id to update.")]
         Guid shoppingListId,
-        [Description("Shopping list name.")] string name,
-        [Description("Optional shopping list notes.")]
-        string? notes,
-        CancellationToken cancellationToken
+        [Description("Shopping list name. Omit to keep the stored name.")]
+        string? name = null,
+        [Description("Shopping list notes. Omit to keep the stored value, empty string to clear.")]
+        string? notes = null,
+        CancellationToken cancellationToken = default
     ) {
         _ = cancellationToken;
         var workspaceId = RequireMcpWorkspaceId();
-        var request = new SaveShoppingListRequest(name, notes);
+        var existing = (await ShoppingListsHandlers.GetShoppingList(
+            currentUserService,
+            db,
+            workspaceId,
+            shoppingListId
+        )).Value ?? throw new EntityNotFoundException("Shopping list not found", null);
+
+        var request = new SaveShoppingListRequest(
+            string.IsNullOrWhiteSpace(name) ? existing.Name : name,
+            MergeOptionalText(notes, existing.Notes)
+        );
         await ValidateRequestAsync(request, cancellationToken);
         var result = await ShoppingListsHandlers.PatchShoppingList(
             currentUserService,
@@ -668,49 +835,63 @@ public sealed class MealPrepMcpTools(
     }
 
     [McpServerTool]
-    [Description("Updates a shopping list item by id.")]
+    [Description(
+        "Updates a shopping list item by id. This is a partial update: omitted arguments keep their stored value. "
+        + "To clear an optional text field, pass an empty string."
+    )]
     public async Task<string> UpdateShoppingListItem(
         [Description("Shopping list id containing the item.")]
         Guid shoppingListId,
         [Description("Shopping list item id to update.")]
         Guid itemId,
-        [Description("Display name for the item.")]
-        string name,
-        [Description("Optional normalized ingredient name.")]
-        string? normalizedIngredientName,
-        [Description("Optional numeric amount.")]
-        decimal? amount,
-        [Description("Optional unit, e.g. g, oz, cup.")]
-        string? unit,
-        [Description("Whether the amount is approximate.")]
-        bool isApproximate,
-        [Description("Whether the item is checked/completed.")]
-        bool isChecked,
-        [Description("Whether this item was manually added.")]
-        bool isManual,
-        [Description("Optional category, e.g. Produce.")]
-        string? category,
-        [Description("Optional note.")] string? note,
-        [Description("Primary display text for the item.")]
-        string displayText,
-        [Description("Optional source names that contributed to this item.")]
-        string[]? sourceNames,
-        CancellationToken cancellationToken
+        [Description("Display name for the item. Omit to keep the stored name.")]
+        string? name = null,
+        [Description("Normalized ingredient name. Omit to keep the stored value, empty string to clear.")]
+        string? normalizedIngredientName = null,
+        [Description("Numeric amount. Omit to keep the stored value.")]
+        decimal? amount = null,
+        [Description("Unit, e.g. g, oz, cup. Omit to keep the stored value, empty string to clear.")]
+        string? unit = null,
+        [Description("Whether the amount is approximate. Omit to keep the stored value.")]
+        bool? isApproximate = null,
+        [Description("Whether the item is checked/completed. Omit to keep the stored value.")]
+        bool? isChecked = null,
+        [Description("Whether this item was manually added. Omit to keep the stored value.")]
+        bool? isManual = null,
+        [Description("Category, e.g. Produce. Omit to keep the stored value, empty string to clear.")]
+        string? category = null,
+        [Description("Note. Omit to keep the stored value, empty string to clear.")]
+        string? note = null,
+        [Description("Primary display text for the item. Omit to keep the stored value.")]
+        string? displayText = null,
+        [Description("Source names that contributed to this item. Omit to keep the stored values.")]
+        string[]? sourceNames = null,
+        CancellationToken cancellationToken = default
     ) {
         _ = cancellationToken;
         var workspaceId = RequireMcpWorkspaceId();
+        var list = (await ShoppingListsHandlers.GetShoppingList(
+            currentUserService,
+            db,
+            workspaceId,
+            shoppingListId
+        )).Value ?? throw new EntityNotFoundException("Shopping list not found", null);
+
+        var existing = list.Items.FirstOrDefault(value => value.Id == itemId)
+                       ?? throw new EntityNotFoundException("Shopping-list item not found", null);
+
         var item = new SaveShoppingListItemRequest(
-            name,
-            normalizedIngredientName,
-            amount,
-            unit,
-            isApproximate,
-            isChecked,
-            isManual,
-            category,
-            note,
-            displayText,
-            sourceNames
+            string.IsNullOrWhiteSpace(name) ? existing.Name : name,
+            MergeOptionalText(normalizedIngredientName, existing.NormalizedIngredientName),
+            amount ?? existing.Amount,
+            MergeOptionalText(unit, existing.Unit),
+            isApproximate ?? existing.IsApproximate,
+            isChecked ?? existing.IsChecked,
+            isManual ?? existing.IsManual,
+            MergeOptionalText(category, existing.Category),
+            MergeOptionalText(note, existing.Note),
+            string.IsNullOrWhiteSpace(displayText) ? existing.DisplayText : displayText,
+            sourceNames ?? existing.SourceNames
         );
         await ValidateRequestAsync(item, cancellationToken);
         var result = await ShoppingListsHandlers.PatchShoppingListItem(
