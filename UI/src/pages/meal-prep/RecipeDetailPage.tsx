@@ -462,6 +462,7 @@ export default function RecipeDetailPage() {
                                 variant='outline'
                                 size='icon'
                                 className='h-9 w-9 shrink-0'
+                                aria-label='Edit recipe'
                                 onClick={startEditing}
                             >
                                 <Pencil className='h-4 w-4' />
@@ -476,6 +477,7 @@ export default function RecipeDetailPage() {
                                 variant='outline'
                                 size='icon'
                                 className='h-9 w-9 shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive'
+                                aria-label='Delete recipe'
                                 onClick={() => setDeleteDialogOpen(true)}
                             >
                                 <Trash2 className='h-4 w-4' />
