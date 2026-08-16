@@ -8,28 +8,36 @@ import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { WorkspaceRedirect } from '@/components/WorkspaceRedirect';
 import { MealPrepAppLayout } from '@/components/meal-prep/MealPrepAppLayout';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Settings from './pages/Settings';
-import SettingsRedirectPage from './pages/SettingsRedirectPage';
-import RecipeLibraryPage from './pages/meal-prep/RecipeLibraryPage';
-import RecipeDetailPage from './pages/meal-prep/RecipeDetailPage';
-import RecipeCollectionsListPage from './pages/meal-prep/RecipeCollectionsListPage';
-import RecipeCollectionPage from './pages/meal-prep/RecipeCollectionPage';
-import RecipeCollectionShareImportPage from './pages/meal-prep/RecipeCollectionShareImportPage';
-import WeeklyPlannerPage from './pages/meal-prep/WeeklyPlannerPage';
-import ShoppingListPage from './pages/meal-prep/ShoppingListPage';
-import ShoppingModePage from './pages/meal-prep/ShoppingModePage';
-import CookingModePage from './pages/meal-prep/CookingModePage';
-import TermsOfService from './pages/TermsOfService';
-import DataRetention from './pages/DataRetention';
-import NotFoundError from './pages/NotFoundError';
-import ForbiddenError from './pages/ForbiddenError';
-import Help from './pages/Help';
 import { PostHogProvider } from '@posthog/react';
 import { ThemeProvider } from '@/components/theme-provider';
-import { StrictMode } from 'react';
+import { StrictMode, Suspense, lazy } from 'react';
 import { AnalyticsBridge } from '@/components/AnalyticsBridge';
+import { FullPageSpinner } from '@/components/FullPageSpinner';
+
+// The recipe library is the landing route for a signed-in user, so it stays a static import:
+// splitting it would only add a second round trip in front of the page people actually see.
+import RecipeLibraryPage from './pages/meal-prep/RecipeLibraryPage';
+
+// Every other page loads on demand. Statically importing all of them put the whole app —
+// planner, shopping mode, cooking mode, settings, the legal pages — into the entry chunk, of
+// which Lighthouse measured 210 KiB unused on first load.
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const Settings = lazy(() => import('./pages/Settings'));
+const SettingsRedirectPage = lazy(() => import('./pages/SettingsRedirectPage'));
+const RecipeDetailPage = lazy(() => import('./pages/meal-prep/RecipeDetailPage'));
+const RecipeCollectionsListPage = lazy(() => import('./pages/meal-prep/RecipeCollectionsListPage'));
+const RecipeCollectionPage = lazy(() => import('./pages/meal-prep/RecipeCollectionPage'));
+const RecipeCollectionShareImportPage = lazy(() => import('./pages/meal-prep/RecipeCollectionShareImportPage'));
+const WeeklyPlannerPage = lazy(() => import('./pages/meal-prep/WeeklyPlannerPage'));
+const ShoppingListPage = lazy(() => import('./pages/meal-prep/ShoppingListPage'));
+const ShoppingModePage = lazy(() => import('./pages/meal-prep/ShoppingModePage'));
+const CookingModePage = lazy(() => import('./pages/meal-prep/CookingModePage'));
+const TermsOfService = lazy(() => import('./pages/TermsOfService'));
+const DataRetention = lazy(() => import('./pages/DataRetention'));
+const NotFoundError = lazy(() => import('./pages/NotFoundError'));
+const ForbiddenError = lazy(() => import('./pages/ForbiddenError'));
+const Help = lazy(() => import('./pages/Help'));
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -54,68 +62,70 @@ const App = () => (
                             <AuthProvider>
                                 <WorkspaceProvider>
                                     <AnalyticsBridge />
-                                    <Routes>
-                                        <Route path='/' element={<WorkspaceRedirect />} />
-                                        <Route path='/login' element={<Login />} />
-                                        <Route path='/register' element={<Register />} />
-                                        <Route path='/terms' element={<TermsOfService />} />
-                                        <Route path='/data-retention' element={<DataRetention />} />
-                                        <Route path='/help' element={<Help />} />
-                                        <Route path='/403' element={<ForbiddenError />} />
+                                    <Suspense fallback={<FullPageSpinner />}>
+                                        <Routes>
+                                            <Route path='/' element={<WorkspaceRedirect />} />
+                                            <Route path='/login' element={<Login />} />
+                                            <Route path='/register' element={<Register />} />
+                                            <Route path='/terms' element={<TermsOfService />} />
+                                            <Route path='/data-retention' element={<DataRetention />} />
+                                            <Route path='/help' element={<Help />} />
+                                            <Route path='/403' element={<ForbiddenError />} />
 
-                                        <Route
-                                            path='/settings'
-                                            element={
-                                                <ProtectedRoute>
-                                                    <SettingsRedirectPage />
-                                                </ProtectedRoute>
-                                            }
-                                        />
+                                            <Route
+                                                path='/settings'
+                                                element={
+                                                    <ProtectedRoute>
+                                                        <SettingsRedirectPage />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
 
-                                        <Route
-                                            path='/workspaces/:workspaceId'
-                                            element={
-                                                <ProtectedRoute>
-                                                    <MealPrepAppLayout />
-                                                </ProtectedRoute>
-                                            }
-                                        >
-                                            <Route index element={<RecipeLibraryPage />} />
-                                            <Route path='collections' element={<RecipeCollectionsListPage />} />
-                                            <Route path='collections/:collectionId' element={<RecipeCollectionPage />} />
-                                            <Route path='recipe/:recipeId' element={<RecipeDetailPage />} />
-                                            <Route path='next-meals' element={<WeeklyPlannerPage />} />
-                                            <Route path='shopping' element={<ShoppingListPage />} />
-                                            <Route path='settings' element={<Settings />} />
-                                        </Route>
+                                            <Route
+                                                path='/workspaces/:workspaceId'
+                                                element={
+                                                    <ProtectedRoute>
+                                                        <MealPrepAppLayout />
+                                                    </ProtectedRoute>
+                                                }
+                                            >
+                                                <Route index element={<RecipeLibraryPage />} />
+                                                <Route path='collections' element={<RecipeCollectionsListPage />} />
+                                                <Route path='collections/:collectionId' element={<RecipeCollectionPage />} />
+                                                <Route path='recipe/:recipeId' element={<RecipeDetailPage />} />
+                                                <Route path='next-meals' element={<WeeklyPlannerPage />} />
+                                                <Route path='shopping' element={<ShoppingListPage />} />
+                                                <Route path='settings' element={<Settings />} />
+                                            </Route>
 
-                                        <Route
-                                            path='/workspaces/:workspaceId/shopping-mode'
-                                            element={
-                                                <ProtectedRoute>
-                                                    <ShoppingModePage />
-                                                </ProtectedRoute>
-                                            }
-                                        />
-                                        <Route
-                                            path='/share/recipe-collections/:shareToken'
-                                            element={
-                                                <ProtectedRoute>
-                                                    <RecipeCollectionShareImportPage />
-                                                </ProtectedRoute>
-                                            }
-                                        />
-                                        <Route
-                                            path='/workspaces/:workspaceId/cooking/:recipeId'
-                                            element={
-                                                <ProtectedRoute>
-                                                    <CookingModePage />
-                                                </ProtectedRoute>
-                                            }
-                                        />
+                                            <Route
+                                                path='/workspaces/:workspaceId/shopping-mode'
+                                                element={
+                                                    <ProtectedRoute>
+                                                        <ShoppingModePage />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path='/share/recipe-collections/:shareToken'
+                                                element={
+                                                    <ProtectedRoute>
+                                                        <RecipeCollectionShareImportPage />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path='/workspaces/:workspaceId/cooking/:recipeId'
+                                                element={
+                                                    <ProtectedRoute>
+                                                        <CookingModePage />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
 
-                                        <Route path='*' element={<NotFoundError />} />
-                                    </Routes>
+                                            <Route path='*' element={<NotFoundError />} />
+                                        </Routes>
+                                    </Suspense>
                                 </WorkspaceProvider>
                             </AuthProvider>
                         </BrowserRouter>

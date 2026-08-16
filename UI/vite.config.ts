@@ -20,6 +20,31 @@ export default defineConfig(({ mode }) => {
                 },
             },
         },
+        build: {
+            // Vite's default ('modules') still targets Safari 14, which costs downlevelling and
+            // shipped polyfills for syntax every browser we support has had for years — Lighthouse
+            // flagged 8 KiB of them. es2022 is baseline-available across current browsers.
+            target: 'es2022',
+
+            // Emitted alongside the bundle but not referenced by it, so stack traces from
+            // production can be symbolicated without serving maps to visitors. Lighthouse's
+            // valid-source-maps audit was failing outright.
+            sourcemap: 'hidden',
+
+            rollupOptions: {
+                output: {
+                    // Dependencies change far less often than app code, so keeping them in their
+                    // own chunks means a UI deploy doesn't invalidate them in the browser cache.
+                    manualChunks: {
+                        react: ['react', 'react-dom', 'react-router-dom'],
+                        query: ['@tanstack/react-query'],
+                        motion: ['framer-motion'],
+                        analytics: ['posthog-js', '@posthog/react'],
+                        http: ['axios'],
+                    },
+                },
+            },
+        },
         plugins: [react(), mode === 'development' && componentTagger()].filter(Boolean),
         resolve: {
             alias: {
