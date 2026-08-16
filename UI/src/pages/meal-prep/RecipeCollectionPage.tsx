@@ -31,7 +31,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from '@/hooks/use-toast';
 import { analyticsEvents, useAnalytics, withWorkspaceProperties } from '@/lib/analytics';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import type { RecipeCollectionExport } from '@/models/meal-prep';
+import type { RecipeCollectionExport, RecipeListItem } from '@/models/meal-prep';
 
 function workspacePath(workspaceId: string, subPath: string) {
     const trimmed = subPath.replace(/^\//, '');
@@ -98,6 +98,26 @@ function toRecipeIdentityKey(title?: string | null, sourceUrl?: string | null) {
     return `${normalizedTitle}|${normalizedSourceUrl}`;
 }
 
+async function loadAllRecipes(workspaceId: string, options: { includeArchived: boolean }) {
+    const recipes: RecipeListItem[] = [];
+    const pageSize = 100;
+    let page = 1;
+    let totalCount = 0;
+
+    do {
+        const response = await recipesApi.getAll(workspaceId, {
+            page,
+            pageSize,
+            includeArchived: options.includeArchived,
+        });
+        totalCount = response.totalCount;
+        recipes.push(...response.data);
+        page += 1;
+    } while ((page - 1) * pageSize < totalCount);
+
+    return recipes;
+}
+
 async function loadExistingRecipeIdentityKeys(workspaceId: string) {
     const existingKeys = new Set<string>();
     const pageSize = 100;
@@ -149,20 +169,15 @@ export default function RecipeCollectionPage() {
     const ownerWorkspaceId = detail?.ownerWorkspaceId ?? workspaceId;
     const collectionRecipeIds = useMemo(() => new Set(detail?.recipes.map(recipe => recipe.id) ?? []), [detail?.recipes]);
 
-    const { data: allRecipesPage, isLoading: isLoadingAllRecipes } = useQuery({
+    const { data: allRecipes, isLoading: isLoadingAllRecipes } = useQuery({
         queryKey: ['recipes', ownerWorkspaceId, '', 'collection-add'],
-        queryFn: () =>
-            recipesApi.getAll(ownerWorkspaceId, {
-                page: 1,
-                pageSize: 500,
-                includeArchived: false,
-            }),
+        queryFn: () => loadAllRecipes(ownerWorkspaceId, { includeArchived: false }),
         enabled: Boolean(ownerWorkspaceId) && Boolean(detail?.canEdit),
     });
 
     const availableRecipes = useMemo(
-        () => (allRecipesPage?.data ?? []).filter(recipe => !collectionRecipeIds.has(recipe.id)),
-        [allRecipesPage?.data, collectionRecipeIds],
+        () => (allRecipes ?? []).filter(recipe => !collectionRecipeIds.has(recipe.id)),
+        [allRecipes, collectionRecipeIds],
     );
 
     const deleteCollection = useMutation({
