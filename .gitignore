@@ -12,4 +12,4 @@ node_modules/
 *.DotSettings.user
 Api/bin*
 pepperplate_recipes/
-
+.wrangler
