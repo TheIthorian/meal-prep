@@ -21,7 +21,12 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { toast } from '@/hooks/use-toast';
 import { analyticsEvents, useAnalytics, withWorkspaceProperties } from '@/lib/analytics';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { pickCollectionBundleFile, readCollectionArchive } from '@/lib/collection-transfer';
+import {
+    CollectionBundleTooLargeError,
+    MAX_IMPORT_RECIPES,
+    pickCollectionBundleFile,
+    readCollectionArchive,
+} from '@/lib/collection-transfer';
 import type { RecipeCollectionExport } from '@/models/meal-prep';
 import { Progress } from '@/components/ui/progress';
 
@@ -131,12 +136,20 @@ export default function RecipeCollectionsListPage() {
             let images: Map<string, Blob>;
             try {
                 ({ data, images } = await readCollectionArchive(bundleFile));
-            } catch {
-                toast({
-                    title: 'Could not read that file',
-                    description: 'Pick the .zip (or .json) file produced by Export.',
-                    variant: 'destructive',
-                });
+            } catch (error) {
+                toast(
+                    error instanceof CollectionBundleTooLargeError
+                        ? {
+                              title: 'Bundle too large',
+                              description: `That bundle holds ${error.recipeCount} recipes. Imports are capped at ${MAX_IMPORT_RECIPES}.`,
+                              variant: 'destructive',
+                          }
+                        : {
+                              title: 'Could not read that file',
+                              description: 'Pick the .zip (or .json) file produced by Export.',
+                              variant: 'destructive',
+                          },
+                );
                 return;
             }
 

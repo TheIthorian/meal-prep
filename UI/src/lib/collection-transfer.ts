@@ -13,6 +13,16 @@ import type { RecipeCollectionExport } from '@/models/meal-prep';
 export const COLLECTION_EXPORT_JSON_NAME = 'collection-export.json';
 const IMAGES_PREFIX = 'images/';
 
+/** Import ceiling — one bundle must not be able to drive an unbounded number of writes. */
+export const MAX_IMPORT_RECIPES = 1000;
+
+export class CollectionBundleTooLargeError extends Error {
+    constructor(readonly recipeCount: number) {
+        super(`Bundle holds ${recipeCount} recipes, over the ${MAX_IMPORT_RECIPES} import limit.`);
+        this.name = 'CollectionBundleTooLargeError';
+    }
+}
+
 export interface CollectionArchive {
     data: RecipeCollectionExport;
     /** Image blobs keyed by their file name inside `images/`. Empty for plain JSON bundles. */
@@ -34,15 +44,24 @@ export function buildCollectionZip(data: RecipeCollectionExport, images: Map<str
     return new Blob([zipSync(files, { level: 0 })], { type: 'application/zip' });
 }
 
+function assertWithinImportLimit(data: RecipeCollectionExport) {
+    const recipeCount = data.recipes?.length ?? 0;
+    if (recipeCount > MAX_IMPORT_RECIPES) throw new CollectionBundleTooLargeError(recipeCount);
+    return data;
+}
+
 export async function readCollectionArchive(file: File): Promise<CollectionArchive> {
     const isZip = file.name.toLowerCase().endsWith('.zip') || file.type === 'application/zip';
     if (!isZip) {
-        return { data: JSON.parse(await file.text()) as RecipeCollectionExport, images: new Map() };
+        const data = assertWithinImportLimit(JSON.parse(await file.text()) as RecipeCollectionExport);
+        return { data, images: new Map() };
     }
 
     const entries = unzipSync(new Uint8Array(await file.arrayBuffer()));
     const jsonEntry = Object.entries(entries).find(([name]) => name.split('/').pop() === COLLECTION_EXPORT_JSON_NAME);
     if (!jsonEntry) throw new Error(`Bundle is missing ${COLLECTION_EXPORT_JSON_NAME}`);
+
+    const data = assertWithinImportLimit(JSON.parse(new TextDecoder().decode(jsonEntry[1])) as RecipeCollectionExport);
 
     const images = new Map<string, Blob>();
     for (const [name, bytes] of Object.entries(entries)) {
@@ -51,10 +70,7 @@ export async function readCollectionArchive(file: File): Promise<CollectionArchi
         if (fileName) images.set(fileName, new Blob([bytes as BlobPart]));
     }
 
-    return {
-        data: JSON.parse(new TextDecoder().decode(jsonEntry[1])) as RecipeCollectionExport,
-        images,
-    };
+    return { data, images };
 }
 
 /** Opens the OS file picker for a collection bundle. Resolves null when the user cancels. */
