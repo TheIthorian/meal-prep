@@ -1,0 +1,7 @@
+# Cloudflare Pages response headers.
+#
+# Font filenames are stable rather than content-hashed, so they are cached immutably on the
+# understanding that a font change ships under a new filename. Everything under /assets is already
+# content-hashed and gets sensible defaults from Pages, so it is left alone.
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
