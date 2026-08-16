@@ -20,6 +20,13 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      # compose.yaml declares `env_file: .docker.env`, which is gitignored and so never exists on a
+      # runner. Without it compose refuses to start anything. The example holds the local-dev
+      # defaults the compose services expect (matching POSTGRES_USER/PASSWORD, MinIO keys), which is
+      # exactly what the tests need.
+      - name: Create .docker.env from example
+        run: cp .docker.env.example .docker.env
+
       - name: Start backend dependencies
         run: docker compose -f compose.yaml -f compose.test.yaml up -d
 
