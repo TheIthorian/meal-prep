@@ -67,19 +67,21 @@ jobs:
 
           echo "messages=$MESSAGES" >> "$GITHUB_OUTPUT"
 
-      - name: Debug Cloudflare Projects
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages project list
-
+      # Run the workspace's own pinned wrangler rather than cloudflare/wrangler-action. The action
+      # insists on a wrangler version it chooses, does not find ours, and then tries to install its
+      # own with `pnpm add` at the workspace root — which pnpm refuses without -w, failing the job.
+      #
+      # No output directory argument: wrangler.toml supplies pages_build_output_dir, and deploying
+      # through the config file is what picks up UI/functions (the /api proxy).
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: UI
-          # No output directory argument: wrangler.toml supplies pages_build_output_dir, and
-          # deploying through the config file is what picks up UI/functions (the /api proxy).
-          command: pages deploy --project-name=meal-prep-ui --commit-hash=${{ github.sha }} --commit-message="${{ steps.commit_messages.outputs.messages }}" --commit-dirty=true
+        working-directory: UI
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: >
+          pnpm exec wrangler pages deploy
+          --project-name=meal-prep-ui
+          --branch=main
+          --commit-hash=${{ github.sha }}
+          --commit-message="${{ steps.commit_messages.outputs.messages }}"
+          --commit-dirty=true
