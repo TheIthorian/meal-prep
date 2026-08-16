@@ -19,9 +19,11 @@ All colors MUST be HSL.
         --popover: 40 15% 99%;
         --popover-foreground: 220 15% 15%;
 
-        --primary: 152 38% 38%;
+        /* 36% lightness keeps white text on a primary fill at 4.82:1, and primary-as-text on the
+           page background at 4.82:1. At the previous 38% both landed on 4.40:1, under WCAG AA. */
+        --primary: 152 38% 36%;
         --primary-foreground: 0 0% 100%;
-        --primary-hover: 152 38% 32%;
+        --primary-hover: 152 38% 30%;
 
         --secondary: 40 12% 93%;
         --secondary-foreground: 220 15% 20%;
@@ -59,7 +61,7 @@ All colors MUST be HSL.
         /* Sidebar colors */
         --sidebar-background: 40 15% 96%;
         --sidebar-foreground: 220 15% 15%;
-        --sidebar-primary: 152 38% 38%;
+        --sidebar-primary: 152 38% 36%;
         --sidebar-primary-foreground: 0 0% 100%;
         --sidebar-accent: 40 12% 93%;
         --sidebar-accent-foreground: 220 15% 20%;
@@ -80,9 +82,14 @@ All colors MUST be HSL.
         --popover: 220 15% 13%;
         --popover-foreground: 40 10% 92%;
 
-        --primary: 152 38% 45%;
-        --primary-foreground: 0 0% 100%;
-        --primary-hover: 152 38% 50%;
+        /* Dark mode uses primary two ways that pull the lightness in opposite directions: as text
+           on a dark surface (wants lighter) and as a fill behind its foreground (wants darker with
+           white text). Resolved by lightening the fill to 50% — primary-as-text now clears the
+           header background at 5.51:1 — and flipping the foreground to near-black, which reads
+           5.58:1 on the fill. White on the old 45% fill was 3.26:1. */
+        --primary: 152 38% 50%;
+        --primary-foreground: 152 45% 12%;
+        --primary-hover: 152 38% 56%;
 
         --secondary: 220 12% 18%;
         --secondary-foreground: 40 10% 90%;
@@ -111,8 +118,8 @@ All colors MUST be HSL.
 
         --sidebar-background: 220 15% 8%;
         --sidebar-foreground: 40 10% 92%;
-        --sidebar-primary: 152 38% 45%;
-        --sidebar-primary-foreground: 0 0% 100%;
+        --sidebar-primary: 152 38% 50%;
+        --sidebar-primary-foreground: 152 45% 12%;
         --sidebar-accent: 220 12% 15%;
         --sidebar-accent-foreground: 40 10% 90%;
         --sidebar-border: 220 12% 18%;
