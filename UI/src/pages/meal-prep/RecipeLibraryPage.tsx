@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useNavigationType, useLocation } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Search, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -10,22 +10,53 @@ import type { Recipe } from '@/models/meal-prep';
 import { LoadingState } from '@/components/common/LoadingState';
 import { EmptyState } from '@/components/common/EmptyState';
 import { formatRecipeTagLabel } from '@/lib/meal-prep';
+import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
+
+/** Set by the recipe detail page's "Back to recipes" link — a push navigation that should
+ *  behave like a back navigation. */
+interface LibraryLocationState {
+    restoreScroll?: boolean;
+}
+
+/** Restoring the scroll position only makes sense if the same list is on screen, so the
+ *  filters that shape the list are remembered for the session alongside it. */
+function readStoredFilter(key: string): string {
+    try {
+        return window.sessionStorage.getItem(key) ?? '';
+    } catch {
+        return '';
+    }
+}
+
+function writeStoredFilter(key: string, value: string) {
+    try {
+        window.sessionStorage.setItem(key, value);
+    } catch {
+        /* ignore */
+    }
+}
 
 export default function RecipeLibraryPage() {
     const { workspaceId = '' } = useParams<{ workspaceId: string }>();
     const navigate = useNavigate();
-    const [search, setSearch] = useState('');
-    const [activeTag, setActiveTag] = useState<string | null>(null);
+    const navigationType = useNavigationType();
+    const location = useLocation();
+    const searchStorageKey = `recipe-library-search:${workspaceId}`;
+    const tagStorageKey = `recipe-library-tag:${workspaceId}`;
+    const [search, setSearch] = useState(() => readStoredFilter(searchStorageKey));
+    const [activeTag, setActiveTag] = useState<string | null>(() => readStoredFilter(tagStorageKey) || null);
 
     const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-    const {
-        data,
-        isLoading,
-        isFetchingNextPage,
-        hasNextPage,
-        fetchNextPage,
-    } = useInfiniteQuery({
+    useEffect(() => {
+        writeStoredFilter(searchStorageKey, search);
+    }, [searchStorageKey, search]);
+
+    useEffect(() => {
+        writeStoredFilter(tagStorageKey, activeTag ?? '');
+    }, [tagStorageKey, activeTag]);
+
+    const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
         queryKey: ['recipes', workspaceId, search],
         queryFn: ({ pageParam }) =>
             recipesApi.getAll(workspaceId, {
@@ -80,6 +111,19 @@ export default function RecipeLibraryPage() {
 
     const favourites = useMemo(() => filtered.filter(r => r.isFavorite), [filtered]);
     const otherRecipes = useMemo(() => filtered.filter(r => !r.isFavorite), [filtered]);
+
+    // Only going back should land you where you left off — browser back/forward (POP), or the
+    // "Back to recipes" link, which pushes a new entry but means the same thing. Arriving from
+    // the nav bar or a fresh load starts at the top.
+    const shouldRestoreScroll =
+        navigationType === 'POP' || Boolean((location.state as LibraryLocationState | null)?.restoreScroll);
+    useScrollRestoration(`recipe-library:${workspaceId}`, shouldRestoreScroll && !isLoading && filtered.length > 0);
+
+    useEffect(() => {
+        if (!shouldRestoreScroll) window.scrollTo(0, 0);
+        // Mount-only: later renders must not yank the page back to the top.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     async function handleImported(recipe: Recipe) {
         navigate(`recipe/${recipe.id}`);
@@ -173,13 +217,7 @@ export default function RecipeLibraryPage() {
                     {/* Always rendered so the cards' h3 never follows the page h1 directly, which
                         breaks the heading outline for screen readers. Hidden when there is no
                         Favourites section above it to distinguish this one from. */}
-                    <h2
-                        className={
-                            favourites.length > 0
-                                ? 'mb-4 font-heading text-lg text-foreground'
-                                : 'sr-only'
-                        }
-                    >
+                    <h2 className={favourites.length > 0 ? 'mb-4 font-heading text-lg text-foreground' : 'sr-only'}>
                         All recipes
                     </h2>
                     <div className='grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'>
