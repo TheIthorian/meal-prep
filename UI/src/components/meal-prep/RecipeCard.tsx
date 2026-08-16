@@ -64,6 +64,11 @@ export function RecipeCard({ workspaceId, recipe, index, bottomRightAction }: Re
                             hasImage
                             alt={`${recipe.title} cover`}
                             className='h-full w-full object-cover'
+                            // Cards sit in a 1/2/3 column grid inside a capped container.
+                            sizes='(min-width: 1024px) 22rem, (min-width: 640px) 45vw, 92vw'
+                            // Only the cards above the fold are worth loading eagerly; the first
+                            // is the likely largest contentful paint.
+                            priority={index === 0}
                         />
                     ) : (
                         <div className='flex h-full w-full items-center justify-center text-muted-foreground/30'>

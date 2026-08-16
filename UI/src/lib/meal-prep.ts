@@ -287,14 +287,51 @@ export function safeHttpUrlHref(raw: string | null | undefined): string | null {
 }
 
 /** Full URL for authenticated GET of the recipe cover image (uses session cookies). */
-export function recipeImageRequestUrl(workspaceId: string, recipeId: string, version?: number) {
+/**
+ * Widths the API stores renditions at. A request for any other width is served the full-size
+ * image, so these are the only values worth putting in a srcset.
+ */
+export const recipeImageWidths = [400, 800] as const;
+
+export function recipeImageRequestUrl(
+    workspaceId: string,
+    recipeId: string,
+    version?: number,
+    width?: number,
+) {
     const path = `/api/v1/workspaces/${workspaceId}/recipes/${recipeId}/image`;
     // Same-origin by default in dev and production alike: dev goes through the vite proxy,
     // production through the Pages function in UI/functions/api. Both keep the Identity
     // session cookie first-party, which a cross-origin base URL would not.
     const base = import.meta.env.VITE_API_BASE_URL || '';
+    const params = new URLSearchParams();
     // The API caches this response for a few minutes, so the URL has to change for a freshly
     // uploaded image to be shown straight away. `version` is a timestamp taken at upload time.
-    const query = version ? `?v=${version}` : '';
+    if (version) params.set('v', String(version));
+    if (width) params.set('w', String(width));
+    const query = params.size > 0 ? `?${params}` : '';
     return `${base}${path}${query}`;
+}
+
+/**
+ * The longest edge the API stores a full-size image at, mirroring MaxPixelDimension on the server.
+ * Used as the width descriptor for the full-size candidate: an image stored smaller than this is
+ * described as wider than it is, which can make the browser prefer it slightly too readily — the
+ * same thing that happened when it was the only candidate, so never worse than before.
+ */
+const recipeImageFullSizeWidth = 1600;
+
+/**
+ * A srcset over every stored rendition plus the full-size image, letting the browser pick by
+ * viewport and pixel density rather than us guessing a single width.
+ */
+export function recipeImageSrcSet(workspaceId: string, recipeId: string, version?: number) {
+    const renditions = recipeImageWidths.map(
+        width => `${recipeImageRequestUrl(workspaceId, recipeId, version, width)} ${width}w`,
+    );
+
+    return [
+        ...renditions,
+        `${recipeImageRequestUrl(workspaceId, recipeId, version)} ${recipeImageFullSizeWidth}w`,
+    ].join(', ');
 }

@@ -35,8 +35,7 @@ public sealed class MealPrepMcpTools(
     RecipeImportService recipeImportService,
     ShoppingListGenerationService shoppingListGenerationService,
     MeasurementService measurementService,
-    RecipeImageProcessingService recipeImageProcessingService,
-    IS3StorageService s3StorageService,
+    RecipeImageStore recipeImageStore,
     ILogger<MealPrepMcpTools> logger,
     ILoggerFactory loggerFactory
 )
@@ -248,8 +247,7 @@ public sealed class MealPrepMcpTools(
                     currentUserService,
                     db,
                     recipeImportService,
-                    recipeImageProcessingService,
-                    s3StorageService,
+                    recipeImageStore,
                     workspaceId,
                     recipe,
                     cancellationToken
@@ -316,8 +314,7 @@ public sealed class MealPrepMcpTools(
                     currentUserService,
                     db,
                     recipeImportService,
-                    recipeImageProcessingService,
-                    s3StorageService,
+                    recipeImageStore,
                     loggerFactory,
                     workspaceId,
                     recipeId,
@@ -362,20 +359,10 @@ public sealed class MealPrepMcpTools(
                     );
 
                 if (!string.IsNullOrEmpty(recipe.ImageObjectKey))
-                    await s3StorageService.DeleteFileAsync(recipe.ImageObjectKey);
+                    await recipeImageStore.DeleteAsync(recipe.ImageObjectKey, cancellationToken);
 
                 await using var stream = new MemoryStream(payload.Data);
-                var optimized = await recipeImageProcessingService.OptimizeForWebAsync(
-                    stream,
-                    payload.FileName,
-                    cancellationToken
-                );
-                await using var optimizedStream = new MemoryStream(optimized.Data);
-                var key = await s3StorageService.UploadFileAsync(
-                    optimizedStream,
-                    optimized.FileName,
-                    optimized.ContentType
-                );
+                var key = await recipeImageStore.StoreAsync(stream, payload.FileName, cancellationToken);
                 recipe.SetImageObjectKey(key);
                 await db.SaveChangesAsync(cancellationToken);
 
@@ -408,7 +395,7 @@ public sealed class MealPrepMcpTools(
     public async Task<string> DeleteRecipe(Guid recipeId, CancellationToken cancellationToken) {
         _ = cancellationToken;
         var workspaceId = RequireMcpWorkspaceId();
-        await RecipesHandlers.DeleteRecipe(currentUserService, db, s3StorageService, workspaceId, recipeId);
+        await RecipesHandlers.DeleteRecipe(currentUserService, db, recipeImageStore, workspaceId, recipeId);
         return """{"ok":true}""";
     }
 
@@ -429,8 +416,7 @@ public sealed class MealPrepMcpTools(
                     currentUserService,
                     db,
                     recipeImportService,
-                    recipeImageProcessingService,
-                    s3StorageService,
+                    recipeImageStore,
                     workspaceId,
                     body,
                     cancellationToken

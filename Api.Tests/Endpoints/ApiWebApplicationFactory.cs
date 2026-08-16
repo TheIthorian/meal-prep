@@ -196,12 +196,25 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
             return key;
         }
 
+        public async Task UploadFileAtKeyAsync(Stream fileStream, string key, string contentType) {
+            using var memory = new MemoryStream();
+            await fileStream.CopyToAsync(memory);
+
+            files[key] = memory.ToArray();
+        }
+
         public Task<Stream> DownloadFileAsync(string s3Key) {
             if (!files.TryGetValue(s3Key, out var payload))
                 throw new InvalidOperationException($"Test file '{s3Key}' was not found.");
 
             Stream stream = new MemoryStream(payload, false);
             return Task.FromResult(stream);
+        }
+
+        public Task<Stream?> TryDownloadFileAsync(string s3Key) {
+            if (!files.TryGetValue(s3Key, out var payload)) return Task.FromResult<Stream?>(null);
+
+            return Task.FromResult<Stream?>(new MemoryStream(payload, false));
         }
 
         public Task DeleteFileAsync(string s3Key) {
