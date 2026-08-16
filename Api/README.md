@@ -38,7 +38,6 @@ migrations.
    - `ConnectionStrings__DefaultConnection`
    - `ConnectionStrings__Redis`
    - `AuthStateStore__Provider`
-   - `Jwt__Issuer`, `Jwt__Audience`, `Jwt__Key`
    - `S3__ServiceUrl`, `S3__AccessKey`, `S3__SecretKey`, `S3__BucketName`, `S3__Region`
 
    `appsettings.json` and `appsettings.Development.json` can still be used for defaults, but environment variables are the primary approach.

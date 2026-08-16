@@ -9,7 +9,6 @@ jobs:
   frontend:
     uses: ./.github/workflows/frontend-deploy.yml
     with:
-      VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
       VITE_PUBLIC_POSTHOG_HOST: ${{ vars.VITE_PUBLIC_POSTHOG_HOST }}
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

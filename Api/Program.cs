@@ -25,10 +25,15 @@ app.LogStartupConfiguration();
 app.LogStartupUrls();
 await app.ApplyMigrationsAsync();
 
+// Railway (and the local Caddy container) put exactly one proxy in front of the API, and its
+// address is not knowable ahead of time on a platform that reschedules containers. So rather than
+// naming trusted proxies, trust a single hop: ForwardLimit = 1 means a client that sends its own
+// X-Forwarded-For has that value discarded in favour of the one the real proxy appends.
+// XForwardedHost is deliberately absent — nothing derives absolute URLs from the host, and
+// accepting it would let a caller choose the host the app believes it is serving.
 var forwardedHeadersOptions = new ForwardedHeadersOptions {
-    ForwardedHeaders = ForwardedHeaders.XForwardedFor
-                       | ForwardedHeaders.XForwardedProto
-                       | ForwardedHeaders.XForwardedHost
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+    ForwardLimit = 1
 };
 forwardedHeadersOptions.KnownIPNetworks.Clear();
 forwardedHeadersOptions.KnownProxies.Clear();

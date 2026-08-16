@@ -47,9 +47,6 @@ For Railway-style production setup, start from `Infra/environments/production.en
 
 ## JWT
 
-- `Jwt__Issuer`: JWT issuer value.
-- `Jwt__Audience`: JWT audience value.
-- `Jwt__Key`: Signing key for JWT issuance/validation.
 
 ## S3 storage
 

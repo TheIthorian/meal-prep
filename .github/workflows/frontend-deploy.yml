@@ -3,19 +3,12 @@ name: Deploy Frontend
 on:
   workflow_dispatch:
     inputs:
-      VITE_API_BASE_URL:
-        description: "API Base URL"
-        required: true
-        type: string
       VITE_PUBLIC_POSTHOG_HOST:
         description: "PostHog API Host"
         required: true
         type: string
   workflow_call:
     inputs:
-      VITE_API_BASE_URL:
-        required: false
-        type: string
       VITE_PUBLIC_POSTHOG_HOST:
         required: false
         type: string
@@ -52,7 +45,6 @@ jobs:
       - name: Build
         run: pnpm --filter meal-prep-ui build
         env:
-          VITE_API_BASE_URL: ${{ inputs.VITE_API_BASE_URL || vars.VITE_API_BASE_URL }}
           VITE_PUBLIC_POSTHOG_HOST: ${{ inputs.VITE_PUBLIC_POSTHOG_HOST || vars.VITE_PUBLIC_POSTHOG_HOST }}
           VITE_PUBLIC_POSTHOG_KEY: ${{ secrets.VITE_PUBLIC_POSTHOG_KEY }}
 
@@ -88,4 +80,6 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: UI
-          command: pages deploy dist --project-name=meal-prep-ui --commit-hash=${{ github.sha }} --commit-message="${{ steps.commit_messages.outputs.messages }}" --commit-dirty=true
+          # No output directory argument: wrangler.toml supplies pages_build_output_dir, and
+          # deploying through the config file is what picks up UI/functions (the /api proxy).
+          command: pages deploy --project-name=meal-prep-ui --commit-hash=${{ github.sha }} --commit-message="${{ steps.commit_messages.outputs.messages }}" --commit-dirty=true

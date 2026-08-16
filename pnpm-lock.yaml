@@ -243,6 +243,9 @@ importers:
         specifier: 3.25.76
         version: 3.25.76
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^5.20260816.1
+        version: 5.20260816.1
       '@eslint/js':
         specifier: 9.32.0
         version: 9.32.0
@@ -327,6 +330,9 @@ packages:
   '@babel/types@7.29.0':
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
+
+  '@cloudflare/workers-types@5.20260816.1':
+    resolution: {integrity: sha512-ZyTm0PQQCazqNnqUf5LM91+3+40MWQYvnW5ABgHCggjOPx38rImS3HtfcjLmio7thzNbKMiZQKZChK9u4mrNJw==}
 
   '@esbuild/aix-ppc64@0.21.5':
     resolution: {integrity: sha512-1SDgH6ZSPTlggy1yI6+Dbkiz8xzpHJEVAlF/AM1tHPLsf5STom9rwtjE4hKAF20FfXXNTFqEYXyJNWh1GiZedQ==}
@@ -3137,6 +3143,8 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@cloudflare/workers-types@5.20260816.1': {}
 
   '@esbuild/aix-ppc64@0.21.5':
     optional: true
