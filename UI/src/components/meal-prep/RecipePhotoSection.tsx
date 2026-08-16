@@ -119,6 +119,9 @@ export function RecipePhotoSection({
                         ref={inputRef}
                         type='file'
                         accept={ACCEPT}
+                        // Visually hidden and driven by the Upload button, so it has no visible
+                        // label of its own to be associated with.
+                        aria-label='Upload a recipe photo'
                         className='sr-only'
                         onChange={onFileChange}
                         disabled={busy}
