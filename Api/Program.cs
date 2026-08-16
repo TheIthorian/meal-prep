@@ -17,6 +17,7 @@ builder.Services.AddIdentityAndAuth(builder.Environment);
 builder.Services.AddFrontendCors(builder.Configuration);
 
 builder.Services.AddApplicationServices(builder.Configuration);
+builder.Services.AddAppCompression();
 builder.Services.AddMealPrepMcpServer();
 
 var app = builder.Build();
@@ -39,6 +40,9 @@ forwardedHeadersOptions.KnownIPNetworks.Clear();
 forwardedHeadersOptions.KnownProxies.Clear();
 
 app.UseForwardedHeaders(forwardedHeadersOptions);
+// Compression sits ahead of everything that writes a body so no later middleware can emit an
+// uncompressed response, and ahead of the endpoints that read gzipped import bodies.
+app.UseAppCompression();
 // CORS must run before HTTPS redirection so preflight OPTIONS is not redirected (browsers forbid that)
 // and so redirect responses include Access-Control-Allow-Origin.
 app.UseCors("Frontend");
