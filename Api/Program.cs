@@ -18,7 +18,7 @@ builder.Services.AddFrontendCors(builder.Configuration);
 
 builder.Services.AddApplicationServices(builder.Configuration);
 builder.Services.AddAppCompression();
-builder.Services.AddMealPrepMcpServer();
+builder.Services.AddMealPrepMcpServer(builder.Configuration);
 
 var app = builder.Build();
 

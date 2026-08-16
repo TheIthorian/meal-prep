@@ -72,6 +72,7 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
                     ["ConnectionStrings__DefaultConnection"] = connectionString,
                     ["POSTGRES_CONNECTIONSTRING"] = connectionString,
                     ["AppRoles"] = "api",
+                    ["WebApp:BaseUrl"] = "http://localhost:8080",
                     ["AuthStateStore:Provider"] = "Postgres",
                     ["AuthStateStore__Provider"] = "Postgres",
                     ["OpenAI:ApiKey"] = TestEnvironment.GetOpenAiApiKey(),

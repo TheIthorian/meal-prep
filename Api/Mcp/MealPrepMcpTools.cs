@@ -36,12 +36,21 @@ public sealed class MealPrepMcpTools(
     ShoppingListGenerationService shoppingListGenerationService,
     MeasurementService measurementService,
     RecipeImageStore recipeImageStore,
+    McpWebLinks webLinks,
     ILogger<MealPrepMcpTools> logger,
     ILoggerFactory loggerFactory
 )
 {
     private static string Serialize<T>(JsonHttpResult<T> result) {
         return JsonSerializer.Serialize(result.Value, McpJson.SerializerOptions);
+    }
+
+    /// <summary>
+    ///     Serializes a recipe (or a page of recipes) with a <c>webUrl</c> pointing at the web app,
+    ///     so the caller can link the user straight to what it is talking about.
+    /// </summary>
+    private string SerializeWithRecipeLinks<T>(JsonHttpResult<T> result, Guid workspaceId) {
+        return webLinks.WithRecipeLinks(Serialize(result), workspaceId);
     }
 
     private DefaultHttpContext BuildQueryHttpContext(IEnumerable<KeyValuePair<string, string?>> queryParams) {
@@ -183,7 +192,7 @@ public sealed class MealPrepMcpTools(
 
     [McpServerTool]
     [Description(
-        "Lists recipes in the token's workspace with optional paging and sorting."
+        "Lists recipes in the token's workspace with optional paging and sorting. Each entry includes webUrl, the page for that recipe in the web app."
     )]
     public async Task<string> ListRecipes(
         [Description("1-based page index. Omit for default paging.")]
@@ -221,18 +230,18 @@ public sealed class MealPrepMcpTools(
                 workspaceId,
                 cancellationToken
             );
-            return Serialize(result);
+            return SerializeWithRecipeLinks(result, workspaceId);
         } catch (AppException appException) {
             return SerializeAppException(appException);
         }
     }
 
     [McpServerTool]
-    [Description("Gets a recipe by id.")]
+    [Description("Gets a recipe by id. The response includes webUrl, the page for this recipe in the web app.")]
     public async Task<string> GetRecipe(Guid recipeId, CancellationToken cancellationToken) {
         var workspaceId = RequireMcpWorkspaceId();
         var result = await RecipesHandlers.GetRecipe(currentUserService, db, workspaceId, recipeId, cancellationToken);
-        return Serialize(result);
+        return SerializeWithRecipeLinks(result, workspaceId);
     }
 
     [McpServerTool]
@@ -295,7 +304,7 @@ public sealed class MealPrepMcpTools(
                     recipe,
                     cancellationToken
                 );
-                return Serialize(result);
+                return SerializeWithRecipeLinks(result, workspaceId);
             }
         );
     }
@@ -392,7 +401,7 @@ public sealed class MealPrepMcpTools(
                     childReplacement,
                     cancellationToken
                 );
-                return Serialize(result);
+                return SerializeWithRecipeLinks(result, workspaceId);
             }
         );
     }
@@ -471,7 +480,7 @@ public sealed class MealPrepMcpTools(
                     body,
                     cancellationToken
                 );
-                return Serialize(result);
+                return SerializeWithRecipeLinks(result, workspaceId);
             }
         );
     }
