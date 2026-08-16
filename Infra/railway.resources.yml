@@ -1,12 +1,25 @@
+# Resources the Railway project is expected to provide, and the variables the API service
+# needs on top of the ones the resources inject themselves.
+#
+# ASPNETCORE_HTTP_PORTS is bound to Railway's ${{PORT}}: the platform picks the port and the
+# container has to listen on exactly that one.
 project:
     environment: production
 
 app:
-    service: meal-prep
+    service: meal-prep-api
     repo: TheIthorian/meal-prep
     variables:
         ASPNETCORE_ENVIRONMENT: Production
         ASPNETCORE_HTTP_PORTS: '${{PORT}}'
+        AppRoles: '*'
+        AuthStateStore__Provider: Redis
+        S3__Region: ams
+        # The Pages proxy makes the browser same-origin with the SPA, so the API only ever sees
+        # requests from the Pages origin. Kept explicit so a stray direct call is still rejected.
+        CORS_ORIGINS: 'https://meal-prep-ui.pages.dev'
+        OpenAI__BaseUrl: https://openrouter.ai/api/v1
+        OpenAI__Model: openai/gpt-4o-mini
 
 resources:
     postgres:
@@ -17,5 +30,8 @@ resources:
         name: Bucket
         region: ams
 
-patch:
-    skipDeploys: false
+# Set as secrets in the Railway dashboard, never here:
+#   ConnectionStrings__DefaultConnection  (from the Postgres service)
+#   ConnectionStrings__Redis              (from the Redis service)
+#   S3__ServiceUrl, S3__AccessKey, S3__SecretKey, S3__BucketName  (from the bucket)
+#   OpenAI__ApiKey

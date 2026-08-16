@@ -289,6 +289,9 @@ export function safeHttpUrlHref(raw: string | null | undefined): string | null {
 /** Full URL for authenticated GET of the recipe cover image (uses session cookies). */
 export function recipeImageRequestUrl(workspaceId: string, recipeId: string) {
     const path = `/api/v1/workspaces/${workspaceId}/recipes/${recipeId}/image`;
-    const base = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '' : 'http://192.168.1.98:5001');
+    // Same-origin by default in dev and production alike: dev goes through the vite proxy,
+    // production through the Pages function in UI/functions/api. Both keep the Identity
+    // session cookie first-party, which a cross-origin base URL would not.
+    const base = import.meta.env.VITE_API_BASE_URL || '';
     return `${base}${path}`;
 }

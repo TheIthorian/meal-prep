@@ -20,9 +20,6 @@ cp .docker.env.example .docker.env
 Then update at least these keys in `.docker.env`:
 
 ```env
-Jwt__Issuer=meal-prep.local
-Jwt__Audience=meal-prep.local
-Jwt__Key=replace-with-a-long-random-secret
 OpenAI__BaseUrl=https://api.openai.com/v1
 OpenAI__ApiKey=replace-with-your-api-key
 CORS_ORIGINS=http://localhost,http://localhost:80,http://localhost:5001
