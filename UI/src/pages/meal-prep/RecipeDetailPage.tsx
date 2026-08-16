@@ -36,7 +36,7 @@ import { RecipeIngredientListRow } from '@/components/recipes/RecipeIngredientLi
 import { RecipeYieldScale } from '@/components/recipes/RecipeYieldScale';
 import type { Recipe, RecipeListItem } from '@/models/meal-prep';
 import { MealPlanEntryDialog } from '@/components/planner/MealPlanEntryDialog';
-import { LoadingState } from '@/components/common/LoadingState';
+import { RecipeDetailSkeleton } from '@/components/recipes/RecipeDetailSkeleton';
 import { RecipePhotoSection } from '@/components/meal-prep/RecipePhotoSection';
 import { AddToRecipeCollectionMenu } from '@/components/meal-prep/AddToRecipeCollectionMenu';
 import { RecipeForm } from '@/components/recipes/RecipeForm';
@@ -292,11 +292,7 @@ export default function RecipeDetailPage() {
     }
 
     if (isLoading || !recipe) {
-        return (
-            <div className='mx-auto max-w-3xl px-4 py-10 md:px-8'>
-                <LoadingState label='Loading recipe…' />
-            </div>
-        );
+        return <RecipeDetailSkeleton />;
     }
 
     const totalTime = (recipe.prepMinutes ?? 0) + (recipe.cookMinutes ?? 0);
