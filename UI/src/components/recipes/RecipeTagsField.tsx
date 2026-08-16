@@ -1,11 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Sparkles } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 import { recipesApi } from '@/lib/api';
 import { formatRecipeTagLabel } from '@/lib/meal-prep';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+
+const SUGGESTION_SKELETON_WIDTHS = ['w-20', 'w-16', 'w-24', 'w-14', 'w-20'];
 
 interface RecipeTagsFieldProps {
     workspaceId: string;
@@ -61,9 +65,17 @@ export function RecipeTagsField({
     }
 
     async function handleSuggest() {
-        const result = await suggestMutation.mutateAsync();
-        const merged = new Set([...selectedTags, ...result.tags]);
-        onChange([...merged].sort((a, b) => a.localeCompare(b)));
+        try {
+            const result = await suggestMutation.mutateAsync();
+            const merged = new Set([...selectedTags, ...result.tags]);
+            onChange([...merged].sort((a, b) => a.localeCompare(b)));
+        } catch {
+            toast({
+                title: 'Could not suggest tags',
+                description: 'Tag suggestions are unavailable right now. Please try again.',
+                variant: 'destructive',
+            });
+        }
     }
 
     return (
@@ -85,10 +97,25 @@ export function RecipeTagsField({
                     disabled={!title.trim() || suggestMutation.isPending}
                     onClick={() => void handleSuggest()}
                 >
-                    <Sparkles className='h-4 w-4' />
+                    {suggestMutation.isPending ? (
+                        <Loader2 className='h-4 w-4 animate-spin' aria-hidden='true' />
+                    ) : (
+                        <Sparkles className='h-4 w-4' aria-hidden='true' />
+                    )}
                     {suggestMutation.isPending ? 'Suggesting…' : 'Suggest tags'}
                 </Button>
             </div>
+
+            {suggestMutation.isPending && (
+                <div className='space-y-2' role='status' aria-live='polite'>
+                    <p className='text-xs text-muted-foreground'>Generating tag suggestions…</p>
+                    <div className='flex flex-wrap gap-2' aria-hidden='true'>
+                        {SUGGESTION_SKELETON_WIDTHS.map(width => (
+                            <Skeleton key={width} className={cn('h-6 rounded-full', width)} />
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {selectedTags.length > 0 && (
                 <div className='flex flex-wrap gap-2'>
