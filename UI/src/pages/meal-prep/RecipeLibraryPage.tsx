@@ -130,7 +130,7 @@ export default function RecipeLibraryPage() {
     }
 
     return (
-        <div className='mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10'>
+        <div className='mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10 xl:max-w-7xl'>
             <motion.div
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -161,80 +161,91 @@ export default function RecipeLibraryPage() {
                 />
             </motion.div>
 
-            <div className='mb-6 space-y-3'>
-                <div className='relative'>
-                    <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
-                    <input
-                        type='text'
-                        placeholder='Search recipes...'
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        className='w-full rounded-lg border border-border bg-card py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground transition-all focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20'
-                    />
-                </div>
-                {allTags.length > 0 && (
-                    <div className='flex flex-wrap gap-2'>
-                        {allTags.map(tag => (
-                            <button
-                                key={tag}
-                                type='button'
-                                onClick={() => setActiveTag(activeTag === tag ? null : tag)}
-                                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                                    activeTag === tag
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                                }`}
-                            >
-                                {formatRecipeTagLabel(tag)}
-                            </button>
-                        ))}
+            <div className='lg:grid lg:grid-cols-3 lg:gap-8'>
+                <aside
+                    aria-label='Search and filters'
+                    className='mb-6 space-y-3 lg:sticky lg:top-6 lg:col-span-1 lg:mb-0 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto lg:pr-1'
+                >
+                    <div className='relative'>
+                        <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
+                        <input
+                            type='text'
+                            placeholder='Search recipes...'
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            className='w-full rounded-lg border border-border bg-card py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground transition-all focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20'
+                        />
                     </div>
-                )}
-            </div>
+                    {allTags.length > 0 && (
+                        <div className='flex flex-wrap gap-2'>
+                            {allTags.map(tag => (
+                                <button
+                                    key={tag}
+                                    type='button'
+                                    onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+                                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                                        activeTag === tag
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                                    }`}
+                                >
+                                    {formatRecipeTagLabel(tag)}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </aside>
 
-            {isLoading && <LoadingState label='Loading recipes…' />}
+                <div className='min-w-0 lg:col-span-2'>
+                    {isLoading && <LoadingState label='Loading recipes…' />}
 
-            {!isLoading && filtered.length === 0 && (
-                <EmptyState
-                    title='No recipes found'
-                    description='Try a different search, filter, or add a recipe from a URL.'
-                />
-            )}
+                    {!isLoading && filtered.length === 0 && (
+                        <EmptyState
+                            title='No recipes found'
+                            description='Try a different search, filter, or add a recipe from a URL.'
+                        />
+                    )}
 
-            {!isLoading && favourites.length > 0 && (
-                <section className='mb-10'>
-                    <h2 className='mb-4 font-heading text-lg text-foreground'>Favourites</h2>
-                    <div className='grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'>
-                        {favourites.map((recipe, i) => (
-                            <RecipeCard key={recipe.id} workspaceId={workspaceId} recipe={recipe} index={i} />
-                        ))}
-                    </div>
-                </section>
-            )}
+                    {!isLoading && favourites.length > 0 && (
+                        <section className='mb-10'>
+                            <h2 className='mb-4 font-heading text-lg text-foreground'>Favourites</h2>
+                            <div className='grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3'>
+                                {favourites.map((recipe, i) => (
+                                    <RecipeCard key={recipe.id} workspaceId={workspaceId} recipe={recipe} index={i} />
+                                ))}
+                            </div>
+                        </section>
+                    )}
 
-            {!isLoading && otherRecipes.length > 0 && (
-                <section>
-                    {/* Always rendered so the cards' h3 never follows the page h1 directly, which
+                    {!isLoading && otherRecipes.length > 0 && (
+                        <section>
+                            {/* Always rendered so the cards' h3 never follows the page h1 directly, which
                         breaks the heading outline for screen readers. Hidden when there is no
                         Favourites section above it to distinguish this one from. */}
-                    <h2 className={favourites.length > 0 ? 'mb-4 font-heading text-lg text-foreground' : 'sr-only'}>
-                        All recipes
-                    </h2>
-                    <div className='grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'>
-                        {otherRecipes.map((recipe, i) => (
-                            <RecipeCard key={recipe.id} workspaceId={workspaceId} recipe={recipe} index={i} />
-                        ))}
-                    </div>
-                </section>
-            )}
+                            <h2
+                                className={
+                                    favourites.length > 0 ? 'mb-4 font-heading text-lg text-foreground' : 'sr-only'
+                                }
+                            >
+                                All recipes
+                            </h2>
+                            <div className='grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3'>
+                                {otherRecipes.map((recipe, i) => (
+                                    <RecipeCard key={recipe.id} workspaceId={workspaceId} recipe={recipe} index={i} />
+                                ))}
+                            </div>
+                        </section>
+                    )}
 
-            {!isLoading && (
-                <div ref={sentinelRef} className='h-10'>
-                    {isFetchingNextPage ? (
-                        <p className='text-center text-sm text-muted-foreground'>Loading more recipes...</p>
-                    ) : null}
+                    {!isLoading && (
+                        <div ref={sentinelRef} className='h-10'>
+                            {isFetchingNextPage ? (
+                                <p className='text-center text-sm text-muted-foreground'>Loading more recipes...</p>
+                            ) : null}
+                        </div>
+                    )}
                 </div>
-            )}
+            </div>
         </div>
     );
 }
