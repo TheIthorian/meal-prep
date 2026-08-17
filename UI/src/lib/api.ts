@@ -26,6 +26,7 @@ import {
     RecipeCollectionExport,
     RecipeCollectionShareLink,
     RecipeCollectionShareLinkPreview,
+    SharedRecipeDetail,
 } from '@/models/meal-prep';
 import type { PaginatedResponse } from '@/models/pagination';
 import type { McpAccessTokenCreated, McpAccessTokenListItem } from '@/models/mcp';
@@ -92,10 +93,7 @@ export const recipesApi = {
     importFromFile: (workspaceId: string, file: File) => {
         const formData = new FormData();
         formData.append('file', file);
-        return httpClient.postFormData<Recipe>(
-            `/api/v1/workspaces/${workspaceId}/recipes/import-upload`,
-            formData,
-        );
+        return httpClient.postFormData<Recipe>(`/api/v1/workspaces/${workspaceId}/recipes/import-upload`, formData);
     },
     uploadImage: (workspaceId: string, recipeId: string, file: File) => {
         const formData = new FormData();
@@ -127,9 +125,7 @@ export const recipeCollectionsApi = {
     create: (workspaceId: string, data: CreateRecipeCollectionRequest) =>
         httpClient.post<RecipeCollectionDetail>(`/api/v1/workspaces/${workspaceId}/recipe-collections`, data),
     get: (workspaceId: string, collectionId: string) =>
-        httpClient.get<RecipeCollectionDetail>(
-            `/api/v1/workspaces/${workspaceId}/recipe-collections/${collectionId}`,
-        ),
+        httpClient.get<RecipeCollectionDetail>(`/api/v1/workspaces/${workspaceId}/recipe-collections/${collectionId}`),
     update: (workspaceId: string, collectionId: string, data: PatchRecipeCollectionRequest) =>
         httpClient.patch<RecipeCollectionDetail>(
             `/api/v1/workspaces/${workspaceId}/recipe-collections/${collectionId}`,
@@ -157,8 +153,15 @@ export const recipeCollectionsApi = {
         ),
     getShareLinkPreview: (shareToken: string) =>
         httpClient.get<RecipeCollectionShareLinkPreview>(`/api/v1/recipe-collection-share/${shareToken}`),
+    getSharedRecipe: (shareToken: string, recipeId: string) =>
+        httpClient.get<SharedRecipeDetail>(`/api/v1/recipe-collection-share/${shareToken}/recipes/${recipeId}`),
+    sharedRecipeImageUrl: (shareToken: string, recipeId: string, width?: number) =>
+        `/api/v1/recipe-collection-share/${shareToken}/recipes/${recipeId}/image${width ? `?w=${width}` : ''}`,
     importFromShareLink: (workspaceId: string, shareToken: string) =>
-        httpClient.post<RecipeCollectionDetail>(`/api/v1/workspaces/${workspaceId}/recipe-collection-import/${shareToken}`, {}),
+        httpClient.post<RecipeCollectionDetail>(
+            `/api/v1/workspaces/${workspaceId}/recipe-collection-import/${shareToken}`,
+            {},
+        ),
 };
 
 export const mealPlanApi = {

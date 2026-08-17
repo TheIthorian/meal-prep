@@ -618,30 +618,13 @@ internal static class RecipesHandlers
 
         if (string.IsNullOrEmpty(recipe.ImageObjectKey)) return TypedResults.NotFound();
 
-        // Images are immutable once written — a replacement upload stores a new object key — so the
-        // key identifies the bytes. Clients that already hold them get a 304 and no body, and the
-        // object is never read from S3 for such a request. The requested width is folded into the
-        // key the tag is derived from so that two renditions of the same image never share a tag.
-        var servedKey = RecipeImageVariants.ResolveWidth(w) is { } width
-            ? RecipeImageVariants.KeyForWidth(recipe.ImageObjectKey, width)
-            : recipe.ImageObjectKey;
-
-        var etag = RecipeImageCache.ETagForObjectKey(servedKey);
-        httpContext.Response.GetTypedHeaders().CacheControl = RecipeImageCache.ResponseCacheControl();
-
-        if (RecipeImageCache.IsNotModified(httpContext.Request.GetTypedHeaders(), etag)) {
-            httpContext.Response.GetTypedHeaders().ETag = etag;
-            return TypedResults.StatusCode(StatusCodes.Status304NotModified);
-        }
-
-        // A response varies by width, and the width is in the query string rather than a header, so
-        // no Vary is needed — but a shared cache must not serve one client's rendition to another,
-        // which the private cache-control above already prevents.
-        var image = await recipeImageStore.OpenAsync(recipe.ImageObjectKey, w, cancellationToken);
-        var contentType = RecipeImageUploadConstants.ContentTypeFromObjectKey(image.ObjectKey)
-                          ?? "application/octet-stream";
-
-        return TypedResults.File(image.Content, contentType, entityTag: etag);
+        return await RecipeImageResults.ServeAsync(
+            recipeImageStore,
+            httpContext,
+            recipe.ImageObjectKey,
+            w,
+            cancellationToken
+        );
     }
 
     [Authorize]

@@ -86,16 +86,51 @@ export default function RecipeCollectionShareImportPage() {
                 {preview.description && <p className='mt-1 text-sm text-muted-foreground'>{preview.description}</p>}
                 <p className='mt-1 text-sm text-muted-foreground'>{preview.recipeCount} recipes</p>
 
-                {preview.recipeTitles.length > 0 && (
+                {preview.recipes.length > 0 && (
                     <ul className='mt-4 space-y-2'>
-                        {preview.recipeTitles.map(title => (
-                            <li
-                                key={title}
-                                className='rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground'
-                            >
-                                {title}
-                            </li>
-                        ))}
+                        {preview.recipes.map(recipe => {
+                            const totalMinutes = (recipe.prepMinutes ?? 0) + (recipe.cookMinutes ?? 0);
+
+                            return (
+                                <li key={recipe.id}>
+                                    <Link
+                                        to={`${sharePath}/recipes/${recipe.id}`}
+                                        className='flex items-center gap-3 rounded-lg border border-border bg-background p-2 transition-colors hover:bg-accent'
+                                    >
+                                        {recipe.hasImage ? (
+                                            <img
+                                                src={recipeCollectionsApi.sharedRecipeImageUrl(
+                                                    shareToken,
+                                                    recipe.id,
+                                                    400,
+                                                )}
+                                                alt=''
+                                                className='h-14 w-14 shrink-0 rounded-md object-cover'
+                                            />
+                                        ) : (
+                                            <div className='flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-muted'>
+                                                <ChefHat className='h-5 w-5 text-muted-foreground' aria-hidden />
+                                            </div>
+                                        )}
+                                        <span className='min-w-0'>
+                                            <span className='block truncate text-sm font-medium text-foreground'>
+                                                {recipe.title}
+                                            </span>
+                                            {recipe.description && (
+                                                <span className='block truncate text-xs text-muted-foreground'>
+                                                    {recipe.description}
+                                                </span>
+                                            )}
+                                            {totalMinutes > 0 && (
+                                                <span className='block text-xs text-muted-foreground'>
+                                                    {totalMinutes} min
+                                                </span>
+                                            )}
+                                        </span>
+                                    </Link>
+                                </li>
+                            );
+                        })}
                     </ul>
                 )}
 

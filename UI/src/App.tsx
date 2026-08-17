@@ -29,6 +29,7 @@ const RecipeDetailPage = lazy(() => import('./pages/meal-prep/RecipeDetailPage')
 const RecipeCollectionsListPage = lazy(() => import('./pages/meal-prep/RecipeCollectionsListPage'));
 const RecipeCollectionPage = lazy(() => import('./pages/meal-prep/RecipeCollectionPage'));
 const RecipeCollectionShareImportPage = lazy(() => import('./pages/meal-prep/RecipeCollectionShareImportPage'));
+const SharedRecipeDetailPage = lazy(() => import('./pages/meal-prep/SharedRecipeDetailPage'));
 const WeeklyPlannerPage = lazy(() => import('./pages/meal-prep/WeeklyPlannerPage'));
 const ShoppingListPage = lazy(() => import('./pages/meal-prep/ShoppingListPage'));
 const ShoppingModePage = lazy(() => import('./pages/meal-prep/ShoppingModePage'));
@@ -111,7 +112,10 @@ const App = () => (
                                             >
                                                 <Route index element={<RecipeLibraryPage />} />
                                                 <Route path='collections' element={<RecipeCollectionsListPage />} />
-                                                <Route path='collections/:collectionId' element={<RecipeCollectionPage />} />
+                                                <Route
+                                                    path='collections/:collectionId'
+                                                    element={<RecipeCollectionPage />}
+                                                />
                                                 <Route path='recipe/:recipeId' element={<RecipeDetailPage />} />
                                                 <Route path='next-meals' element={<WeeklyPlannerPage />} />
                                                 <Route path='shopping' element={<ShoppingListPage />} />
@@ -130,6 +134,10 @@ const App = () => (
                                             <Route
                                                 path='/share/recipe-collections/:shareToken'
                                                 element={<RecipeCollectionShareImportPage />}
+                                            />
+                                            <Route
+                                                path='/share/recipe-collections/:shareToken/recipes/:recipeId'
+                                                element={<SharedRecipeDetailPage />}
                                             />
                                             <Route
                                                 path='/workspaces/:workspaceId/cooking/:recipeId'

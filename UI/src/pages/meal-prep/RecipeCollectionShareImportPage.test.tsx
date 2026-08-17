@@ -11,6 +11,8 @@ vi.mock('@/lib/api', () => ({
     recipeCollectionsApi: {
         getShareLinkPreview: (shareToken: string) => getShareLinkPreview(shareToken),
         importFromShareLink: vi.fn(),
+        sharedRecipeImageUrl: (token: string, recipeId: string, width?: number) =>
+            `/api/v1/recipe-collection-share/${token}/recipes/${recipeId}/image${width ? `?w=${width}` : ''}`,
     },
 }));
 
@@ -53,7 +55,28 @@ describe('RecipeCollectionShareImportPage', () => {
             description: 'Fast midweek meals',
             ownerWorkspaceName: 'Ben Kitchen',
             recipeCount: 2,
-            recipeTitles: ['Sunday Roast', 'Tomato Soup'],
+            recipes: [
+                {
+                    id: 'recipe-1',
+                    title: 'Sunday Roast',
+                    description: 'A slow roasted centrepiece',
+                    servings: 4,
+                    prepMinutes: 25,
+                    cookMinutes: 90,
+                    tags: ['dinner'],
+                    hasImage: true,
+                },
+                {
+                    id: 'recipe-2',
+                    title: 'Tomato Soup',
+                    description: null,
+                    servings: 2,
+                    prepMinutes: 10,
+                    cookMinutes: 20,
+                    tags: [],
+                    hasImage: false,
+                },
+            ],
         });
     });
 
@@ -65,6 +88,32 @@ describe('RecipeCollectionShareImportPage', () => {
         expect(await screen.findByText('Sunday Roast')).toBeDefined();
         expect(screen.getByText('Tomato Soup')).toBeDefined();
         expect(screen.getByText('Shared recipe collection')).toBeDefined();
+    });
+
+    it('links each recipe card to its shared detail page', async () => {
+        useAuth.mockReturnValue({ user: null, isLoading: false });
+
+        renderPage();
+
+        const roastLink = await screen.findByRole('link', { name: /Sunday Roast/ });
+
+        expect(roastLink.getAttribute('href')).toBe(`/share/recipe-collections/${shareToken}/recipes/recipe-1`);
+    });
+
+    it('renders a share-scoped image for recipes that have one', async () => {
+        useAuth.mockReturnValue({ user: null, isLoading: false });
+
+        const { container } = renderPage();
+
+        await screen.findByText('Sunday Roast');
+
+        const images = container.querySelectorAll('img');
+
+        // Only the recipe with hasImage gets an <img>; the other falls back to a placeholder icon.
+        expect(images.length).toBe(1);
+        expect(images[0].getAttribute('src')).toBe(
+            `/api/v1/recipe-collection-share/${shareToken}/recipes/recipe-1/image?w=400`,
+        );
     });
 
     it('invites a signed-out visitor to sign up or sign in and preserves the share link', async () => {

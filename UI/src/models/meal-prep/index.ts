@@ -203,7 +203,30 @@ export interface RecipeCollectionShareLinkPreview {
     description?: string | null;
     ownerWorkspaceName: string;
     recipeCount: number;
-    recipeTitles: string[];
+    recipes: SharedRecipeSummary[];
+}
+
+/**
+ * A recipe seen through a share link. Deliberately narrower than {@link Recipe}: the shared view never
+ * exposes the owning workspace, the viewer's favourite flag or private collection membership.
+ */
+export interface SharedRecipeSummary {
+    id: string;
+    title: string;
+    description?: string | null;
+    servings: number;
+    prepMinutes?: number | null;
+    cookMinutes?: number | null;
+    tags: string[];
+    hasImage: boolean;
+}
+
+export interface SharedRecipeDetail extends SharedRecipeSummary {
+    sourceUrl?: string | null;
+    notes?: string | null;
+    ingredients: RecipeIngredient[];
+    steps: RecipeStep[];
+    nutrition?: RecipeNutrition | null;
 }
 
 export interface RecipeImportPreview {
