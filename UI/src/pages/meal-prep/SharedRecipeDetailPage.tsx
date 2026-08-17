@@ -43,7 +43,7 @@ export default function SharedRecipeDetailPage() {
     const totalMinutes = (recipe.prepMinutes ?? 0) + (recipe.cookMinutes ?? 0);
 
     return (
-        <div className='mx-auto max-w-2xl space-y-4 px-4 py-10 md:px-8'>
+        <div className='mx-auto max-w-5xl space-y-4 px-4 py-10 md:px-8'>
             <Button asChild variant='ghost' size='sm' className='-ml-2'>
                 <Link to={collectionPath}>
                     <ArrowLeft className='mr-1 h-4 w-4' aria-hidden />
@@ -90,39 +90,43 @@ export default function SharedRecipeDetailPage() {
                         </ul>
                     )}
 
-                    {recipe.ingredients.length > 0 && (
-                        <section className='mt-6'>
-                            <h2 className='font-heading text-lg text-foreground'>Ingredients</h2>
-                            <ul className='mt-3 space-y-2'>
-                                {recipe.ingredients.map(ingredient => (
-                                    <li key={ingredient.id} className='text-sm text-foreground'>
-                                        <RecipeIngredientListRow ingredient={ingredient} />
-                                    </li>
-                                ))}
-                            </ul>
-                        </section>
-                    )}
+                    {/* Ingredients sit beside the method once there is room; the method column keeps a
+                        readable measure rather than stretching to the full page width. */}
+                    <div className='mt-6 gap-8 lg:grid lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:items-start'>
+                        {recipe.ingredients.length > 0 && (
+                            <section className='lg:sticky lg:top-6'>
+                                <h2 className='font-heading text-lg text-foreground'>Ingredients</h2>
+                                <ul className='mt-3 space-y-2'>
+                                    {recipe.ingredients.map(ingredient => (
+                                        <li key={ingredient.id} className='text-sm text-foreground'>
+                                            <RecipeIngredientListRow ingredient={ingredient} />
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+                        )}
 
-                    {recipe.steps.length > 0 && (
-                        <section className='mt-6'>
-                            <h2 className='font-heading text-lg text-foreground'>Method</h2>
-                            <ol className='mt-3 space-y-4'>
-                                {recipe.steps.map((step, index) => (
-                                    <li key={step.id} className='flex gap-3 text-sm text-foreground'>
-                                        <span className='mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground'>
-                                            {index + 1}
-                                        </span>
-                                        <p>
-                                            <InstructionWithInlineAmounts
-                                                instruction={step.instruction}
-                                                scaledIngredients={recipe.ingredients}
-                                            />
-                                        </p>
-                                    </li>
-                                ))}
-                            </ol>
-                        </section>
-                    )}
+                        {recipe.steps.length > 0 && (
+                            <section className='mt-6 lg:mt-0'>
+                                <h2 className='font-heading text-lg text-foreground'>Method</h2>
+                                <ol className='mt-3 space-y-4'>
+                                    {recipe.steps.map((step, index) => (
+                                        <li key={step.id} className='flex gap-3 text-sm text-foreground'>
+                                            <span className='mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground'>
+                                                {index + 1}
+                                            </span>
+                                            <p>
+                                                <InstructionWithInlineAmounts
+                                                    instruction={step.instruction}
+                                                    scaledIngredients={recipe.ingredients}
+                                                />
+                                            </p>
+                                        </li>
+                                    ))}
+                                </ol>
+                            </section>
+                        )}
+                    </div>
 
                     {recipe.notes && (
                         <section className='mt-6'>
