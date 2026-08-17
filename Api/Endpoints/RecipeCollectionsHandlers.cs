@@ -523,7 +523,8 @@ internal static class RecipeCollectionsHandlers
         );
     }
 
-    private static async Task<Recipe> CloneRecipeToWorkspaceAsync(
+    /// <remarks>Also used by <c>RecipeCollectionImportJobService</c> for background collection imports.</remarks>
+    internal static async Task<Recipe> CloneRecipeToWorkspaceAsync(
         Recipe sourceRecipe,
         Workspace targetWorkspace,
         IS3StorageService s3StorageService,

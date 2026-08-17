@@ -17,6 +17,7 @@ builder.Services.AddIdentityAndAuth(builder.Environment);
 builder.Services.AddFrontendCors(builder.Configuration);
 
 builder.Services.AddApplicationServices(builder.Configuration);
+builder.Services.AddBackgroundProcessing(builder.Configuration);
 builder.Services.AddAppCompression();
 builder.Services.AddMealPrepMcpServer();
 

@@ -10,6 +10,11 @@ public partial class ApiDbContext
     public DbSet<RecipeCollectionRecipe> RecipeCollectionRecipes => Set<RecipeCollectionRecipe>();
     public DbSet<RecipeCollectionShare> RecipeCollectionShares => Set<RecipeCollectionShare>();
     public DbSet<RecipeCollectionShareLink> RecipeCollectionShareLinks => Set<RecipeCollectionShareLink>();
+    public DbSet<RecipeCollectionImportJob> RecipeCollectionImportJobs => Set<RecipeCollectionImportJob>();
+
+    public DbSet<RecipeCollectionImportJobItem> RecipeCollectionImportJobItems =>
+        Set<RecipeCollectionImportJobItem>();
+
     public DbSet<RecipeFavorite> RecipeFavorites => Set<RecipeFavorite>();
     public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
     public DbSet<RecipeStep> RecipeSteps => Set<RecipeStep>();
@@ -70,6 +75,24 @@ public partial class ApiDbContext
         modelBuilder.Entity<RecipeCollectionShareLink>()
             .HasIndex(link => link.Token)
             .IsUnique();
+
+        modelBuilder.Entity<RecipeCollectionImportJob>()
+            .HasOne(job => job.StartedByUser)
+            .WithMany()
+            .HasForeignKey(job => job.StartedByUserId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RecipeCollectionImportJob>()
+            .HasIndex(job => new { job.WorkspaceId, job.Status });
+        modelBuilder.Entity<RecipeCollectionImportJob>()
+            .HasIndex(job => new { job.WorkspaceId, job.ShareToken });
+
+        modelBuilder.Entity<RecipeCollectionImportJobItem>()
+            .HasOne(item => item.RecipeCollectionImportJob)
+            .WithMany(job => job.Items)
+            .HasForeignKey(item => item.RecipeCollectionImportJobId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RecipeCollectionImportJobItem>()
+            .HasIndex(item => new { item.RecipeCollectionImportJobId, item.Status });
 
         modelBuilder.Entity<RecipeFavorite>().HasKey(favorite => new { favorite.UserId, favorite.RecipeId });
         modelBuilder.Entity<RecipeFavorite>()
