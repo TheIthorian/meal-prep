@@ -265,6 +265,34 @@ public static class EndpointRouteBuilderExtensions
                 .Produces<RecipeCollectionDetailResponse>()
                 .WithName("ImportRecipeCollectionFromShareLink");
 
+            apiGroup.MapPost(
+                    "/workspaces/{workspaceId:guid}/recipe-collection-import/{shareToken}/jobs",
+                    RecipeCollectionImportJobsHandlers.PostStartImportJob
+                )
+                .Produces<RecipeCollectionImportJobResponse>(StatusCodes.Status202Accepted)
+                .WithName("StartRecipeCollectionImportJob");
+
+            apiGroup.MapGet(
+                    "/workspaces/{workspaceId:guid}/recipe-collection-import-jobs",
+                    RecipeCollectionImportJobsHandlers.GetImportJobs
+                )
+                .Produces<RecipeCollectionImportJobResponse[]>()
+                .WithName("ListRecipeCollectionImportJobs");
+
+            apiGroup.MapGet(
+                    "/workspaces/{workspaceId:guid}/recipe-collection-import-jobs/{jobId:guid}",
+                    RecipeCollectionImportJobsHandlers.GetImportJob
+                )
+                .Produces<RecipeCollectionImportJobResponse>()
+                .WithName("GetRecipeCollectionImportJob");
+
+            apiGroup.MapPost(
+                    "/workspaces/{workspaceId:guid}/recipe-collection-import-jobs/{jobId:guid}/retry",
+                    RecipeCollectionImportJobsHandlers.PostRetryImportJob
+                )
+                .Produces<RecipeCollectionImportJobResponse>(StatusCodes.Status202Accepted)
+                .WithName("RetryRecipeCollectionImportJob");
+
             apiGroup.MapGet(
                     "/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}/image",
                     RecipesHandlers.GetRecipeImage

@@ -78,6 +78,8 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
                     ["OpenAI:BaseUrl"] = "https://api.openai.com/v1",
                     ["OpenAI:Model"] = "gpt-4o-mini",
                     ["Test:DisableOpenTelemetry"] = "true",
+                    // Import jobs are driven explicitly by tests so progress can be asserted step by step.
+                    ["RecipeCollectionImport:ProcessInBackground"] = "false",
                     ["S3:ServiceUrl"] = TestEnvironment.GetS3ServiceUrl(),
                     ["S3:AccessKey"] = TestEnvironment.GetS3AccessKey(),
                     ["S3:SecretKey"] = TestEnvironment.GetS3SecretKey(),

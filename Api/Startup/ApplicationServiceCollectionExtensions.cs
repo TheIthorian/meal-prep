@@ -65,6 +65,7 @@ public static class ApplicationServiceCollectionExtensions
             services.AddScoped<RecipeDocumentImportService>();
             services.AddScoped<IIngredientCategoryResolver, IngredientCategoryResolutionService>();
             services.AddScoped<ShoppingListGenerationService>();
+            services.AddScoped<RecipeCollectionImportJobService>();
             services.AddSingleton<RecipeImportLlmParser>();
             services.AddSingleton<IngredientCategoryLlmService>();
             services.AddSingleton<RecipeTagSuggestionService>();

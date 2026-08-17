@@ -25,7 +25,17 @@ Import recipes from external pages to reduce manual entry.
 - Review parsed content after import.
 - Adjust parsed fields if needed.
 
-## 4) Shopping Lists
+## 4) Importing a Shared Collection
+
+Open a collection share link to copy someone else's collection into one of your workspaces.
+
+- Pick the workspace to import into and start the import.
+- Progress is reported per recipe (for example "4 of 12"), not as an indefinite spinner.
+- The import runs on the server, so you can close the page and come back to the same link to see how
+  far it got.
+- If some recipes could not be imported they are listed by name, and a retry re-runs only those.
+
+## 5) Shopping Lists
 
 Generate shopping lists from selected recipes.
 
@@ -33,7 +43,7 @@ Generate shopping lists from selected recipes.
 - Build a shopping list from ingredient data.
 - Use the list while shopping and update progress.
 
-## 5) Offline Shopping Support
+## 6) Offline Shopping Support
 
 The UI supports offline-oriented shopping workflows.
 
@@ -41,7 +51,7 @@ The UI supports offline-oriented shopping workflows.
 - Continue checking items while offline.
 - Sync updates when connection is restored.
 
-## 6) MCP Integrations
+## 7) MCP Integrations
 
 Connect supported MCP clients directly to your workspace.
 

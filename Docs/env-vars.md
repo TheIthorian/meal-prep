@@ -70,6 +70,10 @@ For Railway-style production setup, start from `Infra/environments/production.en
 
 - `UPLOAD_CATEGORIZATION_BATCH_SIZE`: Batch size for upload categorization jobs.
 - `RetentionCleanup__RetentionDays`: Retention window in days for cleanup jobs.
+- `RecipeCollectionImport__ProcessInBackground`: Whether the API process runs queued shared-collection
+  imports. Defaults to `true`; set to `false` only where jobs are driven explicitly (for example tests).
+- `RecipeCollectionImport__RecoverInterruptedJobsOnStartup`: Whether imports left mid-flight by a
+  restart are re-queued when the process starts. Defaults to `true`.
 
 ## OpenTelemetry
 

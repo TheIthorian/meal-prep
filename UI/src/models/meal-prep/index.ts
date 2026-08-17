@@ -205,6 +205,47 @@ export interface RecipeCollectionShareLinkPreview {
     recipeCount: number;
 }
 
+export const recipeCollectionImportJobStatuses = {
+    pending: 'pending',
+    running: 'running',
+    completed: 'completed',
+    completedWithErrors: 'completedWithErrors',
+    failed: 'failed',
+} as const;
+
+export type RecipeCollectionImportJobStatus =
+    (typeof recipeCollectionImportJobStatuses)[keyof typeof recipeCollectionImportJobStatuses];
+
+export interface RecipeCollectionImportFailure {
+    sourceRecipeId: string;
+    recipeTitle: string;
+    errorMessage?: string | null;
+}
+
+export interface RecipeCollectionImportJob {
+    id: string;
+    workspaceId: string;
+    status: RecipeCollectionImportJobStatus;
+    shareToken: string;
+    sourceCollectionName: string;
+    totalRecipes: number;
+    processedRecipes: number;
+    importedRecipes: number;
+    failedRecipes: number;
+    targetCollectionId?: string | null;
+    createdAt: string;
+    completedAt?: string | null;
+    errorMessage?: string | null;
+    failures: RecipeCollectionImportFailure[];
+}
+
+export function isRecipeCollectionImportJobActive(job?: RecipeCollectionImportJob | null) {
+    return (
+        job?.status === recipeCollectionImportJobStatuses.pending ||
+        job?.status === recipeCollectionImportJobStatuses.running
+    );
+}
+
 export interface RecipeImportPreview {
     title: string;
     description?: string | null;

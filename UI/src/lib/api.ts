@@ -26,6 +26,7 @@ import {
     RecipeCollectionExport,
     RecipeCollectionShareLink,
     RecipeCollectionShareLinkPreview,
+    RecipeCollectionImportJob,
 } from '@/models/meal-prep';
 import type { PaginatedResponse } from '@/models/pagination';
 import type { McpAccessTokenCreated, McpAccessTokenListItem } from '@/models/mcp';
@@ -159,6 +160,25 @@ export const recipeCollectionsApi = {
         httpClient.get<RecipeCollectionShareLinkPreview>(`/api/v1/recipe-collection-share/${shareToken}`),
     importFromShareLink: (workspaceId: string, shareToken: string) =>
         httpClient.post<RecipeCollectionDetail>(`/api/v1/workspaces/${workspaceId}/recipe-collection-import/${shareToken}`, {}),
+    startImportJob: (workspaceId: string, shareToken: string) =>
+        httpClient.post<RecipeCollectionImportJob>(
+            `/api/v1/workspaces/${workspaceId}/recipe-collection-import/${shareToken}/jobs`,
+            {},
+        ),
+    getImportJob: (workspaceId: string, jobId: string) =>
+        httpClient.get<RecipeCollectionImportJob>(
+            `/api/v1/workspaces/${workspaceId}/recipe-collection-import-jobs/${jobId}`,
+        ),
+    listImportJobs: (workspaceId: string, shareToken?: string) =>
+        httpClient.get<RecipeCollectionImportJob[]>(
+            `/api/v1/workspaces/${workspaceId}/recipe-collection-import-jobs`,
+            { params: shareToken ? { shareToken } : undefined },
+        ),
+    retryImportJob: (workspaceId: string, jobId: string) =>
+        httpClient.post<RecipeCollectionImportJob>(
+            `/api/v1/workspaces/${workspaceId}/recipe-collection-import-jobs/${jobId}/retry`,
+            {},
+        ),
 };
 
 export const mealPlanApi = {
