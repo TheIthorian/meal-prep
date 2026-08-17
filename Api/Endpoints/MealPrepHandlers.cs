@@ -518,7 +518,7 @@ internal static class RecipesHandlers
                     await recipeImageStore.DeleteAsync(existingImageKey, cancellationToken);
 
                 await using var stream = new MemoryStream(payload.Data);
-                var key = await recipeImageStore.StoreAsync(stream, payload.FileName, cancellationToken);
+                var key = await recipeImageStore.StoreAsync(stream, payload.FileName, payload.ContentType, cancellationToken);
                 await recipeQuery.ExecuteUpdateAsync(
                     setters => setters
                         .SetProperty(value => value.ImageObjectKey, key)
@@ -620,11 +620,11 @@ internal static class RecipesHandlers
 
         // Images are immutable once written — a replacement upload stores a new object key — so the
         // key identifies the bytes. Clients that already hold them get a 304 and no body, and the
-        // object is never read from S3 for such a request. The requested width is folded into the
-        // key the tag is derived from so that two renditions of the same image never share a tag.
-        var servedKey = RecipeImageVariants.ResolveWidth(w) is { } width
-            ? RecipeImageVariants.KeyForWidth(recipe.ImageObjectKey, width)
-            : recipe.ImageObjectKey;
+        // object is never read from S3 for such a request. The tag is derived from the key that
+        // will actually be served, which is the rendition once it has been generated and the
+        // original while it is still queued: tagging both alike would have a client cache the
+        // original under the rendition's tag.
+        var servedKey = await recipeImageStore.ResolveServedKeyAsync(recipe.ImageObjectKey, w, cancellationToken);
 
         var etag = RecipeImageCache.ETagForObjectKey(servedKey);
         httpContext.Response.GetTypedHeaders().CacheControl = RecipeImageCache.ResponseCacheControl();
@@ -637,7 +637,7 @@ internal static class RecipesHandlers
         // A response varies by width, and the width is in the query string rather than a header, so
         // no Vary is needed — but a shared cache must not serve one client's rendition to another,
         // which the private cache-control above already prevents.
-        var image = await recipeImageStore.OpenAsync(recipe.ImageObjectKey, w, cancellationToken);
+        var image = await recipeImageStore.OpenKeyAsync(servedKey);
         var contentType = RecipeImageUploadConstants.ContentTypeFromObjectKey(image.ObjectKey)
                           ?? "application/octet-stream";
 
@@ -686,7 +686,7 @@ internal static class RecipesHandlers
         }
 
         await using var readStream = file.OpenReadStream();
-        var newKey = await recipeImageStore.StoreAsync(readStream, file.FileName, cancellationToken);
+        var newKey = await recipeImageStore.StoreAsync(readStream, file.FileName, file.ContentType, cancellationToken);
 
         if (!string.IsNullOrEmpty(recipe.ImageObjectKey))
         {
@@ -929,7 +929,7 @@ internal static class RecipesHandlers
             await recipeImageStore.DeleteAsync(recipe.ImageObjectKey, cancellationToken);
 
         await using var stream = new MemoryStream(payload.Data);
-        var key = await recipeImageStore.StoreAsync(stream, payload.FileName, cancellationToken);
+        var key = await recipeImageStore.StoreAsync(stream, payload.FileName, payload.ContentType, cancellationToken);
         recipe.SetImageObjectKey(key);
     }
 

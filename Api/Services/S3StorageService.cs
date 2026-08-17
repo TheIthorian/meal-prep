@@ -88,6 +88,19 @@ public class S3StorageService : IS3StorageService
         }
     }
 
+    public async Task<bool> ObjectExistsAsync(string s3Key) {
+        using var methodTiming = System.Diagnostics.Activity.Current.BeginAppMethodEvent();
+
+        try {
+            await _s3Client.GetObjectMetadataAsync(
+                new GetObjectMetadataRequest { BucketName = _bucketName, Key = s3Key }
+            );
+            return true;
+        } catch (AmazonS3Exception exception) when (exception.StatusCode == HttpStatusCode.NotFound) {
+            return false;
+        }
+    }
+
     public async Task<Stream> DownloadFileAsync(string s3Key) {
         using var methodTiming = System.Diagnostics.Activity.Current.BeginAppMethodEvent();
 

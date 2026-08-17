@@ -31,19 +31,26 @@ public class RecipeImageVariantsTests
         Assert.Equal(expected, RecipeImageVariants.ResolveWidth(requested));
     }
 
+    [Fact]
+    public void KeyForWidth_ShouldStoreRenditionsAsWebpWhateverTheOriginalWas() {
+        var key = RecipeImageVariants.KeyForWidth("abc-123_photo.png", 400);
+
+        Assert.Equal("abc-123_photo.w400.webp", key);
+    }
+
     [Theory]
     [InlineData(801)]
-    [InlineData(1600)]
-    public void ResolveWidth_ShouldFallBackToFullSizeWhenNoRenditionIsLargeEnough(int requested) {
-        Assert.Null(RecipeImageVariants.ResolveWidth(requested));
+    [InlineData(4000)]
+    public void ResolveWidth_ShouldSnapToTheWidestRenditionWhenNoneIsLargeEnough(int requested) {
+        Assert.Equal(RecipeImageVariants.FullWidth, RecipeImageVariants.ResolveWidth(requested));
     }
 
     [Theory]
     [InlineData(null)]
     [InlineData(0)]
     [InlineData(-100)]
-    public void ResolveWidth_ShouldFallBackToFullSizeWhenTheRequestIsAbsentOrNonsense(int? requested) {
-        Assert.Null(RecipeImageVariants.ResolveWidth(requested));
+    public void ResolveWidth_ShouldUseTheWidestRenditionWhenTheRequestIsAbsentOrNonsense(int? requested) {
+        Assert.Equal(RecipeImageVariants.FullWidth, RecipeImageVariants.ResolveWidth(requested));
     }
 
     [Fact]

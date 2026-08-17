@@ -6,6 +6,7 @@ using Api.Services.MealPrep;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Net;
 using System.Net.Http;
 
@@ -29,6 +30,8 @@ public static class ApplicationServiceCollectionExtensions
                 .Bind(configuration.GetSection("S3"));
             services.AddOptions<OpenAIConfiguration>()
                 .Bind(configuration.GetSection("OpenAI"));
+            services.AddOptions<RecipeImageDerivativeOptions>()
+                .Bind(configuration.GetSection("RecipeImageDerivatives"));
             services.AddProblemDetails();
             services.AddExceptionHandler<GlobalExceptionHandler>();
             services.Configure<FormOptions>(options => {
@@ -56,12 +59,21 @@ public static class ApplicationServiceCollectionExtensions
             );
 
             services.AddHttpContextAccessor();
+            services.TryAddSingleton(TimeProvider.System);
             services.AddScoped<CurrentUserService>();
             services.AddScoped<McpPersonalAccessTokenService>();
             services.AddScoped<IS3StorageService, S3StorageService>();
             services.AddScoped<MeasurementService>();
             services.AddScoped<RecipeImageProcessingService>();
             services.AddScoped<RecipeImageStore>();
+            services.AddScoped<IRecipeImageDerivativeQueue, RecipeImageDerivativeQueue>();
+            services.AddScoped<IRecipeImageDerivativeProcessor, RecipeImageDerivativeProcessor>();
+
+            // The resize worker only runs where the deployment says it should, so an instance
+            // dedicated to serving requests never spends its cores on image processing.
+            if (configuration.HasAppRole(AppRoles.ImageDerivativeWorker)) {
+                services.AddHostedService<RecipeImageDerivativeWorker>();
+            }
             services.AddScoped<RecipeDocumentImportService>();
             services.AddScoped<IIngredientCategoryResolver, IngredientCategoryResolutionService>();
             services.AddScoped<ShoppingListGenerationService>();

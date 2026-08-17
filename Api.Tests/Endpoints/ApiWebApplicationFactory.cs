@@ -217,6 +217,10 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
             return Task.FromResult<Stream?>(new MemoryStream(payload, false));
         }
 
+        public Task<bool> ObjectExistsAsync(string s3Key) {
+            return Task.FromResult(files.ContainsKey(s3Key));
+        }
+
         public Task DeleteFileAsync(string s3Key) {
             files.Remove(s3Key);
             return Task.CompletedTask;

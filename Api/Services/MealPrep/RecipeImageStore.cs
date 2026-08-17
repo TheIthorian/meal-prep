@@ -3,105 +3,107 @@ using Api.Logging;
 namespace Api.Services.MealPrep;
 
 /// <summary>
-///     Owns the storage side of a recipe image: optimizing it, writing it and its renditions,
-///     reading back the rendition that fits a request, and deleting the whole set.
+///     Owns the storage side of a recipe image: writing the uploaded original, queueing its
+///     renditions, reading back the rendition that fits a request, and deleting the whole set.
 /// </summary>
 /// <remarks>
-///     Before this existed, four call sites (photo upload, recipe import, recipe update and the MCP
-///     tool) each repeated the optimize-upload-delete-old sequence inline, which is why renditions
-///     are introduced here rather than at each of them.
+///     Nothing here decodes or re-encodes an image. Resizing is CPU-bound work that used to run
+///     inline on the upload and import paths, where a batch import could saturate the machine and
+///     slow every unrelated request; it now happens on
+///     <see cref="RecipeImageDerivativeWorker" />, which is bounded to a couple of threads. The
+///     cost of that is a window after an upload where the renditions do not exist yet, which the
+///     read path covers by serving the original.
 /// </remarks>
 public sealed class RecipeImageStore(
     IS3StorageService s3StorageService,
-    RecipeImageProcessingService recipeImageProcessingService,
+    IRecipeImageDerivativeQueue derivativeQueue,
     ILogger<RecipeImageStore> logger
 )
 {
     /// <summary>
-    ///     Optimizes the image, stores it, and stores a rendition at each of
-    ///     <see cref="RecipeImageVariants.Widths" />. Returns the full-size object key, which is
-    ///     what a recipe records.
+    ///     Stores the image exactly as uploaded and queues a rendition at each of
+    ///     <see cref="RecipeImageVariants.Widths" />. Returns the object key, which is what a recipe
+    ///     records. Returns as soon as the bytes are persisted — no resizing happens first.
     /// </summary>
     public async Task<string> StoreAsync(
         Stream sourceStream,
         string originalFileName,
+        string? contentType = null,
         CancellationToken cancellationToken = default
     ) {
-        var optimized = await recipeImageProcessingService.OptimizeForWebAsync(
-            sourceStream,
-            originalFileName,
-            cancellationToken
-        );
+        // The caller's content type wins when it has one (an upload's form part, or what the import
+        // download resolved); the file name is only a fallback for inferring it.
+        var resolvedContentType = RecipeImageUploadConstants.IsAllowedContentType(contentType)
+            ? contentType!
+            : RecipeImageUploadConstants.ContentTypeFromObjectKey(originalFileName)
+              ?? "application/octet-stream";
+        var fileName = RecipeImageUploadConstants.FileNameForUpload(originalFileName, resolvedContentType);
 
-        await using var optimizedStream = new MemoryStream(optimized.Data);
-        var fullSizeKey = await s3StorageService.UploadFileAsync(
-            optimizedStream,
-            optimized.FileName,
-            optimized.ContentType
-        );
+        var objectKey = await s3StorageService.UploadFileAsync(sourceStream, fileName, resolvedContentType);
+        await derivativeQueue.EnqueueAllWidthsAsync(objectKey, cancellationToken);
 
-        foreach (var width in RecipeImageVariants.Widths) {
-            await using var sourceForWidth = new MemoryStream(optimized.Data);
-            var renditionData = await recipeImageProcessingService.ResizeToWidthAsync(
-                sourceForWidth,
-                width,
-                cancellationToken
-            );
-
-            await using var renditionStream = new MemoryStream(renditionData);
-            await s3StorageService.UploadFileAtKeyAsync(
-                renditionStream,
-                RecipeImageVariants.KeyForWidth(fullSizeKey, width),
-                RecipeImageUploadConstants.OptimizedContentType
-            );
-        }
-
-        return fullSizeKey;
+        return objectKey;
     }
 
     /// <summary>
-    ///     Opens the rendition covering <paramref name="requestedWidth" />, falling back to the
-    ///     full-size object.
+    ///     The key that should actually be served for a requested width: the rendition when it
+    ///     exists, otherwise the original. A miss queues the rendition, which covers both an image
+    ///     whose renditions have not been generated yet and one stored before renditions existed.
     /// </summary>
     /// <remarks>
-    ///     Images stored before renditions existed have none, so a miss generates the rendition and
-    ///     writes it back before serving it: the first request for a given width pays the resize
-    ///     and every later one is a plain read. That backfills the existing library through normal
-    ///     traffic instead of needing a migration job. A failure to generate is not fatal — the
-    ///     full-size object is served instead, exactly as before this change.
+    ///     Separate from <see cref="OpenKeyAsync" /> so a caller can build a cache tag from the key
+    ///     it is about to serve and answer a conditional request without reading the object at all.
+    ///     A tag naming a rendition that was not actually served would have clients cache the
+    ///     original under it for as long as the response stays fresh.
     /// </remarks>
-    public async Task<RecipeImageContent> OpenAsync(
-        string fullSizeObjectKey,
+    public async Task<string> ResolveServedKeyAsync(
+        string sourceObjectKey,
         int? requestedWidth,
         CancellationToken cancellationToken = default
     ) {
         var width = RecipeImageVariants.ResolveWidth(requestedWidth);
-        if (width is null) return await OpenFullSizeAsync(fullSizeObjectKey);
-
-        var renditionKey = RecipeImageVariants.KeyForWidth(fullSizeObjectKey, width.Value);
-
-        var existing = await s3StorageService.TryDownloadFileAsync(renditionKey);
-        if (existing is not null) return new RecipeImageContent(existing, renditionKey);
+        var renditionKey = RecipeImageVariants.KeyForWidth(sourceObjectKey, width);
 
         try {
-            return await GenerateRenditionAsync(fullSizeObjectKey, renditionKey, width.Value, cancellationToken);
+            if (await s3StorageService.ObjectExistsAsync(renditionKey)) return renditionKey;
         } catch (Exception exception) {
-            using var scope = logger.BeginPropertyScope(
-                ("recipe.image.key", fullSizeObjectKey),
-                ("recipe.image.width", width.Value)
-            );
-            logger.LogWarning(exception, "Could not build a recipe image rendition; serving full size");
-            return await OpenFullSizeAsync(fullSizeObjectKey);
+            using var scope = logger.BeginPropertyScope(("recipe.image.key", renditionKey));
+            logger.LogWarning(exception, "Could not check for a recipe image rendition; serving the original");
+            return sourceObjectKey;
         }
+
+        await derivativeQueue.EnqueueWidthAsync(sourceObjectKey, width, cancellationToken);
+        return sourceObjectKey;
+    }
+
+    /// <summary>Opens a specific object key, as returned by <see cref="ResolveServedKeyAsync" />.</summary>
+    public async Task<RecipeImageContent> OpenKeyAsync(string objectKey) {
+        var stream = await s3StorageService.DownloadFileAsync(objectKey);
+        return new RecipeImageContent(stream, objectKey);
     }
 
     /// <summary>
-    ///     Deletes the image and every rendition of it. Renditions are deleted best-effort: an
-    ///     image predating this change has none, and a delete that fails would otherwise leave the
-    ///     recipe pointing at an object that is already gone.
+    ///     Opens the rendition covering <paramref name="requestedWidth" />, falling back to the
+    ///     original while the rendition is still pending.
     /// </summary>
-    public async Task DeleteAsync(string fullSizeObjectKey, CancellationToken cancellationToken = default) {
-        foreach (var renditionKey in RecipeImageVariants.AllKeysForImage(fullSizeObjectKey)) {
+    public async Task<RecipeImageContent> OpenAsync(
+        string sourceObjectKey,
+        int? requestedWidth,
+        CancellationToken cancellationToken = default
+    ) {
+        var servedKey = await ResolveServedKeyAsync(sourceObjectKey, requestedWidth, cancellationToken);
+        return await OpenKeyAsync(servedKey);
+    }
+
+    /// <summary>
+    ///     Deletes the image, every rendition of it, and any rendition still queued. Renditions are
+    ///     deleted best-effort: one may not exist yet, and a delete that fails would otherwise leave
+    ///     the recipe pointing at an object that is already gone.
+    /// </summary>
+    public async Task DeleteAsync(string sourceObjectKey, CancellationToken cancellationToken = default) {
+        await derivativeQueue.RemoveForImageAsync(sourceObjectKey, cancellationToken);
+
+        foreach (var renditionKey in RecipeImageVariants.AllKeysForImage(sourceObjectKey)) {
             try {
                 await s3StorageService.DeleteFileAsync(renditionKey);
             } catch (Exception exception) {
@@ -110,36 +112,7 @@ public sealed class RecipeImageStore(
             }
         }
 
-        await s3StorageService.DeleteFileAsync(fullSizeObjectKey);
-    }
-
-    private async Task<RecipeImageContent> GenerateRenditionAsync(
-        string fullSizeObjectKey,
-        string renditionKey,
-        int width,
-        CancellationToken cancellationToken
-    ) {
-        await using var fullSize = await s3StorageService.DownloadFileAsync(fullSizeObjectKey);
-        await using var buffered = new MemoryStream();
-        await fullSize.CopyToAsync(buffered, cancellationToken);
-        buffered.Position = 0;
-
-        var renditionData = await recipeImageProcessingService.ResizeToWidthAsync(buffered, width, cancellationToken);
-
-        await using (var uploadStream = new MemoryStream(renditionData)) {
-            await s3StorageService.UploadFileAtKeyAsync(
-                uploadStream,
-                renditionKey,
-                RecipeImageUploadConstants.OptimizedContentType
-            );
-        }
-
-        return new RecipeImageContent(new MemoryStream(renditionData), renditionKey);
-    }
-
-    private async Task<RecipeImageContent> OpenFullSizeAsync(string fullSizeObjectKey) {
-        var stream = await s3StorageService.DownloadFileAsync(fullSizeObjectKey);
-        return new RecipeImageContent(stream, fullSizeObjectKey);
+        await s3StorageService.DeleteFileAsync(sourceObjectKey);
     }
 }
 

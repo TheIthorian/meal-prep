@@ -1,4 +1,5 @@
 using Api.Configuration;
+using Api.Services.MealPrep;
 using Api.Startup;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -25,6 +26,36 @@ public class ApplicationServiceCollectionExtensionsTests
         Assert.DoesNotContain(
             services,
             descriptor => descriptor.ServiceType == typeof(IHostedService)
+        );
+    }
+
+    [Fact]
+    public void AddApplicationServices_RegistersTheImageWorker_WhenItsRoleIsPresent() {
+        var services = new ServiceCollection();
+        var configuration = BuildConfiguration(("AppRoles", $"api,{AppRoles.ImageDerivativeWorker}"));
+
+        services.AddLogging();
+
+        services.AddApplicationServices(configuration);
+
+        Assert.Contains(
+            services,
+            descriptor => descriptor.ImplementationType == typeof(RecipeImageDerivativeWorker)
+        );
+    }
+
+    [Fact]
+    public void AddApplicationServices_RegistersTheImageWorker_WhenEveryRoleIsEnabled() {
+        var services = new ServiceCollection();
+        var configuration = BuildConfiguration(("AppRoles", AppRoles.All));
+
+        services.AddLogging();
+
+        services.AddApplicationServices(configuration);
+
+        Assert.Contains(
+            services,
+            descriptor => descriptor.ImplementationType == typeof(RecipeImageDerivativeWorker)
         );
     }
 

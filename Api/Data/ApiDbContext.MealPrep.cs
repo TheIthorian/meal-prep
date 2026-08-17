@@ -19,6 +19,7 @@ public partial class ApiDbContext
     public DbSet<ShoppingListItem> ShoppingListItems => Set<ShoppingListItem>();
     public DbSet<ShoppingListSource> ShoppingListSources => Set<ShoppingListSource>();
     public DbSet<RecipeImportAiLog> RecipeImportAiLogs => Set<RecipeImportAiLog>();
+    public DbSet<RecipeImageDerivativeJob> RecipeImageDerivativeJobs => Set<RecipeImageDerivativeJob>();
     public DbSet<IngredientCategoryCache> IngredientCategoryCaches => Set<IngredientCategoryCache>();
     public DbSet<McpPersonalAccessToken> McpPersonalAccessTokens => Set<McpPersonalAccessToken>();
 

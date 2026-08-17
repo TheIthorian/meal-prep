@@ -34,7 +34,9 @@ For Railway-style production setup, start from `Infra/environments/production.en
 - `AppRoles`: Comma-separated app role list. Required.
   - Currently supported roles:
     - `worker:categorisation`
-  - Example: `AppRoles=worker:categorisation`
+    - `worker:image-derivatives`: runs the background generation of resized recipe images.
+  - `*` enables every role, which is what local development uses.
+  - Example: `AppRoles=worker:categorisation,worker:image-derivatives`
 
 ## Database and cache
 
@@ -70,6 +72,11 @@ For Railway-style production setup, start from `Infra/environments/production.en
 
 - `UPLOAD_CATEGORIZATION_BATCH_SIZE`: Batch size for upload categorization jobs.
 - `RetentionCleanup__RetentionDays`: Retention window in days for cleanup jobs.
+- `RecipeImageDerivatives__WorkerCount`: How many recipe image resizes may run at once (default `2`). Kept small on purpose: resizing is CPU bound, so this is the cap that stops a large import starving request handling.
+- `RecipeImageDerivatives__PollIntervalSeconds`: How long a worker waits before checking the queue again when it is empty (default `5`).
+- `RecipeImageDerivatives__MaxAttempts`: Attempts a single resize gets before the job is left failed and logged at error (default `5`).
+- `RecipeImageDerivatives__RetryBackoffSeconds`: Base delay before a failed resize is retried, doubled per attempt (default `30`).
+- `RecipeImageDerivatives__StaleClaimTimeoutMinutes`: How long a claimed job may sit before another worker may take it, which is how work interrupted by a restart is picked up again (default `10`).
 
 ## OpenTelemetry
 

@@ -1,152 +1,147 @@
+using Api.Models;
 using Api.Services;
 using Api.Services.MealPrep;
 using Microsoft.Extensions.Logging.Abstractions;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.PixelFormats;
 
 namespace Api.Tests.Services.MealPrep;
 
 public class RecipeImageStoreTests
 {
     [Fact]
-    public async Task StoreAsync_ShouldWriteTheFullSizeImageAndOneRenditionPerWidth() {
+    public async Task StoreAsync_ShouldWriteTheOriginalAndNothingElse() {
         var storage = new FakeS3StorageService();
-        var store = BuildStore(storage);
+        var queue = new RecordingDerivativeQueue();
+        var store = BuildStore(storage, queue);
 
-        await using var source = CreatePng(1200, 900);
+        await using var source = RecipeImageTestFactory.CreatePng(1200, 900);
         var key = await store.StoreAsync(source, "dinner.png");
 
-        Assert.Contains(key, storage.Keys);
-        foreach (var width in RecipeImageVariants.Widths) {
-            Assert.Contains(RecipeImageVariants.KeyForWidth(key, width), storage.Keys);
-        }
-    }
-
-    [Fact]
-    public async Task StoreAsync_ShouldMakeEachRenditionNarrowerThanTheLast() {
-        var storage = new FakeS3StorageService();
-        var store = BuildStore(storage);
-
-        await using var source = CreatePng(1200, 900);
-        var key = await store.StoreAsync(source, "dinner.png");
-
-        foreach (var width in RecipeImageVariants.Widths) {
-            using var rendition = Image.Load(storage.Read(RecipeImageVariants.KeyForWidth(key, width)));
-            Assert.Equal(width, rendition.Width);
-        }
-    }
-
-    [Fact]
-    public async Task StoreAsync_ShouldMakeRenditionsSmallerOnDiskThanTheFullSizeImage() {
-        var storage = new FakeS3StorageService();
-        var store = BuildStore(storage);
-
-        await using var source = CreatePng(1200, 900);
-        var key = await store.StoreAsync(source, "dinner.png");
-
-        var fullSize = storage.Read(key).Length;
-        var smallest = storage.Read(RecipeImageVariants.KeyForWidth(key, RecipeImageVariants.Widths[0])).Length;
-
-        Assert.True(smallest < fullSize, $"rendition was {smallest} bytes, full size was {fullSize}");
-    }
-
-    [Fact]
-    public async Task OpenAsync_ShouldServeTheRenditionCoveringTheRequestedWidth() {
-        var storage = new FakeS3StorageService();
-        var store = BuildStore(storage);
-
-        await using var source = CreatePng(1200, 900);
-        var key = await store.StoreAsync(source, "dinner.png");
-
-        var image = await store.OpenAsync(key, 400);
-
-        Assert.Equal(RecipeImageVariants.KeyForWidth(key, 400), image.ObjectKey);
-    }
-
-    [Fact]
-    public async Task OpenAsync_ShouldServeTheFullSizeImageWhenNoWidthIsRequested() {
-        var storage = new FakeS3StorageService();
-        var store = BuildStore(storage);
-
-        await using var source = CreatePng(1200, 900);
-        var key = await store.StoreAsync(source, "dinner.png");
-
-        var image = await store.OpenAsync(key, null);
-
-        Assert.Equal(key, image.ObjectKey);
+        Assert.Equal([key], storage.Keys);
     }
 
     /// <summary>
-    ///     Images uploaded before renditions existed have none, which is the state the whole
-    ///     library is in when this ships.
+    ///     The point of the change: an upload or import returns as soon as the bytes are persisted,
+    ///     leaving the CPU-bound resizing to the worker.
     /// </summary>
     [Fact]
-    public async Task OpenAsync_ShouldBackfillARenditionForAnImageStoredWithoutOne() {
+    public async Task StoreAsync_ShouldQueueEveryRenditionRatherThanResizingInline() {
         var storage = new FakeS3StorageService();
-        var store = BuildStore(storage);
+        var queue = new RecordingDerivativeQueue();
+        var store = BuildStore(storage, queue);
 
-        await using var legacy = CreatePng(1200, 900);
-        var key = await storage.UploadFileAsync(legacy, "legacy.webp", "image/webp");
+        await using var source = RecipeImageTestFactory.CreatePng(1200, 900);
+        var key = await store.StoreAsync(source, "dinner.png");
+
+        Assert.Equal([key], queue.EnqueuedImages);
+        Assert.Empty(queue.EnqueuedWidths);
+    }
+
+    [Fact]
+    public async Task StoreAsync_ShouldStoreTheBytesExactlyAsUploaded() {
+        var storage = new FakeS3StorageService();
+        var store = BuildStore(storage, new RecordingDerivativeQueue());
+
+        await using var source = RecipeImageTestFactory.CreatePng(1200, 900);
+        var original = source.ToArray();
+        source.Position = 0;
+
+        var key = await store.StoreAsync(source, "dinner.png");
+
+        Assert.Equal(original, storage.Read(key));
+    }
+
+    [Fact]
+    public async Task ResolveServedKeyAsync_ShouldServeTheRenditionCoveringTheRequestedWidth() {
+        var storage = new FakeS3StorageService();
+        var store = BuildStore(storage, new RecordingDerivativeQueue());
+
+        await using var source = RecipeImageTestFactory.CreatePng(1200, 900);
+        var key = await store.StoreAsync(source, "dinner.png");
+
         var renditionKey = RecipeImageVariants.KeyForWidth(key, 400);
-        Assert.DoesNotContain(renditionKey, storage.Keys);
+        await storage.UploadFileAtKeyAsync(new MemoryStream([1, 2, 3]), renditionKey, "image/webp");
+
+        Assert.Equal(renditionKey, await store.ResolveServedKeyAsync(key, 400));
+    }
+
+    [Fact]
+    public async Task ResolveServedKeyAsync_ShouldServeTheOriginalWhileTheRenditionIsStillPending() {
+        var storage = new FakeS3StorageService();
+        var store = BuildStore(storage, new RecordingDerivativeQueue());
+
+        await using var source = RecipeImageTestFactory.CreatePng(1200, 900);
+        var key = await store.StoreAsync(source, "dinner.png");
+
+        Assert.Equal(key, await store.ResolveServedKeyAsync(key, 400));
+    }
+
+    /// <summary>
+    ///     Images uploaded before renditions existed have none, and neither does one whose queued
+    ///     job was lost. A read re-queues it rather than resizing on the request thread.
+    /// </summary>
+    [Fact]
+    public async Task ResolveServedKeyAsync_ShouldQueueAMissingRenditionRatherThanBuildingIt() {
+        var storage = new FakeS3StorageService();
+        var queue = new RecordingDerivativeQueue();
+        var store = BuildStore(storage, queue);
+
+        await using var legacy = RecipeImageTestFactory.CreatePng(1200, 900);
+        var key = await storage.UploadFileAsync(legacy, "legacy.webp", "image/webp");
+        var uploadsBefore = storage.UploadCount;
+
+        var served = await store.ResolveServedKeyAsync(key, 400);
+
+        Assert.Equal(key, served);
+        Assert.Equal(uploadsBefore, storage.UploadCount);
+        Assert.Contains((key, 400), queue.EnqueuedWidths);
+    }
+
+    [Fact]
+    public async Task OpenAsync_ShouldReadTheRenditionOnceItExists() {
+        var storage = new FakeS3StorageService();
+        var store = BuildStore(storage, new RecordingDerivativeQueue());
+
+        await using var source = RecipeImageTestFactory.CreatePng(1200, 900);
+        var key = await store.StoreAsync(source, "dinner.png");
+        var renditionKey = RecipeImageVariants.KeyForWidth(key, 400);
+        await storage.UploadFileAtKeyAsync(new MemoryStream([1, 2, 3]), renditionKey, "image/webp");
 
         var image = await store.OpenAsync(key, 400);
 
         Assert.Equal(renditionKey, image.ObjectKey);
-        Assert.Contains(renditionKey, storage.Keys);
     }
 
     [Fact]
-    public async Task OpenAsync_ShouldReadAnAlreadyBackfilledRenditionRatherThanRebuildingIt() {
-        var storage = new FakeS3StorageService();
-        var store = BuildStore(storage);
+    public async Task ResolveServedKeyAsync_ShouldFallBackToTheOriginalWhenStorageCannotBeChecked() {
+        var store = BuildStore(new ThrowingS3StorageService(), new RecordingDerivativeQueue());
 
-        await using var legacy = CreatePng(1200, 900);
-        var key = await storage.UploadFileAsync(legacy, "legacy.webp", "image/webp");
-
-        await store.OpenAsync(key, 400);
-        var uploadsAfterFirstRead = storage.UploadCount;
-        await store.OpenAsync(key, 400);
-
-        Assert.Equal(uploadsAfterFirstRead, storage.UploadCount);
+        Assert.Equal("some-key.webp", await store.ResolveServedKeyAsync("some-key.webp", 400));
     }
 
     [Fact]
-    public async Task OpenAsync_ShouldFallBackToTheFullSizeImageWhenTheRenditionCannotBeBuilt() {
+    public async Task DeleteAsync_ShouldRemoveTheImageEveryRenditionAndAnyQueuedWork() {
         var storage = new FakeS3StorageService();
-        var store = BuildStore(storage);
+        var queue = new RecordingDerivativeQueue();
+        var store = BuildStore(storage, queue);
 
-        var key = await storage.UploadFileAsync(
-            new MemoryStream("not an image"u8.ToArray()),
-            "broken.webp",
-            "image/webp"
-        );
-
-        var image = await store.OpenAsync(key, 400);
-
-        Assert.Equal(key, image.ObjectKey);
-    }
-
-    [Fact]
-    public async Task DeleteAsync_ShouldRemoveTheImageAndEveryRendition() {
-        var storage = new FakeS3StorageService();
-        var store = BuildStore(storage);
-
-        await using var source = CreatePng(1200, 900);
+        await using var source = RecipeImageTestFactory.CreatePng(1200, 900);
         var key = await store.StoreAsync(source, "dinner.png");
+        foreach (var renditionKey in RecipeImageVariants.AllKeysForImage(key)) {
+            await storage.UploadFileAtKeyAsync(new MemoryStream([1, 2, 3]), renditionKey, "image/webp");
+        }
 
         await store.DeleteAsync(key);
 
         Assert.Empty(storage.Keys);
+        Assert.Contains(key, queue.RemovedImages);
     }
 
     [Fact]
     public async Task DeleteAsync_ShouldRemoveAnImageThatHasNoRenditions() {
         var storage = new FakeS3StorageService();
-        var store = BuildStore(storage);
+        var store = BuildStore(storage, new RecordingDerivativeQueue());
 
-        await using var legacy = CreatePng(400, 300);
+        await using var legacy = RecipeImageTestFactory.CreatePng(400, 300);
         var key = await storage.UploadFileAsync(legacy, "legacy.webp", "image/webp");
 
         await store.DeleteAsync(key);
@@ -154,76 +149,78 @@ public class RecipeImageStoreTests
         Assert.Empty(storage.Keys);
     }
 
-    private static RecipeImageStore BuildStore(IS3StorageService storage) {
-        return new RecipeImageStore(
-            storage,
-            new RecipeImageProcessingService(),
-            NullLogger<RecipeImageStore>.Instance
-        );
+    private static RecipeImageStore BuildStore(IS3StorageService storage, IRecipeImageDerivativeQueue queue) {
+        return new RecipeImageStore(storage, queue, NullLogger<RecipeImageStore>.Instance);
     }
 
-    private static MemoryStream CreatePng(int width, int height) {
-        using var image = new Image<Rgba32>(width, height);
-
-        // A flat fill compresses to almost nothing, which would make the size comparisons
-        // meaningless, so vary the pixels.
-        image.ProcessPixelRows(accessor => {
-            for (var y = 0; y < accessor.Height; y++) {
-                var row = accessor.GetRowSpan(y);
-                for (var x = 0; x < row.Length; x++) {
-                    row[x] = new Rgba32((byte)(x % 256), (byte)(y % 256), (byte)((x * y) % 256));
-                }
-            }
-        });
-
-        var stream = new MemoryStream();
-        image.Save(stream, new PngEncoder());
-        stream.Position = 0;
-        return stream;
-    }
-
-    private sealed class FakeS3StorageService : IS3StorageService
+    private sealed class RecordingDerivativeQueue : IRecipeImageDerivativeQueue
     {
-        private readonly Dictionary<string, byte[]> files = new(StringComparer.Ordinal);
+        public List<string> EnqueuedImages { get; } = [];
 
-        public IReadOnlyCollection<string> Keys => files.Keys;
+        public List<(string Key, int Width)> EnqueuedWidths { get; } = [];
 
-        public int UploadCount { get; private set; }
+        public List<string> RemovedImages { get; } = [];
 
-        public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType) {
-            var key = $"{Guid.NewGuid():N}_{fileName}";
-            await UploadFileAtKeyAsync(fileStream, key, contentType);
-            return key;
-        }
-
-        public async Task UploadFileAtKeyAsync(Stream fileStream, string key, string contentType) {
-            using var memory = new MemoryStream();
-            await fileStream.CopyToAsync(memory);
-            files[key] = memory.ToArray();
-            UploadCount++;
-        }
-
-        public Task<Stream> DownloadFileAsync(string s3Key) {
-            if (!files.TryGetValue(s3Key, out var payload))
-                throw new InvalidOperationException($"No object at '{s3Key}'.");
-
-            return Task.FromResult<Stream>(new MemoryStream(payload, false));
-        }
-
-        public Task<Stream?> TryDownloadFileAsync(string s3Key) {
-            return Task.FromResult(files.TryGetValue(s3Key, out var payload)
-                ? new MemoryStream(payload, false)
-                : null as Stream
-            );
-        }
-
-        public Task DeleteFileAsync(string s3Key) {
-            files.Remove(s3Key);
+        public Task EnqueueAllWidthsAsync(string sourceObjectKey, CancellationToken cancellationToken = default) {
+            EnqueuedImages.Add(sourceObjectKey);
             return Task.CompletedTask;
         }
 
-        public byte[] Read(string s3Key) {
-            return files[s3Key];
+        public Task EnqueueWidthAsync(
+            string sourceObjectKey,
+            int width,
+            CancellationToken cancellationToken = default
+        ) {
+            EnqueuedWidths.Add((sourceObjectKey, width));
+            return Task.CompletedTask;
+        }
+
+        public Task<RecipeImageDerivativeJob?> ClaimNextAsync(CancellationToken cancellationToken = default) {
+            return Task.FromResult<RecipeImageDerivativeJob?>(null);
+        }
+
+        public Task CompleteAsync(RecipeImageDerivativeJob job, CancellationToken cancellationToken = default) {
+            return Task.CompletedTask;
+        }
+
+        public Task FailAsync(
+            RecipeImageDerivativeJob job,
+            Exception exception,
+            CancellationToken cancellationToken = default
+        ) {
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveForImageAsync(string sourceObjectKey, CancellationToken cancellationToken = default) {
+            RemovedImages.Add(sourceObjectKey);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class ThrowingS3StorageService : IS3StorageService
+    {
+        public Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType) {
+            throw new InvalidOperationException("storage is down");
+        }
+
+        public Task UploadFileAtKeyAsync(Stream fileStream, string key, string contentType) {
+            throw new InvalidOperationException("storage is down");
+        }
+
+        public Task<Stream> DownloadFileAsync(string s3Key) {
+            throw new InvalidOperationException("storage is down");
+        }
+
+        public Task<Stream?> TryDownloadFileAsync(string s3Key) {
+            throw new InvalidOperationException("storage is down");
+        }
+
+        public Task<bool> ObjectExistsAsync(string s3Key) {
+            throw new InvalidOperationException("storage is down");
+        }
+
+        public Task DeleteFileAsync(string s3Key) {
+            throw new InvalidOperationException("storage is down");
         }
     }
 }
