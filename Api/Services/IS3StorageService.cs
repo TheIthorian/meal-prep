@@ -10,6 +10,12 @@ public interface IS3StorageService
     /// </summary>
     Task UploadFileAtKeyAsync(Stream fileStream, string key, string contentType);
 
+    /// <summary>
+    ///     Copies an object to a new key inside the bucket, returning false when the source does not
+    ///     exist. The copy happens in the storage service, so the bytes never travel through the API.
+    /// </summary>
+    Task<bool> CopyFileAsync(string sourceKey, string destinationKey);
+
     Task<Stream> DownloadFileAsync(string s3Key);
 
     /// <summary>

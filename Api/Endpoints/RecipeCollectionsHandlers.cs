@@ -538,7 +538,7 @@ internal static class RecipeCollectionsHandlers
     public static async Task<JsonHttpResult<RecipeCollectionDetailResponse>> PostImportFromShareLink(
         CurrentUserService currentUserService,
         ApiDbContext db,
-        IS3StorageService s3StorageService,
+        RecipeImageStore recipeImageStore,
         Guid workspaceId,
         string shareToken,
         CancellationToken cancellationToken
@@ -589,7 +589,7 @@ internal static class RecipeCollectionsHandlers
             var importedRecipe = await CloneRecipeToWorkspaceAsync(
                 sourceRecipe,
                 workspaceUser.Workspace,
-                s3StorageService,
+                recipeImageStore,
                 cancellationToken
             );
             importedRecipes.Add(importedRecipe);
@@ -622,7 +622,7 @@ internal static class RecipeCollectionsHandlers
     private static async Task<Recipe> CloneRecipeToWorkspaceAsync(
         Recipe sourceRecipe,
         Workspace targetWorkspace,
-        IS3StorageService s3StorageService,
+        RecipeImageStore recipeImageStore,
         CancellationToken cancellationToken
     ) {
         var recipe = Recipe.CreateNew(targetWorkspace, sourceRecipe.Title, sourceRecipe.Servings);
@@ -665,13 +665,12 @@ internal static class RecipeCollectionsHandlers
         );
 
         if (!string.IsNullOrEmpty(sourceRecipe.ImageObjectKey)) {
-            await using var imageStream = await s3StorageService.DownloadFileAsync(sourceRecipe.ImageObjectKey);
-            var imageObjectKey = await s3StorageService.UploadFileAsync(
-                imageStream,
-                $"{recipe.Id}.webp",
-                "image/webp"
-            );
-            recipe.SetImageObjectKey(imageObjectKey);
+            // The source bytes are already optimized, so this is a copy rather than a re-upload:
+            // the image and its renditions are duplicated inside the storage service, and a source
+            // image that has since been deleted simply leaves the copy without one.
+            var imageObjectKey = await recipeImageStore.CopyAsync(sourceRecipe.ImageObjectKey, cancellationToken);
+            if (imageObjectKey is not null)
+                recipe.SetImageObjectKey(imageObjectKey);
         }
 
         return recipe;

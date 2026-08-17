@@ -80,6 +80,31 @@ public class S3StorageService : IS3StorageService
         await fileTransferUtility.UploadAsync(uploadRequest);
     }
 
+    public async Task<bool> CopyFileAsync(string sourceKey, string destinationKey) {
+        using var methodTiming = System.Diagnostics.Activity.Current.BeginAppMethodEvent();
+
+        using var scope = _logger.BeginPropertyScope(
+            ("s3.bucket", _bucketName),
+            ("s3.sourceKey", sourceKey),
+            ("s3.key", destinationKey)
+        );
+        _logger.LogInformation("Copying file within S3");
+
+        var request = new CopyObjectRequest {
+            SourceBucket = _bucketName,
+            SourceKey = sourceKey,
+            DestinationBucket = _bucketName,
+            DestinationKey = destinationKey,
+        };
+
+        try {
+            await _s3Client.CopyObjectAsync(request);
+            return true;
+        } catch (AmazonS3Exception exception) when (exception.StatusCode == HttpStatusCode.NotFound) {
+            return false;
+        }
+    }
+
     public async Task<Stream?> TryDownloadFileAsync(string s3Key) {
         try {
             return await DownloadFileAsync(s3Key);
