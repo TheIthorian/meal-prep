@@ -428,7 +428,10 @@ internal static class RecipeCollectionsHandlers
 
         var recipeCount = await db.RecipeCollectionRecipes
             .AsNoTracking()
-            .CountAsync(recipe => recipe.RecipeCollectionId == link.RecipeCollectionId, cancellationToken);
+            .Where(recipe => recipe.RecipeCollectionId == link.RecipeCollectionId)
+            // Same predicate as the recipe projection below, so the count matches what the visitor sees.
+            .Where(recipe => !recipe.Recipe.IsDeleted)
+            .CountAsync(cancellationToken);
 
         var recipes = await db.RecipeCollectionRecipes
             .AsNoTracking()

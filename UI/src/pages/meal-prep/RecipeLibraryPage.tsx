@@ -43,8 +43,16 @@ export default function RecipeLibraryPage() {
     const location = useLocation();
     const searchStorageKey = `recipe-library-search:${workspaceId}`;
     const tagStorageKey = `recipe-library-tag:${workspaceId}`;
-    const [search, setSearch] = useState(() => readStoredFilter(searchStorageKey));
-    const [activeTag, setActiveTag] = useState<string | null>(() => readStoredFilter(tagStorageKey) || null);
+
+    // Only a back navigation (or the detail page's "Back to recipes" link) should bring the old
+    // filters back. Arriving here fresh — a nav-bar click, a deep link — starts unfiltered, so the
+    // list never comes back silently narrowed by a search the user has forgotten about.
+    const shouldRestoreFilters =
+        navigationType === 'POP' || Boolean((location.state as LibraryLocationState | null)?.restoreScroll);
+    const [search, setSearch] = useState(() => (shouldRestoreFilters ? readStoredFilter(searchStorageKey) : ''));
+    const [activeTag, setActiveTag] = useState<string | null>(() =>
+        shouldRestoreFilters ? readStoredFilter(tagStorageKey) || null : null,
+    );
 
     const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -114,9 +122,9 @@ export default function RecipeLibraryPage() {
 
     // Only going back should land you where you left off — browser back/forward (POP), or the
     // "Back to recipes" link, which pushes a new entry but means the same thing. Arriving from
-    // the nav bar or a fresh load starts at the top.
-    const shouldRestoreScroll =
-        navigationType === 'POP' || Boolean((location.state as LibraryLocationState | null)?.restoreScroll);
+    // the nav bar or a fresh load starts at the top, with the same condition that decides
+    // whether the filters come back.
+    const shouldRestoreScroll = shouldRestoreFilters;
     useScrollRestoration(`recipe-library:${workspaceId}`, shouldRestoreScroll && !isLoading && filtered.length > 0);
 
     useEffect(() => {

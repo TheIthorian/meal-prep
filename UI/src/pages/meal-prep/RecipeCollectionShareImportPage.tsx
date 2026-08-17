@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ChefHat } from 'lucide-react';
@@ -36,13 +36,18 @@ export default function RecipeCollectionShareImportPage() {
         }
     }, [currentWorkspace?.workspaceId, targetWorkspaceId]);
 
+    // The prompt is counted once per share link. A background refetch hands back a fresh preview
+    // object, so the token — not the object identity — is what decides whether this has fired.
+    const promptCapturedForToken = useRef<string | null>(null);
+
     useEffect(() => {
         if (isAuthLoading || isSignedIn || !preview) return;
+        if (promptCapturedForToken.current === shareToken) return;
 
+        promptCapturedForToken.current = shareToken;
         capture(analyticsEvents.shareLinkAuthPrompted, { recipe_count: preview.recipeCount });
-        // Prompt is shown once per loaded share link; capture must not re-fire on unrelated renders.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isAuthLoading, isSignedIn, preview]);
+    }, [isAuthLoading, isSignedIn, preview, shareToken]);
 
     const importMutation = useMutation({
         mutationFn: () => recipeCollectionsApi.importFromShareLink(targetWorkspaceId, shareToken),

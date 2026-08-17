@@ -307,7 +307,8 @@ public sealed class MealPrepMcpTools(
     [McpServerTool]
     [Description(
         "Updates a recipe by id. This is a partial update: omitted arguments keep their stored value. "
-        + "To clear an optional text field, pass an empty string."
+        + "To clear an optional text field, pass an empty string. Numeric fields (servings, prep/cook minutes) "
+        + "cannot be cleared back to empty once set — pass a new number instead."
     )]
     public async Task<string> UpdateRecipe(
         [Description("Recipe id to update.")] Guid recipeId,
@@ -315,15 +316,21 @@ public sealed class MealPrepMcpTools(
         string? title = null,
         [Description("Recipe description. Omit to keep the stored value, empty string to clear.")]
         string? description = null,
-        [Description("Number of servings this recipe makes. Omit to keep the stored value.")]
+        [Description(
+            "Number of servings this recipe makes. Omit to keep the stored value; a stored value cannot be cleared, only replaced."
+        )]
         decimal? servings = null,
         [Description("Source URL for the recipe. Omit to keep the stored value, empty string to clear.")]
         string? sourceUrl = null,
         [Description("Free-form notes. Omit to keep the stored value, empty string to clear.")]
         string? notes = null,
-        [Description("Prep time in minutes. Omit to keep the stored value.")]
+        [Description(
+            "Prep time in minutes. Omit to keep the stored value; a stored value cannot be cleared, only replaced."
+        )]
         int? prepMinutes = null,
-        [Description("Cook time in minutes. Omit to keep the stored value.")]
+        [Description(
+            "Cook time in minutes. Omit to keep the stored value; a stored value cannot be cleared, only replaced."
+        )]
         int? cookMinutes = null,
         [Description("Whether the recipe should be archived. Omit to keep the stored value.")]
         bool? isArchived = null,
@@ -346,8 +353,51 @@ public sealed class MealPrepMcpTools(
         string? importImageUrl = null,
         CancellationToken cancellationToken = default
     ) {
-        return await ExecuteToolWithErrorLoggingAsync(
+        return await UpdateRecipeCoreAsync(
             nameof(UpdateRecipe),
+            recipeId,
+            title,
+            description,
+            servings,
+            sourceUrl,
+            notes,
+            prepMinutes,
+            cookMinutes,
+            isArchived,
+            tags,
+            ingredients,
+            steps,
+            nutrition,
+            importImageUrl,
+            cancellationToken
+        );
+    }
+
+    /// <summary>
+    /// Shared body for <see cref="UpdateRecipe" /> and the narrow single-field tools that build on it.
+    /// <paramref name="toolName" /> is the tool the caller actually invoked, so errors are logged and
+    /// reported against that name rather than always against update_recipe.
+    /// </summary>
+    private async Task<string> UpdateRecipeCoreAsync(
+        string toolName,
+        Guid recipeId,
+        string? title = null,
+        string? description = null,
+        decimal? servings = null,
+        string? sourceUrl = null,
+        string? notes = null,
+        int? prepMinutes = null,
+        int? cookMinutes = null,
+        bool? isArchived = null,
+        string[]? tags = null,
+        SaveRecipeIngredientRequest[]? ingredients = null,
+        SaveRecipeStepRequest[]? steps = null,
+        SaveRecipeNutritionRequest? nutrition = null,
+        string? importImageUrl = null,
+        CancellationToken cancellationToken = default
+    ) {
+        return await ExecuteToolWithErrorLoggingAsync(
+            toolName,
             async () => {
                 var workspaceId = RequireMcpWorkspaceId();
                 var existing = (await RecipesHandlers.GetRecipe(
@@ -410,10 +460,7 @@ public sealed class MealPrepMcpTools(
         [Description("New recipe title.")] string title,
         CancellationToken cancellationToken = default
     ) {
-        return await ExecuteToolWithErrorLoggingAsync(
-            nameof(RenameRecipe),
-            () => UpdateRecipe(recipeId, title, cancellationToken: cancellationToken)
-        );
+        return await UpdateRecipeCoreAsync(nameof(RenameRecipe), recipeId, title, cancellationToken: cancellationToken);
     }
 
     [McpServerTool]
@@ -426,9 +473,11 @@ public sealed class MealPrepMcpTools(
         string[] tags,
         CancellationToken cancellationToken = default
     ) {
-        return await ExecuteToolWithErrorLoggingAsync(
+        return await UpdateRecipeCoreAsync(
             nameof(SetRecipeTags),
-            () => UpdateRecipe(recipeId, tags: tags, cancellationToken: cancellationToken)
+            recipeId,
+            tags: tags,
+            cancellationToken: cancellationToken
         );
     }
 
@@ -440,9 +489,11 @@ public sealed class MealPrepMcpTools(
         bool isArchived,
         CancellationToken cancellationToken = default
     ) {
-        return await ExecuteToolWithErrorLoggingAsync(
+        return await UpdateRecipeCoreAsync(
             nameof(ArchiveRecipe),
-            () => UpdateRecipe(recipeId, isArchived: isArchived, cancellationToken: cancellationToken)
+            recipeId,
+            isArchived: isArchived,
+            cancellationToken: cancellationToken
         );
     }
 
@@ -780,7 +831,8 @@ public sealed class MealPrepMcpTools(
     [McpServerTool]
     [Description(
         "Updates a shopping list item by id. This is a partial update: omitted arguments keep their stored value. "
-        + "To clear an optional text field, pass an empty string."
+        + "To clear an optional text field, pass an empty string. Numeric fields cannot be cleared back to empty "
+        + "once set — pass a new number instead."
     )]
     public async Task<string> UpdateShoppingListItem(
         [Description("Shopping list id containing the item.")]
@@ -791,7 +843,7 @@ public sealed class MealPrepMcpTools(
         string? name = null,
         [Description("Normalized ingredient name. Omit to keep the stored value, empty string to clear.")]
         string? normalizedIngredientName = null,
-        [Description("Numeric amount. Omit to keep the stored value.")]
+        [Description("Numeric amount. Omit to keep the stored value; a stored amount cannot be cleared, only replaced.")]
         decimal? amount = null,
         [Description("Unit, e.g. g, oz, cup. Omit to keep the stored value, empty string to clear.")]
         string? unit = null,
