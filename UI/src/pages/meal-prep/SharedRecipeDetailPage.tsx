@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { RecipeIngredientListRow } from '@/components/recipes/RecipeIngredientListRow';
 import { InstructionWithInlineAmounts } from '@/components/recipes/InstructionWithInlineAmounts';
 import { ShareSignupPrompt } from '@/components/share/ShareSignupPrompt';
+import { safeHttpUrlHref } from '@/lib/meal-prep';
 
 export default function SharedRecipeDetailPage() {
     const { shareToken = '', recipeId = '' } = useParams<{ shareToken: string; recipeId: string }>();
@@ -41,6 +42,7 @@ export default function SharedRecipeDetailPage() {
     }
 
     const totalMinutes = (recipe.prepMinutes ?? 0) + (recipe.cookMinutes ?? 0);
+    const sourceHref = safeHttpUrlHref(recipe.sourceUrl);
 
     return (
         // pb-28 on small screens keeps the last of the recipe clear of the fixed prompt bar.
@@ -146,16 +148,20 @@ export default function SharedRecipeDetailPage() {
                     )}
 
                     {recipe.sourceUrl && (
-                        <p className='mt-6 text-sm text-muted-foreground'>
+                        <p className='mt-6 text-sm text-muted-foreground break-all'>
                             Source:{' '}
-                            <a
-                                href={recipe.sourceUrl}
-                                target='_blank'
-                                rel='noreferrer noopener'
-                                className='underline underline-offset-4'
-                            >
-                                {recipe.sourceUrl}
-                            </a>
+                            {sourceHref ? (
+                                <a
+                                    href={sourceHref}
+                                    target='_blank'
+                                    rel='noreferrer noopener'
+                                    className='underline underline-offset-4'
+                                >
+                                    {recipe.sourceUrl}
+                                </a>
+                            ) : (
+                                recipe.sourceUrl
+                            )}
                         </p>
                     )}
                 </div>
