@@ -126,13 +126,10 @@ const App = () => (
                                                     </ProtectedRoute>
                                                 }
                                             />
+                                            {/* Public: signed-out visitors see the shared collection and a prompt to join. */}
                                             <Route
                                                 path='/share/recipe-collections/:shareToken'
-                                                element={
-                                                    <ProtectedRoute>
-                                                        <RecipeCollectionShareImportPage />
-                                                    </ProtectedRoute>
-                                                }
+                                                element={<RecipeCollectionShareImportPage />}
                                             />
                                             <Route
                                                 path='/workspaces/:workspaceId/cooking/:recipeId'

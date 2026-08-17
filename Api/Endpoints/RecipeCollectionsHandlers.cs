@@ -14,6 +14,8 @@ namespace Api.Endpoints;
 
 internal static class RecipeCollectionsHandlers
 {
+    private const int SharePreviewRecipeTitleLimit = 100;
+
     [Authorize]
     public static async Task<JsonHttpResult<RecipeCollectionListItemResponse[]>> GetRecipeCollections(
         CurrentUserService currentUserService,
@@ -404,16 +406,16 @@ internal static class RecipeCollectionsHandlers
         );
     }
 
-    [Authorize]
+    /// <remarks>
+    ///     Anonymous by design: the share token is the credential, so a signed-out visitor who opens a magic link
+    ///     can read the collection and be invited to sign up. Only non-sensitive collection metadata is exposed.
+    /// </remarks>
+    [AllowAnonymous]
     public static async Task<JsonHttpResult<RecipeCollectionShareLinkPreviewResponse>> GetShareLinkPreview(
-        CurrentUserService currentUserService,
         ApiDbContext db,
         string shareToken,
         CancellationToken cancellationToken
     ) {
-        var currentUserId = currentUserService.UserId;
-        if (currentUserId is null) throw new UnauthorizedException();
-
         var link = await db.RecipeCollectionShareLinks
             .AsNoTracking()
             .Where(link => link.Token == shareToken)
@@ -428,12 +430,22 @@ internal static class RecipeCollectionsHandlers
             .AsNoTracking()
             .CountAsync(recipe => recipe.RecipeCollectionId == link.RecipeCollectionId, cancellationToken);
 
+        var recipeTitles = await db.RecipeCollectionRecipes
+            .AsNoTracking()
+            .Where(recipe => recipe.RecipeCollectionId == link.RecipeCollectionId)
+            .Where(recipe => !recipe.Recipe.IsDeleted)
+            .OrderBy(recipe => recipe.SortOrder)
+            .Take(SharePreviewRecipeTitleLimit)
+            .Select(recipe => recipe.Recipe.Title)
+            .ToArrayAsync(cancellationToken);
+
         return TypedResults.Json(
             new RecipeCollectionShareLinkPreviewResponse(
                 link.RecipeCollection.Name,
                 link.RecipeCollection.Description,
                 link.RecipeCollection.Workspace.Name,
-                recipeCount
+                recipeCount,
+                recipeTitles
             )
         );
     }

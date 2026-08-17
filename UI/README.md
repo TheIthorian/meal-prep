@@ -28,6 +28,14 @@ pnpm dev
 
 The default UI dev URL is `http://localhost:8080`.
 
+## Tests
+
+Unit tests run with Vitest:
+
+```bash
+pnpm --filter meal-prep-ui test
+```
+
 ## Production-style UI check
 
 If you want to test a production-style build locally:

@@ -41,7 +41,20 @@ The UI supports offline-oriented shopping workflows.
 - Continue checking items while offline.
 - Sync updates when connection is restored.
 
-## 6) MCP Integrations
+## 6) Collection Share Links
+
+Share a recipe collection with anyone using a magic link.
+
+- Open a collection and create a share link.
+- Send the link (`/share/recipe-collections/<token>`) to anyone.
+- Recipients without an account see a read-only view of the collection plus a prompt to create an
+  account or sign in. The link is preserved through sign-up/sign-in, so they land back on the shared
+  collection and can import it in one step.
+- Recipients with an account choose a workspace and import the collection into it.
+
+Security tip: treat share links as secrets — anyone holding the token can read the collection.
+
+## 7) MCP Integrations
 
 Connect supported MCP clients directly to your workspace.
 

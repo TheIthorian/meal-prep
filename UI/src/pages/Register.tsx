@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChefHat, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { analyticsEvents, useAnalytics } from '@/lib/analytics';
+import { buildAuthPath, readReturnUrl, sanitizeReturnUrl } from '@/lib/return-url';
 
 export default function Register() {
     const [email, setEmail] = useState('');
@@ -20,6 +21,8 @@ export default function Register() {
     const location = useLocation();
     const { capture } = useAnalytics();
     const from = (location.state as { from?: { pathname?: string } })?.from;
+    // Keep the invite that brought the visitor here (e.g. a collection share link) across sign-up.
+    const returnUrl = readReturnUrl(location.search) ?? sanitizeReturnUrl(from?.pathname);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -42,7 +45,7 @@ export default function Register() {
                 title: 'Success',
                 description: 'Your account has been created. Please log in.',
             });
-            navigate('/login', { replace: true, state: from ? { from } : undefined });
+            navigate(buildAuthPath('/login', returnUrl), { replace: true, state: from ? { from } : undefined });
         } finally {
             setLoading(false);
         }
@@ -135,7 +138,7 @@ export default function Register() {
                             <p className='text-center text-sm text-muted-foreground'>
                                 Already have an account?{' '}
                                 <Link
-                                    to='/login'
+                                    to={buildAuthPath('/login', returnUrl)}
                                     state={from ? { from } : undefined}
                                     className='font-medium text-primary hover:underline'
                                 >

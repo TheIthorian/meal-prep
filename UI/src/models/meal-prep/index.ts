@@ -203,6 +203,7 @@ export interface RecipeCollectionShareLinkPreview {
     description?: string | null;
     ownerWorkspaceName: string;
     recipeCount: number;
+    recipeTitles: string[];
 }
 
 export interface RecipeImportPreview {

@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChefHat, Loader2 } from 'lucide-react';
 import { analyticsEvents, useAnalytics } from '@/lib/analytics';
+import { buildAuthPath, readReturnUrl, sanitizeReturnUrl } from '@/lib/return-url';
 
 type LocationState = { from?: { pathname?: string } };
 
@@ -19,7 +20,11 @@ export default function Login() {
     const location = useLocation();
     const { capture } = useAnalytics();
 
-    const from = (location.state as LocationState)?.from?.pathname || '/';
+    // The returnUrl query parameter survives a full page load (a share link opened cold), the router
+    // state does not. Both are sanitized against an allowlist of local paths before we navigate.
+    const returnUrl =
+        readReturnUrl(location.search) ?? sanitizeReturnUrl((location.state as LocationState)?.from?.pathname);
+    const from = returnUrl ?? '/';
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -96,7 +101,7 @@ export default function Login() {
                             <p className='text-center text-sm text-muted-foreground'>
                                 Don't have an account?{' '}
                                 <Link
-                                    to='/register'
+                                    to={buildAuthPath('/register', returnUrl)}
                                     state={{ from: (location.state as LocationState)?.from }}
                                     className='font-medium text-primary hover:underline'
                                 >

@@ -45,5 +45,6 @@ public record RecipeCollectionShareLinkPreviewResponse(
     string CollectionName,
     string? Description,
     string OwnerWorkspaceName,
-    int RecipeCount
+    int RecipeCount,
+    string[] RecipeTitles
 );

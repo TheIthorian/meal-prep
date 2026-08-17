@@ -255,6 +255,7 @@ public static class EndpointRouteBuilderExtensions
                     "/recipe-collection-share/{shareToken}",
                     RecipeCollectionsHandlers.GetShareLinkPreview
                 )
+                .AllowAnonymous()
                 .Produces<RecipeCollectionShareLinkPreviewResponse>()
                 .WithName("GetRecipeCollectionShareLinkPreview");
 
