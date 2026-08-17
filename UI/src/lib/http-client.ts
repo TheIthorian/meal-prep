@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
 import { toast } from '@/hooks/use-toast';
 import { getApiBaseUrl } from './api-base-url';
+import { buildAuthPath } from './return-url';
 
 const API_BASE = getApiBaseUrl();
 
@@ -78,10 +79,11 @@ class AppHttpClient {
 
     private handleUnauthorizedError(error: AxiosError<ProblemDetail> | AxiosError<PlatformError>) {
         const pathname = window.location.pathname;
-        const publicPaths = ['/login', '/register', '/help'];
+        const publicPaths = ['/login', '/register', '/help', '/terms', '/data-retention', '/share/'];
 
         if (!publicPaths.some(path => pathname.startsWith(path))) {
-            window.location.href = '/login';
+            // Keep the page the visitor asked for so they land back on it after signing in.
+            window.location.href = buildAuthPath('/login', `${pathname}${window.location.search}`);
             return;
         }
 

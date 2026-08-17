@@ -255,8 +255,27 @@ public static class EndpointRouteBuilderExtensions
                     "/recipe-collection-share/{shareToken}",
                     RecipeCollectionsHandlers.GetShareLinkPreview
                 )
+                .AllowAnonymous()
                 .Produces<RecipeCollectionShareLinkPreviewResponse>()
                 .WithName("GetRecipeCollectionShareLinkPreview");
+
+            apiGroup.MapGet(
+                    "/recipe-collection-share/{shareToken}/recipes/{recipeId:guid}",
+                    RecipeCollectionsHandlers.GetSharedRecipeDetail
+                )
+                .AllowAnonymous()
+                .Produces<SharedRecipeDetailResponse>()
+                .Produces(StatusCodes.Status404NotFound)
+                .WithName("GetSharedRecipeDetail");
+
+            apiGroup.MapGet(
+                    "/recipe-collection-share/{shareToken}/recipes/{recipeId:guid}/image",
+                    RecipeCollectionsHandlers.GetSharedRecipeImage
+                )
+                .AllowAnonymous()
+                .Produces(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status404NotFound)
+                .WithName("GetSharedRecipeImage");
 
             apiGroup.MapPost(
                     "/workspaces/{workspaceId:guid}/recipe-collection-import/{shareToken}",

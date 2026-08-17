@@ -45,5 +45,39 @@ public record RecipeCollectionShareLinkPreviewResponse(
     string CollectionName,
     string? Description,
     string OwnerWorkspaceName,
-    int RecipeCount
+    int RecipeCount,
+    SharedRecipeSummaryResponse[] Recipes
+);
+
+/// <summary>
+///     A recipe as seen through a share link. Deliberately not <see cref="RecipeResponse" />: that carries the owning
+///     workspace id, the viewer's favourite flag and private collection membership, none of which an anonymous
+///     visitor holding a share token may see.
+/// </summary>
+public record SharedRecipeSummaryResponse(
+    Guid Id,
+    string Title,
+    string? Description,
+    decimal Servings,
+    int? PrepMinutes,
+    int? CookMinutes,
+    string[] Tags,
+    bool HasImage
+);
+
+/// <inheritdoc cref="SharedRecipeSummaryResponse" />
+public record SharedRecipeDetailResponse(
+    Guid Id,
+    string Title,
+    string? Description,
+    decimal Servings,
+    string? SourceUrl,
+    string? Notes,
+    int? PrepMinutes,
+    int? CookMinutes,
+    string[] Tags,
+    bool HasImage,
+    RecipeIngredientResponse[] Ingredients,
+    RecipeStepResponse[] Steps,
+    RecipeNutritionResponse? Nutrition
 );

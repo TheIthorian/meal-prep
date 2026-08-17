@@ -14,6 +14,8 @@ namespace Api.Endpoints;
 
 internal static class RecipeCollectionsHandlers
 {
+    private const int SharePreviewRecipeTitleLimit = 100;
+
     [Authorize]
     public static async Task<JsonHttpResult<RecipeCollectionListItemResponse[]>> GetRecipeCollections(
         CurrentUserService currentUserService,
@@ -404,16 +406,16 @@ internal static class RecipeCollectionsHandlers
         );
     }
 
-    [Authorize]
+    /// <remarks>
+    ///     Anonymous by design: the share token is the credential, so a signed-out visitor who opens a magic link
+    ///     can read the collection and be invited to sign up. Only non-sensitive collection metadata is exposed.
+    /// </remarks>
+    [AllowAnonymous]
     public static async Task<JsonHttpResult<RecipeCollectionShareLinkPreviewResponse>> GetShareLinkPreview(
-        CurrentUserService currentUserService,
         ApiDbContext db,
         string shareToken,
         CancellationToken cancellationToken
     ) {
-        var currentUserId = currentUserService.UserId;
-        if (currentUserId is null) throw new UnauthorizedException();
-
         var link = await db.RecipeCollectionShareLinks
             .AsNoTracking()
             .Where(link => link.Token == shareToken)
@@ -428,14 +430,108 @@ internal static class RecipeCollectionsHandlers
             .AsNoTracking()
             .CountAsync(recipe => recipe.RecipeCollectionId == link.RecipeCollectionId, cancellationToken);
 
+        var recipes = await db.RecipeCollectionRecipes
+            .AsNoTracking()
+            .Where(recipe => recipe.RecipeCollectionId == link.RecipeCollectionId)
+            .Where(recipe => !recipe.Recipe.IsDeleted)
+            .OrderBy(recipe => recipe.SortOrder)
+            .Take(SharePreviewRecipeTitleLimit)
+            .Select(recipe => recipe.Recipe)
+            .ToArrayAsync(cancellationToken);
+
         return TypedResults.Json(
             new RecipeCollectionShareLinkPreviewResponse(
                 link.RecipeCollection.Name,
                 link.RecipeCollection.Description,
                 link.RecipeCollection.Workspace.Name,
-                recipeCount
+                recipeCount,
+                recipes.Select(recipe => recipe.ToSharedRecipeSummaryResponse()).ToArray()
             )
         );
+    }
+
+    /// <inheritdoc cref="GetShareLinkPreview" />
+    [AllowAnonymous]
+    public static async Task<JsonHttpResult<SharedRecipeDetailResponse>> GetSharedRecipeDetail(
+        ApiDbContext db,
+        string shareToken,
+        Guid recipeId,
+        CancellationToken cancellationToken
+    ) {
+        var recipe = await FindSharedRecipeAsync(
+            db,
+            shareToken,
+            recipeId,
+            query => query
+                .Include(value => value.Ingredients)
+                .Include(value => value.Steps)
+                .Include(value => value.Nutrition),
+            cancellationToken
+        );
+
+        return TypedResults.Json(recipe.ToSharedRecipeDetailResponse());
+    }
+
+    /// <inheritdoc cref="GetShareLinkPreview" />
+    [AllowAnonymous]
+    public static async Task<IResult> GetSharedRecipeImage(
+        ApiDbContext db,
+        RecipeImageStore recipeImageStore,
+        HttpContext httpContext,
+        string shareToken,
+        Guid recipeId,
+        [FromQuery] int? w,
+        CancellationToken cancellationToken
+    ) {
+        var recipe = await FindSharedRecipeAsync(db, shareToken, recipeId, query => query, cancellationToken);
+
+        if (string.IsNullOrEmpty(recipe.ImageObjectKey)) return TypedResults.NotFound();
+
+        return await RecipeImageResults.ServeAsync(
+            recipeImageStore,
+            httpContext,
+            recipe.ImageObjectKey,
+            w,
+            cancellationToken
+        );
+    }
+
+    /// <summary>
+    ///     Resolves a recipe reachable through a share token. A token grants access to the recipes of its own
+    ///     collection and nothing else, so the collection membership is part of the lookup rather than a later check.
+    /// </summary>
+    private static async Task<Recipe> FindSharedRecipeAsync(
+        ApiDbContext db,
+        string shareToken,
+        Guid recipeId,
+        Func<IQueryable<Recipe>, IQueryable<Recipe>> include,
+        CancellationToken cancellationToken
+    ) {
+        var collectionId = await db.RecipeCollectionShareLinks
+            .AsNoTracking()
+            .Where(link => link.Token == shareToken)
+            .Where(link => !link.RecipeCollection.IsDeleted)
+            .Select(link => (Guid?)link.RecipeCollectionId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (collectionId is null) throw new EntityNotFoundException("Share link not found", null);
+
+        var isInCollection = await db.RecipeCollectionRecipes
+            .AsNoTracking()
+            .AnyAsync(
+                value => value.RecipeCollectionId == collectionId && value.RecipeId == recipeId,
+                cancellationToken
+            );
+
+        if (!isInCollection) throw new EntityNotFoundException("Recipe not found", null);
+
+        var recipe = await include(db.Recipes.AsNoTracking())
+            .WhereIsNotDeleted()
+            .FirstOrDefaultAsync(value => value.Id == recipeId, cancellationToken);
+
+        if (recipe is null) throw new EntityNotFoundException("Recipe not found", null);
+
+        return recipe;
     }
 
     [Authorize]

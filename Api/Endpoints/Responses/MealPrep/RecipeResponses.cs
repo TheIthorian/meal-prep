@@ -166,6 +166,40 @@ public static class RecipeResponseTransforms
             );
         }
 
+        public SharedRecipeSummaryResponse ToSharedRecipeSummaryResponse() {
+            return new SharedRecipeSummaryResponse(
+                recipe.Id,
+                recipe.Title,
+                recipe.Description,
+                recipe.Servings,
+                recipe.PrepMinutes,
+                recipe.CookMinutes,
+                RecipeTagWhitelist.NormalizeToWhitelist(recipe.Tags),
+                !string.IsNullOrEmpty(recipe.ImageObjectKey)
+            );
+        }
+
+        public SharedRecipeDetailResponse ToSharedRecipeDetailResponse() {
+            return new SharedRecipeDetailResponse(
+                recipe.Id,
+                recipe.Title,
+                recipe.Description,
+                recipe.Servings,
+                recipe.SourceUrl,
+                recipe.Notes,
+                recipe.PrepMinutes,
+                recipe.CookMinutes,
+                RecipeTagWhitelist.NormalizeToWhitelist(recipe.Tags),
+                !string.IsNullOrEmpty(recipe.ImageObjectKey),
+                recipe.Ingredients
+                    .OrderBy(ingredient => ingredient.SortOrder)
+                    .Select(ingredient => ingredient.ToResponse())
+                    .ToArray(),
+                recipe.Steps.OrderBy(step => step.SortOrder).Select(step => step.ToResponse()).ToArray(),
+                recipe.ToNutritionResponse()
+            );
+        }
+
         private RecipeNutritionResponse? ToNutritionResponse() {
             if (recipe.NutritionServingBasis is null && recipe.Nutrition.Count == 0) return null;
 

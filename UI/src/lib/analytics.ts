@@ -20,6 +20,7 @@ export const analyticsEvents = {
     recipeCollectionCreated: 'recipe_collection_created',
     recipeAddedToCollection: 'recipe_added_to_collection',
     recipeCollectionShared: 'recipe_collection_shared',
+    shareLinkAuthPrompted: 'share_link_auth_prompted',
     recipeCollectionExported: 'recipe_collection_exported',
     shoppingListDeleted: 'shopping_list_deleted',
     mcpAccessTokenCreated: 'mcp_access_token_created',
