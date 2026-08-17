@@ -11,7 +11,7 @@ import { LoadingState } from '@/components/common/LoadingState';
 import { EmptyState } from '@/components/common/EmptyState';
 import { toast } from '@/hooks/use-toast';
 import { analyticsEvents, useAnalytics } from '@/lib/analytics';
-import { buildAuthPath } from '@/lib/return-url';
+import { ShareSignupPrompt } from '@/components/share/ShareSignupPrompt';
 
 export default function RecipeCollectionShareImportPage() {
     const { shareToken = '' } = useParams<{ shareToken: string }>();
@@ -74,7 +74,20 @@ export default function RecipeCollectionShareImportPage() {
     }
 
     return (
-        <div className='mx-auto max-w-6xl space-y-4 px-4 py-10 md:px-8'>
+        // pb-28 on small screens keeps the last recipe clear of the fixed prompt bar.
+        <div className='mx-auto max-w-6xl space-y-4 px-4 pb-28 pt-10 md:px-8 lg:pb-10'>
+            {!isAuthLoading && !isSignedIn && (
+                <ShareSignupPrompt
+                    returnUrl={sharePath}
+                    headline={
+                        preview.recipeCount === 1
+                            ? 'Save this recipe to your library.'
+                            : `Save all ${preview.recipeCount} recipes to your library.`
+                    }
+                    detail='Plan your week and turn them into a shopping list.'
+                />
+            )}
+
             <div className='rounded-xl border border-border bg-card p-6'>
                 <h1 className='font-heading text-2xl text-foreground'>
                     {isSignedIn ? 'Import shared collection' : 'Shared recipe collection'}
@@ -118,31 +131,6 @@ export default function RecipeCollectionShareImportPage() {
                     </>
                 )}
             </div>
-
-            {!isAuthLoading && !isSignedIn && (
-                <div className='rounded-xl border border-border bg-card p-6 text-center'>
-                    <div className='flex justify-center'>
-                        <div className='rounded-full bg-primary p-3'>
-                            <ChefHat className='h-6 w-6 text-primary-foreground' aria-hidden />
-                        </div>
-                    </div>
-                    <h2 className='mt-4 font-heading text-xl text-foreground'>
-                        Save these recipes to your own library
-                    </h2>
-                    <p className='mt-2 text-sm text-muted-foreground'>
-                        Create a free Meal Prep account to import this collection, plan your week and turn it into a
-                        shopping list. You will come straight back here.
-                    </p>
-                    <div className='mt-5 flex flex-col gap-3 sm:flex-row sm:justify-center'>
-                        <Button asChild className='sm:min-w-40'>
-                            <Link to={buildAuthPath('/register', sharePath)}>Create free account</Link>
-                        </Button>
-                        <Button asChild variant='outline' className='sm:min-w-40'>
-                            <Link to={buildAuthPath('/login', sharePath)}>Sign in</Link>
-                        </Button>
-                    </div>
-                </div>
-            )}
 
             {preview.recipes.length > 0 && (
                 <ul className='grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3'>

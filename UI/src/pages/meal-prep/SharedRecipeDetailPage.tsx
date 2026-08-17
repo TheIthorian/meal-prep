@@ -8,7 +8,7 @@ import { LoadingState } from '@/components/common/LoadingState';
 import { EmptyState } from '@/components/common/EmptyState';
 import { RecipeIngredientListRow } from '@/components/recipes/RecipeIngredientListRow';
 import { InstructionWithInlineAmounts } from '@/components/recipes/InstructionWithInlineAmounts';
-import { buildAuthPath } from '@/lib/return-url';
+import { ShareSignupPrompt } from '@/components/share/ShareSignupPrompt';
 
 export default function SharedRecipeDetailPage() {
     const { shareToken = '', recipeId = '' } = useParams<{ shareToken: string; recipeId: string }>();
@@ -46,25 +46,11 @@ export default function SharedRecipeDetailPage() {
         // pb-28 on small screens keeps the last of the recipe clear of the fixed prompt bar.
         <div className='mx-auto max-w-5xl space-y-4 px-4 pb-28 pt-10 md:px-8 lg:pb-10'>
             {!isAuthLoading && !isSignedIn && (
-                /* One prompt, placed first in the DOM so it reads and tabs before the recipe. It sticks to the
-                   top of the page on a wide screen, and anchors to the bottom of the viewport on a phone, where
-                   the thumb is and where it costs no reading height. */
-                <div className='fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur lg:sticky lg:inset-x-auto lg:bottom-auto lg:top-4 lg:rounded-xl lg:border lg:shadow-lg'>
-                    <div className='flex items-center justify-between gap-3 px-4 py-3 lg:px-5'>
-                        <p className='hidden text-sm text-muted-foreground sm:block'>
-                            <span className='font-medium text-foreground'>Save this recipe to your library.</span> Plan
-                            your week and turn it into a shopping list.
-                        </p>
-                        <div className='flex flex-1 gap-2 sm:flex-none'>
-                            <Button asChild size='sm' className='flex-1 sm:flex-none'>
-                                <Link to={buildAuthPath('/register', recipePath)}>Create free account</Link>
-                            </Button>
-                            <Button asChild size='sm' variant='outline' className='flex-1 sm:flex-none'>
-                                <Link to={buildAuthPath('/login', recipePath)}>Sign in</Link>
-                            </Button>
-                        </div>
-                    </div>
-                </div>
+                <ShareSignupPrompt
+                    returnUrl={recipePath}
+                    headline='Save this recipe to your library.'
+                    detail='Plan your week and turn it into a shopping list.'
+                />
             )}
 
             <Button asChild variant='ghost' size='sm' className='-ml-2'>
