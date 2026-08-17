@@ -37,6 +37,18 @@ pnpm --filter meal-prep-ui build
 pnpm --filter meal-prep-ui preview
 ```
 
+## Unit tests
+
+UI unit tests run with Vitest:
+
+```bash
+pnpm --filter meal-prep-ui test
+```
+
+Instruction/ingredient matching is covered by fixture recipes in
+`src/lib/__fixtures__/instruction-ingredient-fixtures.ts` — add a recipe and its expected matches
+there when tuning the matcher.
+
 ## Technology
 
 This project is built with:
