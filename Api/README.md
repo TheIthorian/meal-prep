@@ -10,6 +10,19 @@ ingredients into shopping lists.
 - Recipe and shopping-list application foundations
 - Swagger API documentation
 
+## Recipe images
+
+An upload or import stores the image exactly as it arrived and returns straight away. The smaller
+renditions the UI actually renders are generated afterwards by a background worker
+(`RecipeImageDerivativeWorker`) that drains the `RecipeImageDerivativeJobs` table, so a batch import
+never spends request threads on image processing. Until a rendition exists the image endpoint serves
+the original, so a recipe page has something to show immediately.
+
+The worker only runs on instances configured with the `worker:image-derivatives` app role (or `*`),
+and its concurrency and retry behaviour are set by the `RecipeImageDerivatives__*` variables
+documented in [`Docs/env-vars.md`](../Docs/env-vars.md). A resize that keeps failing is left in the
+table in the `failed` state and logged at error rather than disappearing quietly.
+
 ## Prerequisites
 
 (only when running API outside Docker Compose)

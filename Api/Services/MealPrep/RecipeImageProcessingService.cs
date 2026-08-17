@@ -15,34 +15,16 @@ public sealed class RecipeImageProcessingService
         FileFormat = WebpFileFormatType.Lossy,
     };
 
-    public async Task<ProcessedRecipeImagePayload> OptimizeForWebAsync(
-        Stream sourceStream,
-        string originalFileName,
-        CancellationToken cancellationToken = default
-    ) {
-        using var image = await Image.LoadAsync(sourceStream, cancellationToken);
-        var resize = BuildResizeOptions(image.Width, image.Height);
-        if (resize is not null) {
-            image.Mutate(context => context.Resize(resize));
-        }
-
-        await using var optimizedStream = new MemoryStream();
-        await image.SaveAsync(optimizedStream, WebpEncoder, cancellationToken);
-
-        return new ProcessedRecipeImagePayload(
-            optimizedStream.ToArray(),
-            RecipeImageUploadConstants.OptimizedContentType,
-            BuildOptimizedFileName(originalFileName),
-            image.Width,
-            image.Height
-        );
-    }
-
     /// <summary>
-    ///     Re-encodes an already-optimized image at a narrower width, for serving to layouts that
-    ///     display it far smaller than it was stored. Images narrower than the target are returned
-    ///     unchanged rather than upscaled.
+    ///     Re-encodes a stored original at a narrower width, for serving to layouts that display it
+    ///     far smaller than it was uploaded. Images narrower than the target are re-encoded at their
+    ///     own size rather than upscaled.
     /// </summary>
+    /// <remarks>
+    ///     Only ever called from the background worker: this is the CPU-bound part of handling a
+    ///     recipe image, and running it on a request thread is what made a batch import slow the
+    ///     whole server down.
+    /// </remarks>
     public async Task<byte[]> ResizeToWidthAsync(
         Stream sourceStream,
         int targetWidth,
@@ -50,9 +32,12 @@ public sealed class RecipeImageProcessingService
     ) {
         using var image = await Image.LoadAsync(sourceStream, cancellationToken);
 
-        if (image.Width > targetWidth) {
+        // Height is capped as well as width so a very tall image cannot come out enormous at a
+        // narrow width, which is the cap the upload path used to apply before storing.
+        var maxHeight = RecipeImageUploadConstants.MaxPixelDimension;
+        if (image.Width > targetWidth || image.Height > maxHeight) {
             image.Mutate(context => context.Resize(new ResizeOptions {
-                Size = new Size(targetWidth, 0),
+                Size = new Size(targetWidth, maxHeight),
                 Mode = ResizeMode.Max,
                 Sampler = KnownResamplers.Lanczos3,
             }));
@@ -62,34 +47,4 @@ public sealed class RecipeImageProcessingService
         await image.SaveAsync(resizedStream, WebpEncoder, cancellationToken);
         return resizedStream.ToArray();
     }
-
-    private static ResizeOptions? BuildResizeOptions(int width, int height) {
-        var max = RecipeImageUploadConstants.MaxPixelDimension;
-        if (width <= max && height <= max) {
-            return null;
-        }
-
-        return new ResizeOptions {
-            Size = new Size(max, max),
-            Mode = ResizeMode.Max,
-            Sampler = KnownResamplers.Lanczos3,
-        };
-    }
-
-    private static string BuildOptimizedFileName(string originalFileName) {
-        var safeFileName = Path.GetFileNameWithoutExtension(originalFileName);
-        if (string.IsNullOrWhiteSpace(safeFileName)) {
-            safeFileName = "image";
-        }
-
-        return $"{safeFileName}{RecipeImageUploadConstants.OptimizedExtension}";
-    }
 }
-
-public sealed record ProcessedRecipeImagePayload(
-    byte[] Data,
-    string ContentType,
-    string FileName,
-    int Width,
-    int Height
-);

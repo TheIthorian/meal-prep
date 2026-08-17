@@ -1,6 +1,16 @@
 namespace Api.Configuration;
 
-public static class AppRoles { }
+/// <summary>
+///     Names of the roles an instance can be configured to run.
+/// </summary>
+public static class AppRoles
+{
+    /// <summary>Every role, for a single-instance deployment or local development.</summary>
+    public const string All = "*";
+
+    /// <summary>Generates recipe image renditions from the durable queue.</summary>
+    public const string ImageDerivativeWorker = "worker:image-derivatives";
+}
 
 /// <summary>
 ///     Registers the application role definitions.
@@ -13,7 +23,11 @@ public static class AppRoleConfiguration
             ArgumentNullException.ThrowIfNull(configuration);
             ArgumentException.ThrowIfNullOrWhiteSpace(role);
 
-            return configuration.GetAppRoles().Contains(role);
+            var roles = configuration.GetAppRoles();
+
+            // "*" is how a deployment says "run everything on this instance", which is what local
+            // development and the single-container deployment both use.
+            return roles.Contains(AppRoles.All) || roles.Contains(role);
         }
 
         public void ValidateAppRolesConfiguration() {

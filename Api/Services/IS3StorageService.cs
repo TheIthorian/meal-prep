@@ -18,5 +18,11 @@ public interface IS3StorageService
     /// </summary>
     Task<Stream?> TryDownloadFileAsync(string s3Key);
 
+    /// <summary>
+    ///     True when an object exists at the key. Used to decide whether a resized variant has been
+    ///     generated yet, which only needs the metadata rather than the bytes.
+    /// </summary>
+    Task<bool> ObjectExistsAsync(string s3Key);
+
     Task DeleteFileAsync(string s3Key);
 }
