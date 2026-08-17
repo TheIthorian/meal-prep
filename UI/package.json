@@ -9,7 +9,8 @@
         "build:dev": "vite build --mode development",
         "lint": "eslint .",
         "typecheck": "tsc -b --noEmit",
-        "preview": "vite preview"
+        "preview": "vite preview",
+        "test": "vitest run"
     },
     "dependencies": {
         "@hookform/resolvers": "3.10.0",
@@ -89,6 +90,7 @@
         "typescript": "5.8.3",
         "typescript-eslint": "8.38.0",
         "vite": "5.4.19",
+        "vitest": "3.2.4",
         "wrangler": "4.123.0"
     }
 }
