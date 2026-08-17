@@ -1,3 +1,4 @@
+using Api.Links;
 using Api.Models;
 using Api.Services.MealPrep;
 
@@ -14,7 +15,9 @@ public record RecipeListItemResponse(
     int IngredientCount,
     int StepCount,
     bool HasImage,
-    bool IsFavorite
+    bool IsFavorite,
+    string? WebUrl = null,
+    string? ResourceUrl = null
 );
 
 public record RecipeIngredientResponse(
@@ -52,7 +55,9 @@ public record RecipeResponse(
     RecipeCollectionMembershipResponse[] Collections,
     RecipeIngredientResponse[] Ingredients,
     RecipeStepResponse[] Steps,
-    RecipeNutritionResponse? Nutrition
+    RecipeNutritionResponse? Nutrition,
+    string? WebUrl = null,
+    string? ResourceUrl = null
 );
 
 public record RecipeImportPreviewResponse(
@@ -78,6 +83,37 @@ public record RecipeTagUsageItemResponse(string Tag, int RecipeCount);
 public record RecipeTagUsageListResponse(RecipeTagUsageItemResponse[] Items);
 
 public record BulkRemoveRecipeTagsResponse(int RecipesUpdated, string[] TagsProcessed);
+
+/// <summary>
+///     Attaches the web-app page link and the API self link to recipe responses. Callers only ever see ids
+///     otherwise, and an id is not something a client can navigate to.
+/// </summary>
+public static class RecipeResponseLinks
+{
+    extension(RecipeResponse response)
+    {
+        public RecipeResponse WithLinks(WebAppLinkGenerator webApp, ResourceLinkGenerator resources) {
+            return response with {
+                WebUrl = webApp.Recipe(response.WorkspaceId, response.Id),
+                ResourceUrl = resources.Recipe(response.WorkspaceId, response.Id)
+            };
+        }
+    }
+
+    extension(RecipeListItemResponse response)
+    {
+        public RecipeListItemResponse WithLinks(
+            Guid workspaceId,
+            WebAppLinkGenerator webApp,
+            ResourceLinkGenerator resources
+        ) {
+            return response with {
+                WebUrl = webApp.Recipe(workspaceId, response.Id),
+                ResourceUrl = resources.Recipe(workspaceId, response.Id)
+            };
+        }
+    }
+}
 
 /// <summary>
 ///     Maps recipe domain models and import previews to API responses.

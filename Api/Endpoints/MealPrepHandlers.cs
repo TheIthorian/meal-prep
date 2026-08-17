@@ -4,6 +4,7 @@ using Api.Domain;
 using Api.Endpoints.Requests.MealPrep;
 using Api.Endpoints.Responses;
 using Api.Endpoints.Responses.MealPrep;
+using Api.Links;
 using Api.Models;
 using Api.Models.Filter;
 using Api.Services;
@@ -37,6 +38,7 @@ internal static class RecipesHandlers
     public static async Task<JsonHttpResult<PaginatedResponse<RecipeListItemResponse>>> GetRecipes(
         CurrentUserService currentUserService,
         ApiDbContext db,
+        RecipeLinkService recipeLinks,
         IFilterConfigurationProvider filterConfigurationProvider,
         HttpContext httpContext,
         Guid workspaceId,
@@ -102,7 +104,11 @@ internal static class RecipesHandlers
             .ToArrayAsync(cancellationToken);
 
         return TypedResults.Json(
-            PaginatedResponse<RecipeListItemResponse>.ToPaginatedResponse(recipes, paginationOptions, totalCount)
+            PaginatedResponse<RecipeListItemResponse>.ToPaginatedResponse(
+                recipeLinks.Attach(recipes, workspaceId),
+                paginationOptions,
+                totalCount
+            )
         );
     }
 
@@ -231,6 +237,7 @@ internal static class RecipesHandlers
     public static async Task<JsonHttpResult<RecipeResponse>> GetRecipe(
         CurrentUserService currentUserService,
         ApiDbContext db,
+        RecipeLinkService recipeLinks,
         Guid workspaceId,
         Guid recipeId,
         CancellationToken cancellationToken
@@ -256,13 +263,14 @@ internal static class RecipesHandlers
         var isFavorite = await RecipeIsFavoriteAsync(db, currentUserId.Value, recipeId, cancellationToken);
         var collections = BuildCollectionMemberships(recipe, workspaceId);
 
-        return TypedResults.Json(recipe.ToRecipeResponse(isFavorite, collections));
+        return TypedResults.Json(recipeLinks.Attach(recipe.ToRecipeResponse(isFavorite, collections)));
     }
 
     [Authorize]
     public static async Task<JsonHttpResult<RecipeResponse>> PostAutotagRecipe(
         CurrentUserService currentUserService,
         ApiDbContext db,
+        RecipeLinkService recipeLinks,
         RecipeTagSuggestionService tagSuggestionService,
         Guid workspaceId,
         Guid recipeId,
@@ -333,13 +341,14 @@ internal static class RecipesHandlers
 
         var isFavorite = await RecipeIsFavoriteAsync(db, currentUserId.Value, recipeId, cancellationToken);
 
-        return TypedResults.Json(recipe.ToRecipeResponse(isFavorite));
+        return TypedResults.Json(recipeLinks.Attach(recipe.ToRecipeResponse(isFavorite)));
     }
 
     [Authorize]
     public static async Task<JsonHttpResult<RecipeResponse>> PostRecipe(
         CurrentUserService currentUserService,
         ApiDbContext db,
+        RecipeLinkService recipeLinks,
         RecipeImportService recipeImportService,
         RecipeImageStore recipeImageStore,
         Guid workspaceId,
@@ -372,13 +381,14 @@ internal static class RecipesHandlers
             .WhereIsNotDeleted()
             .FirstAsync(value => value.Id == recipe.Id, cancellationToken);
 
-        return TypedResults.Json(recipe.ToRecipeResponse(isFavorite: false));
+        return TypedResults.Json(recipeLinks.Attach(recipe.ToRecipeResponse(isFavorite: false)));
     }
 
     [Authorize]
     public static Task<JsonHttpResult<RecipeResponse>> PatchRecipe(
         CurrentUserService currentUserService,
         ApiDbContext db,
+        RecipeLinkService recipeLinks,
         RecipeImportService recipeImportService,
         RecipeImageStore recipeImageStore,
         ILoggerFactory loggerFactory,
@@ -391,6 +401,7 @@ internal static class RecipesHandlers
         return PatchRecipeInternal(
             currentUserService,
             db,
+            recipeLinks,
             recipeImportService,
             recipeImageStore,
             loggerFactory,
@@ -410,6 +421,7 @@ internal static class RecipesHandlers
     public static async Task<JsonHttpResult<RecipeResponse>> PatchRecipeInternal(
         CurrentUserService currentUserService,
         ApiDbContext db,
+        RecipeLinkService recipeLinks,
         RecipeImportService recipeImportService,
         RecipeImageStore recipeImageStore,
         ILoggerFactory loggerFactory,
@@ -543,7 +555,7 @@ internal static class RecipesHandlers
         var isFavorite = await RecipeIsFavoriteAsync(db, currentUserId, recipeId, cancellationToken);
         var collections = BuildCollectionMemberships(updatedRecipe, workspaceId);
 
-        return TypedResults.Json(updatedRecipe.ToRecipeResponse(isFavorite, collections));
+        return TypedResults.Json(recipeLinks.Attach(updatedRecipe.ToRecipeResponse(isFavorite, collections)));
     }
 
     private static RecipeCollectionMembershipResponse[] BuildCollectionMemberships(Recipe recipe, Guid workspaceId) {
@@ -648,6 +660,7 @@ internal static class RecipesHandlers
     public static async Task<JsonHttpResult<RecipeResponse>> PostRecipeImage(
         CurrentUserService currentUserService,
         ApiDbContext db,
+        RecipeLinkService recipeLinks,
         RecipeImageStore recipeImageStore,
         Guid workspaceId,
         Guid recipeId,
@@ -698,13 +711,14 @@ internal static class RecipesHandlers
 
         var isFavorite = await RecipeIsFavoriteAsync(db, currentUserId, recipeId, cancellationToken);
 
-        return TypedResults.Json(recipe.ToRecipeResponse(isFavorite));
+        return TypedResults.Json(recipeLinks.Attach(recipe.ToRecipeResponse(isFavorite)));
     }
 
     [Authorize]
     public static async Task<JsonHttpResult<RecipeResponse>> DeleteRecipeImage(
         CurrentUserService currentUserService,
         ApiDbContext db,
+        RecipeLinkService recipeLinks,
         RecipeImageStore recipeImageStore,
         Guid workspaceId,
         Guid recipeId,
@@ -736,13 +750,14 @@ internal static class RecipesHandlers
 
         var isFavorite = await RecipeIsFavoriteAsync(db, currentUserId, recipeId, cancellationToken);
 
-        return TypedResults.Json(recipe.ToRecipeResponse(isFavorite));
+        return TypedResults.Json(recipeLinks.Attach(recipe.ToRecipeResponse(isFavorite)));
     }
 
     [Authorize]
     public static async Task<JsonHttpResult<RecipeResponse>> PatchRecipeFavorite(
         CurrentUserService currentUserService,
         ApiDbContext db,
+        RecipeLinkService recipeLinks,
         Guid workspaceId,
         Guid recipeId,
         [FromBody] SetRecipeFavoriteRequest body,
@@ -791,7 +806,7 @@ internal static class RecipesHandlers
             .Where(value => value.WorkspaceId == workspaceId && value.Id == recipeId)
             .FirstAsync(cancellationToken);
 
-        return TypedResults.Json(recipe.ToRecipeResponse(body.IsFavorite));
+        return TypedResults.Json(recipeLinks.Attach(recipe.ToRecipeResponse(body.IsFavorite)));
     }
 
     [Authorize]
@@ -819,6 +834,7 @@ internal static class RecipesHandlers
     public static async Task<JsonHttpResult<RecipeResponse>> PostImportRecipe(
         CurrentUserService currentUserService,
         ApiDbContext db,
+        RecipeLinkService recipeLinks,
         RecipeImportService recipeImportService,
         RecipeImageStore recipeImageStore,
         Guid workspaceId,
@@ -858,13 +874,14 @@ internal static class RecipesHandlers
             .WhereIsNotDeleted()
             .FirstAsync(value => value.Id == recipe.Id, cancellationToken);
 
-        return TypedResults.Json(importedRecipe.ToRecipeResponse(isFavorite: false));
+        return TypedResults.Json(recipeLinks.Attach(importedRecipe.ToRecipeResponse(isFavorite: false)));
     }
 
     [Authorize]
     public static async Task<JsonHttpResult<RecipeResponse>> PostImportRecipeUpload(
         CurrentUserService currentUserService,
         ApiDbContext db,
+        RecipeLinkService recipeLinks,
         RecipeDocumentImportService recipeDocumentImportService,
         RecipeImportService recipeImportService,
         RecipeImageStore recipeImageStore,
@@ -905,7 +922,7 @@ internal static class RecipesHandlers
             .WhereIsNotDeleted()
             .FirstAsync(value => value.Id == recipe.Id, cancellationToken);
 
-        return TypedResults.Json(importedRecipe.ToRecipeResponse(isFavorite: false));
+        return TypedResults.Json(recipeLinks.Attach(importedRecipe.ToRecipeResponse(isFavorite: false)));
     }
 
     private static async Task TryApplyImportedImageAsync(

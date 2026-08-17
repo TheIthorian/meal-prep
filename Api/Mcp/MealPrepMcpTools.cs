@@ -8,6 +8,7 @@ using Api.Domain;
 using Api.Endpoints;
 using Api.Endpoints.Requests.MealPrep;
 using Api.Endpoints.Responses.MealPrep;
+using Api.Links;
 using Api.Models;
 using Api.Models.Filter;
 using Api.Services;
@@ -36,6 +37,7 @@ public sealed class MealPrepMcpTools(
     ShoppingListGenerationService shoppingListGenerationService,
     MeasurementService measurementService,
     RecipeImageStore recipeImageStore,
+    RecipeLinkService recipeLinks,
     ILogger<MealPrepMcpTools> logger,
     ILoggerFactory loggerFactory
 )
@@ -183,7 +185,7 @@ public sealed class MealPrepMcpTools(
 
     [McpServerTool]
     [Description(
-        "Lists recipes in the token's workspace with optional paging and sorting."
+        "Lists recipes in the token's workspace with optional paging and sorting. Each entry includes webUrl, the page for that recipe in the web app."
     )]
     public async Task<string> ListRecipes(
         [Description("1-based page index. Omit for default paging.")]
@@ -216,6 +218,7 @@ public sealed class MealPrepMcpTools(
             var result = await RecipesHandlers.GetRecipes(
                 currentUserService,
                 db,
+                recipeLinks,
                 filterConfigurationProvider,
                 httpContext,
                 workspaceId,
@@ -228,10 +231,10 @@ public sealed class MealPrepMcpTools(
     }
 
     [McpServerTool]
-    [Description("Gets a recipe by id.")]
+    [Description("Gets a recipe by id. The response includes webUrl, the page for this recipe in the web app.")]
     public async Task<string> GetRecipe(Guid recipeId, CancellationToken cancellationToken) {
         var workspaceId = RequireMcpWorkspaceId();
-        var result = await RecipesHandlers.GetRecipe(currentUserService, db, workspaceId, recipeId, cancellationToken);
+        var result = await RecipesHandlers.GetRecipe(currentUserService, db, recipeLinks, workspaceId, recipeId, cancellationToken);
         return Serialize(result);
     }
 
@@ -289,6 +292,7 @@ public sealed class MealPrepMcpTools(
                 var result = await RecipesHandlers.PostRecipe(
                     currentUserService,
                     db,
+                    recipeLinks,
                     recipeImportService,
                     recipeImageStore,
                     workspaceId,
@@ -349,6 +353,7 @@ public sealed class MealPrepMcpTools(
                 var existing = (await RecipesHandlers.GetRecipe(
                     currentUserService,
                     db,
+                    recipeLinks,
                     workspaceId,
                     recipeId,
                     cancellationToken
@@ -383,6 +388,7 @@ public sealed class MealPrepMcpTools(
                 var result = await RecipesHandlers.PatchRecipeInternal(
                     currentUserService,
                     db,
+                    recipeLinks,
                     recipeImportService,
                     recipeImageStore,
                     loggerFactory,
@@ -465,6 +471,7 @@ public sealed class MealPrepMcpTools(
                 var result = await RecipesHandlers.PostImportRecipe(
                     currentUserService,
                     db,
+                    recipeLinks,
                     recipeImportService,
                     recipeImageStore,
                     workspaceId,
