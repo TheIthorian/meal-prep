@@ -8,6 +8,7 @@ using Api.Domain;
 using Api.Endpoints;
 using Api.Endpoints.Requests.MealPrep;
 using Api.Endpoints.Responses.MealPrep;
+using Api.Links;
 using Api.Models;
 using Api.Models.Filter;
 using Api.Services;
@@ -36,21 +37,13 @@ public sealed class MealPrepMcpTools(
     ShoppingListGenerationService shoppingListGenerationService,
     MeasurementService measurementService,
     RecipeImageStore recipeImageStore,
-    McpWebLinks webLinks,
+    RecipeLinkService recipeLinks,
     ILogger<MealPrepMcpTools> logger,
     ILoggerFactory loggerFactory
 )
 {
     private static string Serialize<T>(JsonHttpResult<T> result) {
         return JsonSerializer.Serialize(result.Value, McpJson.SerializerOptions);
-    }
-
-    /// <summary>
-    ///     Serializes a recipe (or a page of recipes) with a <c>webUrl</c> pointing at the web app,
-    ///     so the caller can link the user straight to what it is talking about.
-    /// </summary>
-    private string SerializeWithRecipeLinks<T>(JsonHttpResult<T> result, Guid workspaceId) {
-        return webLinks.WithRecipeLinks(Serialize(result), workspaceId);
     }
 
     private DefaultHttpContext BuildQueryHttpContext(IEnumerable<KeyValuePair<string, string?>> queryParams) {
@@ -225,12 +218,13 @@ public sealed class MealPrepMcpTools(
             var result = await RecipesHandlers.GetRecipes(
                 currentUserService,
                 db,
+                recipeLinks,
                 filterConfigurationProvider,
                 httpContext,
                 workspaceId,
                 cancellationToken
             );
-            return SerializeWithRecipeLinks(result, workspaceId);
+            return Serialize(result);
         } catch (AppException appException) {
             return SerializeAppException(appException);
         }
@@ -240,8 +234,8 @@ public sealed class MealPrepMcpTools(
     [Description("Gets a recipe by id. The response includes webUrl, the page for this recipe in the web app.")]
     public async Task<string> GetRecipe(Guid recipeId, CancellationToken cancellationToken) {
         var workspaceId = RequireMcpWorkspaceId();
-        var result = await RecipesHandlers.GetRecipe(currentUserService, db, workspaceId, recipeId, cancellationToken);
-        return SerializeWithRecipeLinks(result, workspaceId);
+        var result = await RecipesHandlers.GetRecipe(currentUserService, db, recipeLinks, workspaceId, recipeId, cancellationToken);
+        return Serialize(result);
     }
 
     [McpServerTool]
@@ -298,13 +292,14 @@ public sealed class MealPrepMcpTools(
                 var result = await RecipesHandlers.PostRecipe(
                     currentUserService,
                     db,
+                    recipeLinks,
                     recipeImportService,
                     recipeImageStore,
                     workspaceId,
                     recipe,
                     cancellationToken
                 );
-                return SerializeWithRecipeLinks(result, workspaceId);
+                return Serialize(result);
             }
         );
     }
@@ -358,6 +353,7 @@ public sealed class MealPrepMcpTools(
                 var existing = (await RecipesHandlers.GetRecipe(
                     currentUserService,
                     db,
+                    recipeLinks,
                     workspaceId,
                     recipeId,
                     cancellationToken
@@ -392,6 +388,7 @@ public sealed class MealPrepMcpTools(
                 var result = await RecipesHandlers.PatchRecipeInternal(
                     currentUserService,
                     db,
+                    recipeLinks,
                     recipeImportService,
                     recipeImageStore,
                     loggerFactory,
@@ -401,7 +398,7 @@ public sealed class MealPrepMcpTools(
                     childReplacement,
                     cancellationToken
                 );
-                return SerializeWithRecipeLinks(result, workspaceId);
+                return Serialize(result);
             }
         );
     }
@@ -474,13 +471,14 @@ public sealed class MealPrepMcpTools(
                 var result = await RecipesHandlers.PostImportRecipe(
                     currentUserService,
                     db,
+                    recipeLinks,
                     recipeImportService,
                     recipeImageStore,
                     workspaceId,
                     body,
                     cancellationToken
                 );
-                return SerializeWithRecipeLinks(result, workspaceId);
+                return Serialize(result);
             }
         );
     }

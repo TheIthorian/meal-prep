@@ -1,5 +1,6 @@
 using Api.Authentication;
 using Api.Configuration;
+using Api.Links;
 using Api.Endpoints.Requests;
 using Api.Services;
 using Api.Services.MealPrep;
@@ -29,6 +30,14 @@ public static class ApplicationServiceCollectionExtensions
                 .Bind(configuration.GetSection("S3"));
             services.AddOptions<OpenAIConfiguration>()
                 .Bind(configuration.GetSection("OpenAI"));
+            services.AddOptions<WebAppOptions>()
+                .Bind(configuration.GetSection(WebAppOptions.SectionName))
+                .PostConfigure(options => options.Normalize(configuration["WEB_APP_BASE_URL"]))
+                .Validate(options => options.IsValid(), WebAppOptions.RequiredMessage)
+                .ValidateOnStart();
+            services.AddSingleton<WebAppLinkGenerator>();
+            services.AddSingleton<ResourceLinkGenerator>();
+            services.AddSingleton<RecipeLinkService>();
             services.AddProblemDetails();
             services.AddExceptionHandler<GlobalExceptionHandler>();
             services.Configure<FormOptions>(options => {
