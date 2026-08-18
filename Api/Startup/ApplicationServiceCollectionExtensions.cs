@@ -17,6 +17,8 @@ namespace Api.Startup;
 /// </summary>
 public static class ApplicationServiceCollectionExtensions
 {
+    private static readonly TimeSpan RecipeImportHttpTimeout = TimeSpan.FromSeconds(10);
+
     extension(IServiceCollection services)
     {
         public void AddApplicationServices(IConfiguration configuration) {
@@ -77,9 +79,29 @@ public static class ApplicationServiceCollectionExtensions
             services.AddSingleton<RecipeImportLlmParser>();
             services.AddSingleton<IngredientCategoryLlmService>();
             services.AddSingleton<RecipeTagSuggestionService>();
-            services.AddHttpClient<RecipeImportService>();
+            // Import fetches happen while a user waits on an interactive import, so an unbounded wait
+            // is a server-load problem as much as a UX one: the default 100s timeout would pin a
+            // request thread and a connection per slow source page, and a handful of bad URLs is
+            // then enough to exhaust the server. 10s is well past a healthy page fetch.
+            services.AddHttpClient<RecipeImportService>()
+                .ConfigureHttpClient(client => client.Timeout = RecipeImportHttpTimeout)
+                // Recipe pages are large and highly compressible (bbcgoodfood: 577 KB raw vs 88 KB
+                // compressed), and the whole body is buffered into a string, so negotiating an
+                // encoding cuts both transfer and large-object-heap churn. PreviewAsync sets its own
+                // per-request User-Agent, so no default one is needed here, and redirects stay
+                // enabled because the page-fetch path relies on following them.
+                .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler {
+                        AutomaticDecompression = DecompressionMethods.Brotli
+                                                 | DecompressionMethods.GZip
+                                                 | DecompressionMethods.Deflate,
+                    }
+                );
             services.AddHttpClient(RecipeImportService.RecipeImageImportHttpClientName)
-                .ConfigureHttpClient(client => client.DefaultRequestHeaders.UserAgent.ParseAdd("MealPrepBot/1.0"))
+                .ConfigureHttpClient(client => {
+                        client.DefaultRequestHeaders.UserAgent.ParseAdd("MealPrepBot/1.0");
+                        client.Timeout = RecipeImportHttpTimeout;
+                    }
+                )
                 .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler {
                         AllowAutoRedirect = false,
                         AutomaticDecompression = DecompressionMethods.Brotli

@@ -227,6 +227,42 @@ public class RecipeImportServiceTests
         );
     }
 
+    [Fact]
+    public async Task PreviewAsync_WhenSourcePageTimesOut_ThrowsInvalidFormat() {
+        var httpClient = new HttpClient(new TimingOutHttpMessageHandler());
+        var service = CreateRecipeImportService(httpClient);
+
+        var exception = await Assert.ThrowsAsync<Api.Domain.InvalidFormatException>(() =>
+            service.PreviewAsync("https://example.com/slow-recipe")
+        );
+
+        Assert.Contains("took too long", exception.Details.Detail);
+    }
+
+    [Fact]
+    public async Task PreviewAsync_WhenCallerCancels_DoesNotTranslateToInvalidFormat() {
+        var httpClient = new HttpClient(new TimingOutHttpMessageHandler());
+        var service = CreateRecipeImportService(httpClient);
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            service.PreviewAsync("https://example.com/slow-recipe", null, null, cancellation.Token)
+        );
+    }
+
+    [Fact]
+    public async Task TryDownloadImportImageAsync_WhenImageHostTimesOut_ReturnsNull() {
+        var imageClient = new HttpClient(new TimingOutHttpMessageHandler());
+        var factory = new StubRecipeImageClientFactory(imageClient);
+        var previewClient = new HttpClient(new StubHttpMessageHandler("<html></html>"));
+        var service = CreateRecipeImportService(previewClient, factory);
+
+        var payload = await service.TryDownloadImportImageAsync("https://example.com/slow-image.jpg");
+
+        Assert.Null(payload);
+    }
+
     private static RecipeImportService CreateRecipeImportService(
         HttpClient httpClient,
         IHttpClientFactory? recipeImageClientFactory = null
@@ -295,6 +331,21 @@ public class RecipeImportServiceTests
             }
 
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+        }
+    }
+
+    /// <summary>
+    ///     Mimics an HttpClient timeout: HttpClient cancels the request and surfaces TaskCanceledException.
+    /// </summary>
+    private sealed class TimingOutHttpMessageHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        ) {
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout.",
+                new TimeoutException());
         }
     }
 
