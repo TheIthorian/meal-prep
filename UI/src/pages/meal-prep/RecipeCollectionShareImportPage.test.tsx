@@ -17,8 +17,9 @@ vi.mock('@/lib/api', () => ({
 }));
 
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => useAuth() }));
+const workspace = { workspaceId: 'workspace-1', name: 'Home' };
 vi.mock('@/contexts/WorkspaceContext', () => ({
-    useWorkspace: () => ({ workspaces: [], currentWorkspace: undefined }),
+    useWorkspace: () => ({ workspaces: [workspace], currentWorkspace: workspace }),
 }));
 vi.mock('@/lib/analytics', () => ({
     analyticsEvents: { shareLinkAuthPrompted: 'share_link_auth_prompted' },
@@ -136,5 +137,25 @@ describe('RecipeCollectionShareImportPage', () => {
 
         expect(await screen.findByRole('button', { name: 'Import collection' })).toBeDefined();
         expect(screen.queryByRole('link', { name: 'Create free account' })).toBeNull();
+    });
+
+    it('keeps the app tab bar available to a signed-in visitor', async () => {
+        useAuth.mockReturnValue({ user: { userId: 'user-1' }, isLoading: false });
+
+        renderPage();
+
+        const recipesTab = await screen.findByRole('link', { name: 'Recipes' });
+
+        expect(recipesTab.getAttribute('href')).toBe(`/workspaces/${workspace.workspaceId}/`);
+    });
+
+    it('does not show the app tab bar to a signed-out visitor', async () => {
+        useAuth.mockReturnValue({ user: null, isLoading: false });
+
+        renderPage();
+
+        await screen.findByText('Sunday Roast');
+
+        expect(screen.queryByRole('link', { name: 'Recipes' })).toBeNull();
     });
 });

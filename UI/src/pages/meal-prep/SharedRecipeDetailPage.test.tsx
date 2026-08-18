@@ -17,6 +17,11 @@ vi.mock('@/lib/api', () => ({
 
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => useAuth() }));
 
+const workspace = { workspaceId: 'workspace-1', name: 'Home' };
+vi.mock('@/contexts/WorkspaceContext', () => ({
+    useWorkspace: () => ({ workspaces: [workspace], currentWorkspace: workspace }),
+}));
+
 const { default: SharedRecipeDetailPage } = await import('./SharedRecipeDetailPage');
 
 const shareToken = 'abc123';
@@ -118,5 +123,25 @@ describe('SharedRecipeDetailPage', () => {
         renderPage();
 
         expect(await screen.findByText('Recipe not found')).toBeDefined();
+    });
+
+    it('keeps the app tab bar available to a signed-in visitor', async () => {
+        useAuth.mockReturnValue({ user: { userId: 'user-1' }, isLoading: false });
+
+        renderPage();
+
+        const recipesTab = await screen.findByRole('link', { name: 'Recipes' });
+
+        expect(recipesTab.getAttribute('href')).toBe(`/workspaces/${workspace.workspaceId}/`);
+    });
+
+    it('does not show the app tab bar to a signed-out visitor', async () => {
+        useAuth.mockReturnValue({ user: null, isLoading: false });
+
+        renderPage();
+
+        await screen.findByText('Sunday Roast');
+
+        expect(screen.queryByRole('link', { name: 'Recipes' })).toBeNull();
     });
 });

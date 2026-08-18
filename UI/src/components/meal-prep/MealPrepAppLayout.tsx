@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useParams } from 'react-router-dom';
-import { BookOpen, ChefHat, FolderOpen, ListOrdered, ShoppingCart, Settings } from 'lucide-react';
+import { ChefHat } from 'lucide-react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import NotFoundError from '@/pages/NotFoundError';
 import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher';
-
-function workspacePath(workspaceId: string, subPath: string) {
-    const trimmed = subPath.replace(/^\//, '');
-    return `/workspaces/${workspaceId}/${trimmed}`;
-}
+import { MealPrepBottomNav } from '@/components/meal-prep/MealPrepBottomNav';
+import { mealPrepNavItems } from '@/lib/meal-prep-nav';
 
 export function MealPrepAppLayout() {
     const { workspaceId = '' } = useParams<{ workspaceId: string }>();
@@ -24,13 +21,7 @@ export function MealPrepAppLayout() {
         }
     }, [setCurrentWorkspaceId, workspaceId]);
 
-    const navItems = [
-        { to: workspacePath(workspaceId, '/'), icon: BookOpen, label: 'Recipes', end: true },
-        { to: workspacePath(workspaceId, 'collections'), icon: FolderOpen, label: 'Collections', end: false },
-        { to: workspacePath(workspaceId, 'next-meals'), icon: ListOrdered, label: 'Next Meals', end: false },
-        { to: workspacePath(workspaceId, 'shopping'), icon: ShoppingCart, label: 'Shopping', end: false },
-        { to: workspacePath(workspaceId, 'settings'), icon: Settings, label: 'Settings', end: false },
-    ];
+    const navItems = mealPrepNavItems(workspaceId);
 
     if (workspaceInvalid) {
         return <NotFoundError />;
@@ -72,27 +63,7 @@ export function MealPrepAppLayout() {
                     <Outlet />
                 </main>
 
-                <nav className='safe-area-pb fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 backdrop-blur-md md:hidden'>
-                    <div className='flex items-center justify-around overflow-x-auto py-2'>
-                        {navItems.map(item => (
-                            <NavLink
-                                key={item.to}
-                                to={item.to}
-                                end={item.end}
-                                className={({ isActive }) =>
-                                    `flex min-w-[3.25rem] shrink-0 flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 transition-colors ${
-                                        isActive ? 'text-primary' : 'text-muted-foreground'
-                                    }`
-                                }
-                            >
-                                <item.icon className='h-5 w-5' />
-                                <span className='max-w-[4.5rem] truncate text-center text-[10px] font-medium'>
-                                    {item.label}
-                                </span>
-                            </NavLink>
-                        ))}
-                    </div>
-                </nav>
+                <MealPrepBottomNav workspaceId={workspaceId} />
             </div>
         </div>
     );
