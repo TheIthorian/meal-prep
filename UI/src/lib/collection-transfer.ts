@@ -74,28 +74,6 @@ export async function readCollectionArchive(file: File): Promise<CollectionArchi
 }
 
 /** Opens the OS file picker for a collection bundle. Resolves null when the user cancels. */
-export async function pickCollectionBundleFile(): Promise<File | null> {
-    return await new Promise(resolve => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.zip,.json,application/zip,application/json';
-        input.style.display = 'none';
-        // Firefox only fires change events for inputs attached to the document.
-        document.body.appendChild(input);
-        const cleanup = () => input.remove();
-        input.onchange = () => {
-            const file = input.files?.[0] ?? null;
-            cleanup();
-            resolve(file);
-        };
-        input.oncancel = () => {
-            cleanup();
-            resolve(null);
-        };
-        input.click();
-    });
-}
-
 export function downloadBlob(blob: Blob, fileName: string) {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
