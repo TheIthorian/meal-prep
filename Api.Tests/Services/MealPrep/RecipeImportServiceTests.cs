@@ -263,6 +263,228 @@ public class RecipeImportServiceTests
         Assert.Null(payload);
     }
 
+    [Fact]
+    public async Task PreviewAsync_ShouldExtractHeuristicRecipeFromMetaAndItemProps() {
+        var html = """
+                   <html>
+                     <head>
+                       <title>Ignored Title</title>
+                       <meta property="og:title" content="Rustic Tomato Soup" />
+                       <meta name="description" content="A warm &amp; simple soup." />
+                       <meta property="og:image" content="https://example.com/images/soup.jpg" />
+                     </head>
+                     <body>
+                       <li itemprop="recipeIngredient">400 g tomatoes</li>
+                       <li itemprop="recipeIngredient">1 large onion</li>
+                       <li itemprop="recipeInstructions">Simmer everything for 25 minutes.</li>
+                       <li itemprop="recipeInstructions">Blend until smooth.</li>
+                     </body>
+                   </html>
+                   """;
+
+        var httpClient = new HttpClient(new StubHttpMessageHandler(html));
+        var service = CreateRecipeImportService(httpClient);
+
+        var preview = await service.PreviewAsync("https://example.com/soup");
+
+        Assert.Equal("Rustic Tomato Soup", preview.Title);
+        Assert.Equal("A warm & simple soup.", preview.Description);
+        Assert.Equal(1m, preview.Servings);
+        Assert.Empty(preview.Tags);
+        Assert.Null(preview.Nutrition);
+        Assert.Equal("https://example.com/images/soup.jpg", preview.ImageUrl);
+
+        Assert.Equal(2, preview.Ingredients.Count);
+        Assert.Equal("tomatoes", preview.Ingredients.First().Name);
+        Assert.Equal(400m, preview.Ingredients.First().Amount);
+        Assert.Equal("g", preview.Ingredients.First().Unit);
+        Assert.Equal("onion", preview.Ingredients.Last().Name);
+        Assert.Equal("large", preview.Ingredients.Last().Unit);
+
+        Assert.Equal(2, preview.Steps.Count);
+        Assert.Equal("Simmer everything for 25 minutes.", preview.Steps.First().Instruction);
+        Assert.Equal(1500, preview.Steps.First().TimerSeconds);
+        Assert.Null(preview.Steps.Last().TimerSeconds);
+    }
+
+    [Fact]
+    public async Task PreviewAsync_ShouldFallBackToTwitterMetaTags() {
+        var html = """
+                   <html>
+                     <head>
+                       <meta name="twitter:title" content="Twitter Fallback Cake" />
+                       <meta name="twitter:image" content="https://cdn.example.com/cake.png" />
+                     </head>
+                     <body>
+                       <li itemprop="recipeIngredient">2 eggs</li>
+                       <li itemprop="recipeInstructions">Whisk the eggs thoroughly.</li>
+                     </body>
+                   </html>
+                   """;
+
+        var httpClient = new HttpClient(new StubHttpMessageHandler(html));
+        var service = CreateRecipeImportService(httpClient);
+
+        var preview = await service.PreviewAsync("https://example.com/cake");
+
+        Assert.Equal("Twitter Fallback Cake", preview.Title);
+        Assert.Equal("https://cdn.example.com/cake.png", preview.ImageUrl);
+        Assert.Null(preview.Description);
+    }
+
+    [Fact]
+    public async Task PreviewAsync_ShouldFallBackToOgImageUrlMetaTag() {
+        var html = """
+                   <html>
+                     <head>
+                       <meta property="og:title" content="Image Url Variant" />
+                       <meta property="og:image:url" content="https://cdn.example.com/variant.jpg" />
+                     </head>
+                     <body>
+                       <li itemprop="recipeIngredient">3 carrots</li>
+                       <li itemprop="recipeInstructions">Roast the carrots.</li>
+                     </body>
+                   </html>
+                   """;
+
+        var httpClient = new HttpClient(new StubHttpMessageHandler(html));
+        var service = CreateRecipeImportService(httpClient);
+
+        var preview = await service.PreviewAsync("https://example.com/variant");
+
+        Assert.Equal("https://cdn.example.com/variant.jpg", preview.ImageUrl);
+    }
+
+    [Fact]
+    public async Task PreviewAsync_ShouldUseBareTitleTagAndListItemsWhenNoMetaOrInstructionItemProps() {
+        var html = """
+                   <html>
+                     <head><title>Plain Title Bake</title></head>
+                     <body>
+                       <li itemprop="recipeIngredient">500 g flour</li>
+                       <li>short</li>
+                       <li>Preheat the oven and line a baking tray with paper.</li>
+                       <li>Bake for 40 minutes until the top is golden brown.</li>
+                     </body>
+                   </html>
+                   """;
+
+        var httpClient = new HttpClient(new StubHttpMessageHandler(html));
+        var service = CreateRecipeImportService(httpClient);
+
+        var preview = await service.PreviewAsync("https://example.com/bake");
+
+        Assert.Equal("Plain Title Bake", preview.Title);
+        Assert.Equal(2, preview.Steps.Count);
+        Assert.Equal("Preheat the oven and line a baking tray with paper.", preview.Steps.First().Instruction);
+        Assert.Equal(2400, preview.Steps.Last().TimerSeconds);
+        Assert.Null(preview.ImageUrl);
+    }
+
+    [Fact]
+    public async Task PreviewAsync_HeuristicTitleTagMatchRequiresNoAttributes() {
+        // The heuristic title reader matches a bare <title> only, so an attributed
+        // <title> leaves the heuristic without a title and the import fails.
+        var html = """
+                   <html>
+                     <head><title lang="en">Attributed Title</title></head>
+                     <body>
+                       <li itemprop="recipeIngredient">500 g flour</li>
+                       <li itemprop="recipeInstructions">Bake it.</li>
+                     </body>
+                   </html>
+                   """;
+
+        var httpClient = new HttpClient(new StubHttpMessageHandler(html));
+        var service = CreateRecipeImportService(httpClient);
+
+        await Assert.ThrowsAsync<Api.Domain.InvalidFormatException>(() =>
+            service.PreviewAsync("https://example.com/attributed-title")
+        );
+    }
+
+    [Fact]
+    public async Task PreviewAsync_MetaContentMustFollowTheMatchedAttribute() {
+        // content= placed before property= does not match, so og:title is skipped and
+        // the bare <title> tag supplies the heuristic title instead.
+        var html = """
+                   <html>
+                     <head>
+                       <title>Fallback Wins</title>
+                       <meta content="Reversed Attribute Order" property="og:title" />
+                     </head>
+                     <body>
+                       <li itemprop="recipeIngredient">1 potato</li>
+                       <li itemprop="recipeInstructions">Boil the potato.</li>
+                     </body>
+                   </html>
+                   """;
+
+        var httpClient = new HttpClient(new StubHttpMessageHandler(html));
+        var service = CreateRecipeImportService(httpClient);
+
+        var preview = await service.PreviewAsync("https://example.com/reversed");
+
+        Assert.Equal("Fallback Wins", preview.Title);
+    }
+
+    [Fact]
+    public async Task PreviewAsync_ShouldPreferJsonLdOverHeuristicMetaTags() {
+        var html = """
+                   <html>
+                     <head>
+                       <meta property="og:title" content="Heuristic Title" />
+                       <script type="application/ld+json">
+                       {
+                         "@context": "https://schema.org",
+                         "@type": "Recipe",
+                         "name": "Structured Title",
+                         "recipeIngredient": [ "1 cup rice" ],
+                         "recipeInstructions": [ { "text": "Cook the rice." } ]
+                       }
+                       </script>
+                     </head>
+                     <body>
+                       <li itemprop="recipeIngredient">400 g tomatoes</li>
+                       <li itemprop="recipeInstructions">Simmer.</li>
+                     </body>
+                   </html>
+                   """;
+
+        var httpClient = new HttpClient(new StubHttpMessageHandler(html));
+        var service = CreateRecipeImportService(httpClient);
+
+        var preview = await service.PreviewAsync("https://example.com/both");
+
+        Assert.Equal("Structured Title", preview.Title);
+        Assert.Equal("rice", Assert.Single(preview.Ingredients).Name);
+    }
+
+    [Fact]
+    public async Task PreviewAsync_ItemPropContentStopsAtTheFirstClosingTag() {
+        // The itemprop reader is a lazy match up to the first closing tag, so nested
+        // markup truncates the captured content. Pinned so the behaviour is explicit.
+        var html = """
+                   <html>
+                     <head><meta property="og:title" content="Nested Markup" /></head>
+                     <body>
+                       <li itemprop="recipeIngredient">200 g <b>plain</b> flour</li>
+                       <li itemprop="recipeInstructions">Sift the flour.</li>
+                     </body>
+                   </html>
+                   """;
+
+        var httpClient = new HttpClient(new StubHttpMessageHandler(html));
+        var service = CreateRecipeImportService(httpClient);
+
+        var preview = await service.PreviewAsync("https://example.com/nested");
+
+        var flour = Assert.Single(preview.Ingredients);
+        Assert.Equal(200m, flour.Amount);
+        Assert.Equal("g", flour.Unit);
+        Assert.Equal("plain", flour.Name);
+    }
+
     private static RecipeImportService CreateRecipeImportService(
         HttpClient httpClient,
         IHttpClientFactory? recipeImageClientFactory = null

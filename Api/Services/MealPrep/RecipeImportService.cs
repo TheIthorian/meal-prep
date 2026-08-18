@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -14,7 +15,7 @@ namespace Api.Services.MealPrep;
 /// <summary>
 ///     Fetches and extracts recipe previews from external web pages.
 /// </summary>
-public class RecipeImportService(
+public partial class RecipeImportService(
     HttpClient httpClient,
     IHttpClientFactory httpClientFactory,
     MeasurementService measurementService,
@@ -26,10 +27,78 @@ public class RecipeImportService(
     public const string RecipeImageImportHttpClientName = "RecipeImageImport";
     private const int MaxResponseBytes = 2 * 1024 * 1024;
 
-    private static readonly Regex JsonLdScriptPattern = new(
+    // Every fixed pattern below is source-generated once at build time. Previously most of
+    // them were inline Regex.Match/Matches/Replace calls that leaned on the static Regex
+    // cache, which only holds 15 entries -- a single import touches more than that.
+    [GeneratedRegex(
         "<script[^>]*type=[\"']application/ld\\+json[\"'][^>]*>(?<json>.*?)</script>",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled
-    );
+        RegexOptions.IgnoreCase | RegexOptions.Singleline
+    )]
+    private static partial Regex JsonLdScriptPattern();
+
+    [GeneratedRegex("<title[^>]*>(?<title>.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex AnyTitleTagPattern();
+
+    [GeneratedRegex("<title>(?<title>.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex BareTitleTagPattern();
+
+    [GeneratedRegex("<li[^>]*>(?<content>.*?)</li>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex ListItemPattern();
+
+    [GeneratedRegex("<[^>]+>")]
+    private static partial Regex HtmlTagPattern();
+
+    [GeneratedRegex("\\s+")]
+    private static partial Regex WhitespacePattern();
+
+    [GeneratedRegex(
+        "^(?<amount>[0-9]+\\s+[0-9]+/[0-9]+|[0-9]+\\s+[¼½¾]|[0-9]+/[0-9]+|[0-9]+(?:\\.[0-9]+)?|[¼½¾])?\\s*(?<unit>[A-Za-z]+(?:\\s?oz)?)?\\s*(?<name>.+)$"
+    )]
+    private static partial Regex IngredientLinePattern();
+
+    [GeneratedRegex("[0-9]+(?:\\.[0-9]+)?")]
+    private static partial Regex NumberPattern();
+
+    [GeneratedRegex("(?<hours>[0-9]+)H", RegexOptions.IgnoreCase)]
+    private static partial Regex IsoHoursPattern();
+
+    [GeneratedRegex("(?<minutes>[0-9]+)M", RegexOptions.IgnoreCase)]
+    private static partial Regex IsoMinutesPattern();
+
+    [GeneratedRegex("(?<minutes>[0-9]+)\\s*(minutes|minute|min)", RegexOptions.IgnoreCase)]
+    private static partial Regex StepMinutesPattern();
+
+    [GeneratedRegex("(?<seconds>[0-9]+)\\s*(seconds|second|sec)", RegexOptions.IgnoreCase)]
+    private static partial Regex StepSecondsPattern();
+
+    // These two patterns genuinely vary by attribute/itemprop name, so they cannot be
+    // source-generated. Interpolating them into Regex.Match kept minting new static-cache
+    // keys; memoising instead compiles each distinct value once per process. The set of
+    // values is closed and small (three meta lookups, two itemprops).
+    private static readonly ConcurrentDictionary<(string AttributeName, string AttributeValue), Regex>
+        MetaContentPatterns = new();
+
+    private static readonly ConcurrentDictionary<string, Regex> ItemPropPatterns = new();
+
+    private static Regex MetaContentPattern(string attributeName, string attributeValue) {
+        return MetaContentPatterns.GetOrAdd(
+            (attributeName, attributeValue),
+            static key => new Regex(
+                $"<meta[^>]*{key.AttributeName}=[\"']{Regex.Escape(key.AttributeValue)}[\"'][^>]*content=[\"'](?<content>[^\"']+)[\"'][^>]*>",
+                RegexOptions.IgnoreCase | RegexOptions.Compiled
+            )
+        );
+    }
+
+    private static Regex ItemPropPattern(string itemProp) {
+        return ItemPropPatterns.GetOrAdd(
+            itemProp,
+            static value => new Regex(
+                $"<[^>]*itemprop=[\"']{Regex.Escape(value)}[\"'][^>]*>(?<content>.*?)</[^>]+>",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled
+            )
+        );
+    }
 
     public Task<RecipeImportPreview> PreviewAsync(string url, CancellationToken cancellationToken = default) {
         return PreviewAsync(url, null, null, cancellationToken);
@@ -389,14 +458,10 @@ public class RecipeImportService(
     }
 
     private static string BuildFallbackTitle(string sourceUrl, string html) {
-        var htmlTitleMatch = Regex.Match(
-            html,
-            "<title[^>]*>(?<title>.*?)</title>",
-            RegexOptions.IgnoreCase | RegexOptions.Singleline
-        );
+        var htmlTitleMatch = AnyTitleTagPattern().Match(html);
         if (htmlTitleMatch.Success) {
             var decoded = WebUtility.HtmlDecode(htmlTitleMatch.Groups["title"].Value);
-            var normalized = Regex.Replace(decoded, "\\s+", " ").Trim();
+            var normalized = WhitespacePattern().Replace(decoded, " ").Trim();
             if (!string.IsNullOrWhiteSpace(normalized))
                 return normalized;
         }
@@ -509,7 +574,7 @@ public class RecipeImportService(
     }
 
     private RecipeImportPreview? TryExtractStructuredRecipe(string html, string sourceUrl) {
-        foreach (Match match in JsonLdScriptPattern.Matches(html)) {
+        foreach (Match match in JsonLdScriptPattern().Matches(html)) {
             var rawJson = WebUtility.HtmlDecode(match.Groups["json"].Value);
             JsonNode? rootNode;
 
@@ -629,10 +694,7 @@ public class RecipeImportService(
 
     private RecipeImportPreviewIngredient ParseIngredient(string text, int index) {
         var trimmed = WebUtility.HtmlDecode(text).Trim();
-        var match = Regex.Match(
-            trimmed,
-            "^(?<amount>[0-9]+\\s+[0-9]+/[0-9]+|[0-9]+\\s+[¼½¾]|[0-9]+/[0-9]+|[0-9]+(?:\\.[0-9]+)?|[¼½¾])?\\s*(?<unit>[A-Za-z]+(?:\\s?oz)?)?\\s*(?<name>.+)$"
-        );
+        var match = IngredientLinePattern().Match(trimmed);
 
         var amount = measurementService.ParseDecimal(match.Groups["amount"].Value);
         var unit = string.IsNullOrWhiteSpace(match.Groups["unit"].Value) ? null : match.Groups["unit"].Value.Trim();
@@ -731,15 +793,15 @@ public class RecipeImportService(
         if (!jsonValue.TryGetValue<string>(out var raw) || string.IsNullOrWhiteSpace(raw))
             return null;
 
-        var match = Regex.Match(raw, "[0-9]+(?:\\.[0-9]+)?");
+        var match = NumberPattern().Match(raw);
         return match.Success && decimal.TryParse(match.Value, out var servings) ? servings : null;
     }
 
     private static int? ParseDurationMinutes(string? isoDuration) {
         if (string.IsNullOrWhiteSpace(isoDuration)) return null;
 
-        var hoursMatch = Regex.Match(isoDuration, "(?<hours>[0-9]+)H", RegexOptions.IgnoreCase);
-        var minutesMatch = Regex.Match(isoDuration, "(?<minutes>[0-9]+)M", RegexOptions.IgnoreCase);
+        var hoursMatch = IsoHoursPattern().Match(isoDuration);
+        var minutesMatch = IsoMinutesPattern().Match(isoDuration);
 
         var hours = hoursMatch.Success ? int.Parse(hoursMatch.Groups["hours"].Value) : 0;
         var minutes = minutesMatch.Success ? int.Parse(minutesMatch.Groups["minutes"].Value) : 0;
@@ -752,7 +814,7 @@ public class RecipeImportService(
         if (node is JsonValue jsonValue) {
             if (jsonValue.TryGetValue<decimal>(out var decimalValue)) return decimalValue;
             if (jsonValue.TryGetValue<string>(out var stringValue)) {
-                var match = Regex.Match(stringValue, "[0-9]+(?:\\.[0-9]+)?");
+                var match = NumberPattern().Match(stringValue);
                 return match.Success && decimal.TryParse(match.Value, out var parsed) ? parsed : null;
             }
         }
@@ -789,23 +851,28 @@ public class RecipeImportService(
     }
 
     private static int? ParseTimerSeconds(string step) {
-        var minuteMatch = Regex.Match(step, "(?<minutes>[0-9]+)\\s*(minutes|minute|min)", RegexOptions.IgnoreCase);
+        var minuteMatch = StepMinutesPattern().Match(step);
         if (minuteMatch.Success) return int.Parse(minuteMatch.Groups["minutes"].Value) * 60;
 
-        var secondMatch = Regex.Match(step, "(?<seconds>[0-9]+)\\s*(seconds|second|sec)", RegexOptions.IgnoreCase);
+        var secondMatch = StepSecondsPattern().Match(step);
         return secondMatch.Success ? int.Parse(secondMatch.Groups["seconds"].Value) : null;
     }
 
     private static string NormalizeIngredientLine(string line) {
-        var normalized = Regex.Replace(line.Trim(), "\\s+", " ");
+        var normalized = WhitespacePattern().Replace(line.Trim(), " ");
         return normalized.Trim(',', ';', ':', '-', '•', '·');
     }
 
     private static bool IsLikelyIngredientLine(string line) {
         if (line.Length < 3) return false;
 
-        var alphaMatches = Regex.Matches(line, "[A-Za-z]");
-        if (alphaMatches.Count < 3) return false;
+        // Equivalent to Regex.Matches(line, "[A-Za-z]").Count < 3, without the MatchCollection.
+        var alphaCount = 0;
+        foreach (var character in line) {
+            if (char.IsAsciiLetter(character) && ++alphaCount == 3) break;
+        }
+
+        if (alphaCount < 3) return false;
 
         var words = line.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (words.Length == 0) return false;
@@ -884,30 +951,18 @@ public class RecipeImportService(
     }
 
     private static string? ReadMetaContent(string html, string attributeName, string attributeValue) {
-        var match = Regex.Match(
-            html,
-            $"<meta[^>]*{attributeName}=[\"']{Regex.Escape(attributeValue)}[\"'][^>]*content=[\"'](?<content>[^\"']+)[\"'][^>]*>",
-            RegexOptions.IgnoreCase
-        );
+        var match = MetaContentPattern(attributeName, attributeValue).Match(html);
 
         return match.Success ? WebUtility.HtmlDecode(match.Groups["content"].Value).Trim() : null;
     }
 
     private static string? ReadTitleTag(string html) {
-        var match = Regex.Match(
-            html,
-            "<title>(?<title>.*?)</title>",
-            RegexOptions.IgnoreCase | RegexOptions.Singleline
-        );
+        var match = BareTitleTagPattern().Match(html);
         return match.Success ? WebUtility.HtmlDecode(match.Groups["title"].Value).Trim() : null;
     }
 
     private static List<string> ReadItemPropList(string html, string itemProp) {
-        var matches = Regex.Matches(
-            html,
-            $"<[^>]*itemprop=[\"']{Regex.Escape(itemProp)}[\"'][^>]*>(?<content>.*?)</[^>]+>",
-            RegexOptions.IgnoreCase | RegexOptions.Singleline
-        );
+        var matches = ItemPropPattern(itemProp).Matches(html);
 
         return matches
             .Select(match => StripHtml(match.Groups["content"].Value))
@@ -919,11 +974,8 @@ public class RecipeImportService(
         var values = ReadItemPropList(html, "recipeInstructions");
         return values.Count > 0
             ? values
-            : Regex.Matches(
-                    html,
-                    "<li[^>]*>(?<content>.*?)</li>",
-                    RegexOptions.IgnoreCase | RegexOptions.Singleline
-                )
+            : ListItemPattern()
+                .Matches(html)
                 .Select(match => StripHtml(match.Groups["content"].Value))
                 .Where(text => text.Length > 30)
                 .Take(20)
@@ -931,8 +983,8 @@ public class RecipeImportService(
     }
 
     private static string StripHtml(string html) {
-        var noTags = Regex.Replace(html, "<[^>]+>", " ");
-        return WebUtility.HtmlDecode(Regex.Replace(noTags, "\\s+", " ")).Trim();
+        var noTags = HtmlTagPattern().Replace(html, " ");
+        return WebUtility.HtmlDecode(WhitespacePattern().Replace(noTags, " ")).Trim();
     }
 }
 
