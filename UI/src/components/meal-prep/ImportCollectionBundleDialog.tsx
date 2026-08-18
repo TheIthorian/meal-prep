@@ -80,9 +80,8 @@ export function ImportCollectionBundleDialog({ onImport, recipesTo, trigger }: I
                 <DialogHeader>
                     <DialogTitle>Import a collection bundle</DialogTitle>
                     <DialogDescription>
-                        A bundle is the .zip a collection produces when you export it: its recipes and their photos in
-                        one file. Importing puts them in a new collection here, and skips any recipe this workspace
-                        already has.
+                        A bundle is the .zip file containing all recipes in collection.<br/>
+                        Use this to import a bundle you received from someone else, or to move collections between workspaces.
                     </DialogDescription>
                 </DialogHeader>
 

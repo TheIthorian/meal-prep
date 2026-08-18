@@ -39,7 +39,7 @@ describe('ImportCollectionBundleDialog', () => {
         renderDialog();
 
         expect(screen.getByRole('heading', { name: 'Import a collection bundle' })).toBeDefined();
-        expect(screen.getByText(/A bundle is the .zip a collection produces/)).toBeDefined();
+        expect(screen.getByText(/A bundle is the .zip file containing all recipes in collection/)).toBeDefined();
         expect(screen.getByRole('link', { name: 'Add recipe' }).getAttribute('href')).toBe('/workspaces/workspace-1/');
     });
 
