@@ -22,6 +22,12 @@ public sealed class RecipeImageStore(
     ///     <see cref="RecipeImageVariants.Widths" />. Returns the full-size object key, which is
     ///     what a recipe records.
     /// </summary>
+    /// <remarks>
+    ///     The full-size upload has to finish before the rendition uploads start, because the
+    ///     storage service generates the full-size key and the rendition keys are derived from it.
+    ///     Only that ordering is forced: every encode happens up front off one decode, and the two
+    ///     rendition uploads then go out together.
+    /// </remarks>
     public async Task<string> StoreAsync(
         Stream sourceStream,
         string originalFileName,
@@ -30,33 +36,29 @@ public sealed class RecipeImageStore(
         var optimized = await recipeImageProcessingService.OptimizeForWebAsync(
             sourceStream,
             originalFileName,
+            RecipeImageVariants.Widths,
             cancellationToken
         );
 
-        await using var optimizedStream = new MemoryStream(optimized.Data);
+        await using var optimizedStream = new MemoryStream(optimized.FullSize.Data);
         var fullSizeKey = await s3StorageService.UploadFileAsync(
             optimizedStream,
-            optimized.FileName,
-            optimized.ContentType
+            optimized.FullSize.FileName,
+            optimized.FullSize.ContentType
         );
 
-        foreach (var width in RecipeImageVariants.Widths) {
-            await using var sourceForWidth = new MemoryStream(optimized.Data);
-            var renditionData = await recipeImageProcessingService.ResizeToWidthAsync(
-                sourceForWidth,
-                width,
-                cancellationToken
-            );
-
-            await using var renditionStream = new MemoryStream(renditionData);
-            await s3StorageService.UploadFileAtKeyAsync(
-                renditionStream,
-                RecipeImageVariants.KeyForWidth(fullSizeKey, width),
-                RecipeImageUploadConstants.OptimizedContentType
-            );
-        }
+        await Task.WhenAll(optimized.Renditions.Select(rendition => UploadRenditionAsync(fullSizeKey, rendition)));
 
         return fullSizeKey;
+    }
+
+    private async Task UploadRenditionAsync(string fullSizeKey, RecipeImageRendition rendition) {
+        await using var renditionStream = new MemoryStream(rendition.Data);
+        await s3StorageService.UploadFileAtKeyAsync(
+            renditionStream,
+            RecipeImageVariants.KeyForWidth(fullSizeKey, rendition.Width),
+            RecipeImageUploadConstants.OptimizedContentType
+        );
     }
 
     /// <summary>

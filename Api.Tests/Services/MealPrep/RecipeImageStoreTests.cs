@@ -257,11 +257,15 @@ public class RecipeImageStoreTests
             return key;
         }
 
+        // StoreAsync uploads renditions concurrently, so writes here can genuinely overlap.
         public async Task UploadFileAtKeyAsync(Stream fileStream, string key, string contentType) {
             using var memory = new MemoryStream();
             await fileStream.CopyToAsync(memory);
-            files[key] = memory.ToArray();
-            UploadCount++;
+
+            lock (files) {
+                files[key] = memory.ToArray();
+                UploadCount++;
+            }
         }
 
         public int CopyCount { get; private set; }
