@@ -255,6 +255,13 @@ export default function RecipeCollectionsListPage() {
                     <p className='mt-1 text-sm text-muted-foreground'>
                         Group recipes, share with another workspace, or export a bundle.
                     </p>
+                    <p className='mt-1 text-sm text-muted-foreground'>
+                        To add a new recipe from a link, photo or PDF, use{' '}
+                        <Link to={workspacePath(workspaceId, '/')} className='font-medium text-primary hover:underline'>
+                            Add recipe
+                        </Link>{' '}
+                        on the Recipes page.
+                    </p>
                 </div>
                 <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                     <DialogTrigger asChild>
@@ -287,9 +294,18 @@ export default function RecipeCollectionsListPage() {
                         </form>
                     </DialogContent>
                 </Dialog>
-                <Button type='button' size='sm' variant='outline' className='shrink-0 gap-1' onClick={() => void handleImport()}>
+                {/* Bundle import is a rare, power-user path: the label says what it takes so it is not
+                    mistaken for the way you add an everyday recipe (that is "Add recipe" on Recipes). */}
+                <Button
+                    type='button'
+                    size='sm'
+                    variant='outline'
+                    className='shrink-0 gap-1'
+                    title='Restore a collection from a .zip or .json bundle produced by Export'
+                    onClick={() => void handleImport()}
+                >
                     <Upload className='h-4 w-4' />
-                    Import
+                    Import bundle
                 </Button>
             </div>
 
@@ -339,9 +355,7 @@ export default function RecipeCollectionsListPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Importing collection</DialogTitle>
-                        <DialogDescription>
-                            {importState.label || 'Preparing import...'}
-                        </DialogDescription>
+                        <DialogDescription>{importState.label || 'Preparing import...'}</DialogDescription>
                     </DialogHeader>
                     <Progress
                         value={importState.total > 0 ? (importState.current / importState.total) * 100 : 0}
