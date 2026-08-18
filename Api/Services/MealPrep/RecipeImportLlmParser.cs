@@ -179,7 +179,7 @@ public sealed class RecipeImportLlmParser
                 null,
                 null,
                 false,
-                "No HTML content after removing scripts/styles."
+                "No HTML content after sanitizing the page."
             );
         }
 
@@ -574,23 +574,15 @@ public sealed class RecipeImportLlmParser
     }
 
     private static string PrepareHtmlForPrompt(string html) {
-        var stripped = Regex.Replace(
-            html,
-            @"<script\b[^>]*>[\s\S]*?</script>",
-            " ",
-            RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled
-        );
-        stripped = Regex.Replace(
-            stripped,
-            @"<style\b[^>]*>[\s\S]*?</style>",
-            " ",
-            RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled
-        );
+        // Sanitizing before truncating is what makes the cap almost never bite: raw pages are mostly minified
+        // JavaScript, inline CSS and SVG path data, and truncating that could previously cut the recipe itself
+        // off the end of the payload. See RecipeImportHtmlSanitizer for the measured trade-offs.
+        var prepared = RecipeImportHtmlSanitizer.Sanitize(html);
 
-        if (stripped.Length <= MaxHtmlChars)
-            return stripped;
+        if (prepared.Length <= MaxHtmlChars)
+            return prepared;
 
-        return stripped[..MaxHtmlChars];
+        return prepared[..MaxHtmlChars];
     }
 
     private static string PrepareTextForPrompt(string text) {
