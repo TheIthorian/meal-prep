@@ -21,14 +21,10 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { toast } from '@/hooks/use-toast';
 import { analyticsEvents, useAnalytics, withWorkspaceProperties } from '@/lib/analytics';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import {
-    CollectionBundleTooLargeError,
-    MAX_IMPORT_RECIPES,
-    pickCollectionBundleFile,
-    readCollectionArchive,
-} from '@/lib/collection-transfer';
+import { CollectionBundleTooLargeError, MAX_IMPORT_RECIPES, readCollectionArchive } from '@/lib/collection-transfer';
 import type { RecipeCollectionExport } from '@/models/meal-prep';
 import { Progress } from '@/components/ui/progress';
+import { ImportCollectionBundleDialog } from '@/components/meal-prep/ImportCollectionBundleDialog';
 
 function workspacePath(workspaceId: string, subPath: string) {
     const trimmed = subPath.replace(/^\//, '');
@@ -127,11 +123,8 @@ export default function RecipeCollectionsListPage() {
         void createCollection.mutateAsync(name);
     }
 
-    async function handleImport() {
+    async function handleImport(bundleFile: File) {
         try {
-            const bundleFile = await pickCollectionBundleFile();
-            if (!bundleFile) return;
-
             let data: RecipeCollectionExport;
             let images: Map<string, Blob>;
             try {
@@ -248,70 +241,65 @@ export default function RecipeCollectionsListPage() {
     }
 
     return (
-        <div className='mx-auto max-w-lg px-4 py-6 md:px-8 md:py-10'>
-            <div className='mb-6 flex items-start justify-between gap-4'>
-                <div>
+        <div className='mx-auto max-w-5xl px-4 py-6 md:px-8 md:py-10'>
+            <div className='mb-6 flex flex-wrap items-end justify-between gap-4'>
+                <div className='min-w-0'>
                     <h1 className='font-heading text-2xl text-foreground md:text-3xl'>Collections</h1>
                     <p className='mt-1 text-sm text-muted-foreground'>
                         Group recipes, share with another workspace, or export a bundle.
                     </p>
-                    <p className='mt-1 text-sm text-muted-foreground'>
-                        To add a new recipe from a link, photo or PDF, use{' '}
-                        <Link to={workspacePath(workspaceId, '/')} className='font-medium text-primary hover:underline'>
-                            Add recipe
-                        </Link>{' '}
-                        on the Recipes page.
-                    </p>
                 </div>
-                <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-                    <DialogTrigger asChild>
-                        <Button type='button' size='sm' className='shrink-0 gap-1'>
-                            <Plus className='h-4 w-4' />
-                            New
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <form onSubmit={handleCreateSubmit}>
-                            <DialogHeader>
-                                <DialogTitle>New collection</DialogTitle>
-                            </DialogHeader>
-                            <div className='py-4'>
-                                <Label htmlFor='m-collection-name'>Name</Label>
-                                <Input
-                                    id='m-collection-name'
-                                    value={newName}
-                                    onChange={e => setNewName(e.target.value)}
-                                    placeholder='e.g. Weeknight dinners'
-                                    className='mt-2'
-                                    autoFocus
-                                />
-                            </div>
-                            <DialogFooter>
-                                <Button type='submit' disabled={!newName.trim() || createCollection.isPending}>
-                                    Create
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </DialogContent>
-                </Dialog>
-                {/* Bundle import is a rare, power-user path: the label says what it takes so it is not
-                    mistaken for the way you add an everyday recipe (that is "Add recipe" on Recipes). */}
-                <Button
-                    type='button'
-                    size='sm'
-                    variant='outline'
-                    className='shrink-0 gap-1'
-                    title='Restore a collection from a .zip or .json bundle produced by Export'
-                    onClick={() => void handleImport()}
-                >
-                    <Upload className='h-4 w-4' />
-                    Import bundle
-                </Button>
+                <div className='flex shrink-0 items-center gap-2'>
+                    <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                        <DialogTrigger asChild>
+                            <Button type='button' size='sm' className='gap-1'>
+                                <Plus className='h-4 w-4' />
+                                New
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <form onSubmit={handleCreateSubmit}>
+                                <DialogHeader>
+                                    <DialogTitle>New collection</DialogTitle>
+                                </DialogHeader>
+                                <div className='py-4'>
+                                    <Label htmlFor='m-collection-name'>Name</Label>
+                                    <Input
+                                        id='m-collection-name'
+                                        value={newName}
+                                        onChange={e => setNewName(e.target.value)}
+                                        placeholder='e.g. Weeknight dinners'
+                                        className='mt-2'
+                                        autoFocus
+                                    />
+                                </div>
+                                <DialogFooter>
+                                    <Button type='submit' disabled={!newName.trim() || createCollection.isPending}>
+                                        Create
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Bundle import is the rare counterpart to Export; the dialog carries the
+                        explanation so the button does not have to compete with "Add recipe". */}
+                    <ImportCollectionBundleDialog
+                        onImport={file => void handleImport(file)}
+                        recipesTo={workspacePath(workspaceId, '/')}
+                        trigger={
+                            <Button type='button' size='sm' variant='outline' className='gap-1'>
+                                <Upload className='h-4 w-4' />
+                                Import bundle
+                            </Button>
+                        }
+                    />
+                </div>
             </div>
 
             <Link
                 to={workspacePath(workspaceId, '/')}
-                className='mb-4 flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary'
+                className='mb-3 flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary'
             >
                 <FolderOpen className='h-4 w-4 text-primary' />
                 <span className='flex-1'>All recipes</span>
@@ -328,22 +316,26 @@ export default function RecipeCollectionsListPage() {
             )}
 
             {!isLoading && collections.length > 0 && (
-                <ul className='space-y-2'>
+                <ul className='grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3'>
                     {collections.map(collection => (
-                        <li key={collection.id}>
+                        <li key={collection.id} className='min-w-0'>
                             <Link
                                 to={workspacePath(workspaceId, `collections/${collection.id}`)}
-                                className='flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm transition-colors hover:bg-secondary'
+                                className='flex h-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 transition-colors hover:bg-secondary'
                             >
-                                <span className='min-w-0 flex-1 truncate font-medium text-foreground'>
-                                    {collection.name}
-                                </span>
-                                {!collection.isOwnedByViewerWorkspace ? (
-                                    <span className='shrink-0 text-[10px] font-semibold uppercase text-muted-foreground'>
-                                        Shared
+                                <span className='min-w-0 flex-1'>
+                                    <span className='block truncate text-sm font-medium text-foreground'>
+                                        {collection.name}
                                     </span>
-                                ) : null}
-                                <span className='shrink-0 text-xs text-muted-foreground'>{collection.recipeCount}</span>
+                                    <span className='mt-0.5 flex items-center gap-2 text-xs text-muted-foreground'>
+                                        {collection.recipeCount} recipe{collection.recipeCount === 1 ? '' : 's'}
+                                        {!collection.isOwnedByViewerWorkspace ? (
+                                            <span className='rounded-full border border-border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide'>
+                                                Shared
+                                            </span>
+                                        ) : null}
+                                    </span>
+                                </span>
                                 <ChevronRight className='h-4 w-4 shrink-0 text-muted-foreground' />
                             </Link>
                         </li>
