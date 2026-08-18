@@ -203,7 +203,10 @@ export default function RecipeLibraryPage() {
                 <aside
                     aria-label='Search and filters'
                     // top-20 clears the sticky app header so the filters are not hidden behind it.
-                    className='mb-6 space-y-3 lg:sticky lg:top-20 lg:col-span-1 lg:mb-0 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto lg:pr-1'
+                    // The horizontal padding, cancelled by the matching negative margin, keeps this
+                    // scroll container from slicing the focus ring off the full-width controls
+                    // inside it. The ring is drawn outside their border box.
+                    className='mb-6 space-y-3 lg:sticky lg:top-20 lg:col-span-1 lg:mb-0 lg:max-h-[calc(100vh-6rem)] lg:-mx-1.5 lg:self-start lg:overflow-y-auto lg:px-1.5'
                 >
                     <div className='relative'>
                         <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
@@ -220,13 +223,7 @@ export default function RecipeLibraryPage() {
                             Sort by
                         </label>
                         <Select value={sortId} onValueChange={value => setSortId(value as SortId)}>
-                            {/* The shared trigger line-clamps its value, which crops the descenders
-                                off labels like "Recently updated". The labels here are short and
-                                fixed, so the clamp buys nothing. */}
-                            <SelectTrigger
-                                id='recipe-library-sort'
-                                className='w-full [&>span]:line-clamp-none [&>span]:overflow-visible'
-                            >
+                            <SelectTrigger id='recipe-library-sort' className='w-full'>
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
