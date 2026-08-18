@@ -46,27 +46,7 @@ public class RecipeImportService(
 
         EnsureImportUrlIsAllowed(parsedUrl);
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, parsedUrl);
-        request.Headers.UserAgent.ParseAdd("MealPrepBot/1.0");
-
-        using var response = await httpClient.SendAsync(
-            request,
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken
-        );
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidFormatException(
-                "Recipe import failed",
-                $"The source page returned {(int)response.StatusCode} {response.ReasonPhrase}."
-            );
-
-        if (response.Content.Headers.ContentLength is > MaxResponseBytes)
-            throw new InvalidFormatException(
-                "Recipe import failed",
-                "The source page is too large to import safely."
-            );
-
-        var html = await ReadContentWithLimitAsync(response.Content, cancellationToken);
+        var html = await FetchImportPageHtmlAsync(parsedUrl, cancellationToken);
         var structured = TryExtractStructuredRecipe(html, url);
         if (structured is not null) return structured;
 
@@ -145,6 +125,24 @@ public class RecipeImportService(
         if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri)) return null;
 
         var imageClient = httpClientFactory.CreateClient(RecipeImageImportHttpClientName);
+
+        try {
+            return await DownloadImportImageAsync(imageClient, uri, cancellationToken);
+        } catch (Exception ex) when (IsHttpTimeout(ex, cancellationToken)) {
+            // An image is optional, so a slow host degrades to "no image" rather than failing the import.
+            using (logger.BeginPropertyScope(("imageUrl", imageUrl))) {
+                logger.LogWarning(ex, "Recipe import timed out downloading the image.");
+            }
+
+            return null;
+        }
+    }
+
+    private static async Task<ImportedRecipeImagePayload?> DownloadImportImageAsync(
+        HttpClient imageClient,
+        Uri uri,
+        CancellationToken cancellationToken
+    ) {
         var currentUri = uri;
 
         for (var hop = 0; hop < 8; hop++) {
@@ -204,6 +202,54 @@ public class RecipeImportService(
         }
 
         return null;
+    }
+
+    /// <summary>
+    ///     Fetches the source page, translating an HTTP client timeout into a client-visible import failure.
+    /// </summary>
+    private async Task<string> FetchImportPageHtmlAsync(Uri parsedUrl, CancellationToken cancellationToken) {
+        using var request = new HttpRequestMessage(HttpMethod.Get, parsedUrl);
+        request.Headers.UserAgent.ParseAdd("MealPrepBot/1.0");
+
+        try {
+            using var response = await httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken
+            );
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidFormatException(
+                    "Recipe import failed",
+                    $"The source page returned {(int)response.StatusCode} {response.ReasonPhrase}."
+                );
+
+            if (response.Content.Headers.ContentLength is > MaxResponseBytes)
+                throw new InvalidFormatException(
+                    "Recipe import failed",
+                    "The source page is too large to import safely."
+                );
+
+            return await ReadContentWithLimitAsync(response.Content, cancellationToken);
+        } catch (Exception ex) when (IsHttpTimeout(ex, cancellationToken)) {
+            using (logger.BeginPropertyScope(("sourceUrl", parsedUrl.ToString()))) {
+                logger.LogWarning(ex, "Recipe import timed out fetching the source page.");
+            }
+
+            throw new InvalidFormatException(
+                "Recipe import failed",
+                "The source page took too long to respond. Try again, or create the recipe manually."
+            );
+        }
+    }
+
+    /// <summary>
+    ///     True when the exception is an HttpClient timeout rather than the caller cancelling the request.
+    /// </summary>
+    private static bool IsHttpTimeout(Exception exception, CancellationToken cancellationToken) {
+        // A caller-triggered cancellation surfaces the same exception type, so it must not be swallowed.
+        if (cancellationToken.IsCancellationRequested) return false;
+
+        return exception is TimeoutException or OperationCanceledException;
     }
 
     private static ImportedRecipeImagePayload? TryParseInlineImageDataUrl(string imageUrl) {
