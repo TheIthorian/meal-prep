@@ -11,11 +11,27 @@ import { LoadingState } from '@/components/common/LoadingState';
 import { EmptyState } from '@/components/common/EmptyState';
 import { formatRecipeTagLabel } from '@/lib/meal-prep';
 import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 /** Set by the recipe detail page's "Back to recipes" link — a push navigation that should
  *  behave like a back navigation. */
 interface LibraryLocationState {
     restoreScroll?: boolean;
+}
+
+type SortId = 'recent' | 'updated' | 'title';
+
+/** The sorts offered in the library, each mapped to the API's orderBy/direction pair. */
+const SORT_OPTIONS: { id: SortId; label: string; orderBy: string; direction: 'asc' | 'desc' }[] = [
+    { id: 'recent', label: 'Recently added', orderBy: 'createdAt', direction: 'desc' },
+    { id: 'updated', label: 'Recently updated', orderBy: 'updatedAt', direction: 'desc' },
+    { id: 'title', label: 'Name (A-Z)', orderBy: 'title', direction: 'asc' },
+];
+
+const DEFAULT_SORT: SortId = 'recent';
+
+function isSortId(value: string): value is SortId {
+    return SORT_OPTIONS.some(option => option.id === value);
 }
 
 /** Restoring the scroll position only makes sense if the same list is on screen, so the
@@ -43,6 +59,7 @@ export default function RecipeLibraryPage() {
     const location = useLocation();
     const searchStorageKey = `recipe-library-search:${workspaceId}`;
     const tagStorageKey = `recipe-library-tag:${workspaceId}`;
+    const sortStorageKey = `recipe-library-sort:${workspaceId}`;
 
     // Only a back navigation (or the detail page's "Back to recipes" link) should bring the old
     // filters back. Arriving here fresh — a nav-bar click, a deep link — starts unfiltered, so the
@@ -53,6 +70,13 @@ export default function RecipeLibraryPage() {
     const [activeTag, setActiveTag] = useState<string | null>(() =>
         shouldRestoreFilters ? readStoredFilter(tagStorageKey) || null : null,
     );
+    // The sort is a preference rather than a filter, so it is remembered on every visit — a
+    // library the user has set to alphabetical should stay that way after a nav-bar click.
+    const [sortId, setSortId] = useState<SortId>(() => {
+        const stored = readStoredFilter(sortStorageKey);
+        return isSortId(stored) ? stored : DEFAULT_SORT;
+    });
+    const sort = SORT_OPTIONS.find(option => option.id === sortId) ?? SORT_OPTIONS[0];
 
     const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -64,14 +88,20 @@ export default function RecipeLibraryPage() {
         writeStoredFilter(tagStorageKey, activeTag ?? '');
     }, [tagStorageKey, activeTag]);
 
+    useEffect(() => {
+        writeStoredFilter(sortStorageKey, sortId);
+    }, [sortStorageKey, sortId]);
+
     const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
-        queryKey: ['recipes', workspaceId, search],
+        queryKey: ['recipes', workspaceId, search, sort.orderBy, sort.direction],
         queryFn: ({ pageParam }) =>
             recipesApi.getAll(workspaceId, {
                 q: search.trim() || undefined,
                 page: pageParam,
                 pageSize: 30,
                 includeArchived: false,
+                orderBy: sort.orderBy,
+                direction: sort.direction,
             }),
         initialPageParam: 1,
         getNextPageParam: lastPage => {
@@ -184,6 +214,23 @@ export default function RecipeLibraryPage() {
                             onChange={e => setSearch(e.target.value)}
                             className='w-full rounded-lg border border-border bg-card py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground transition-all focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20'
                         />
+                    </div>
+                    <div className='space-y-1.5'>
+                        <label htmlFor='recipe-library-sort' className='text-xs font-medium text-muted-foreground'>
+                            Sort by
+                        </label>
+                        <Select value={sortId} onValueChange={value => setSortId(value as SortId)}>
+                            <SelectTrigger id='recipe-library-sort' className='w-full'>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {SORT_OPTIONS.map(option => (
+                                    <SelectItem key={option.id} value={option.id}>
+                                        {option.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                     {allTags.length > 0 && (
                         <div className='flex flex-wrap gap-2'>

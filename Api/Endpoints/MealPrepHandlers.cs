@@ -75,13 +75,7 @@ internal static class RecipesHandlers
         var orderedQuery = query.OrderByDescending(recipe =>
             db.RecipeFavorites.Any(favorite => favorite.UserId == userId && favorite.RecipeId == recipe.Id));
 
-        orderedQuery = paginationOptions.Direction == PaginationOptions.OrderDirections.Asc
-            ? orderedQuery
-                .ThenBy(recipe => recipe.CreatedAt)
-                .ThenBy(recipe => recipe.Id)
-            : orderedQuery
-                .ThenByDescending(recipe => recipe.CreatedAt)
-                .ThenByDescending(recipe => recipe.Id);
+        orderedQuery = ApplyRecipeSort(orderedQuery, paginationOptions);
 
         var skip = (paginationOptions.Page - 1) * paginationOptions.PageSize;
         var recipes = await orderedQuery
@@ -110,6 +104,33 @@ internal static class RecipesHandlers
                 totalCount
             )
         );
+    }
+
+    /// <summary>
+    ///     Orders the list within the favourites-first grouping. An unrecognised orderBy falls back to
+    ///     the created date so a stale or hand-written value still returns a stable page.
+    /// </summary>
+    private static IOrderedQueryable<Recipe> ApplyRecipeSort(
+        IOrderedQueryable<Recipe> orderedQuery,
+        PaginationOptions paginationOptions
+    )
+    {
+        var ascending = paginationOptions.Direction == PaginationOptions.OrderDirections.Asc;
+
+        return paginationOptions.OrderBy?.ToLowerInvariant() switch {
+            // Compared lower-cased so the alphabetical list does not group every capitalised title
+            // ahead of the lowercase ones.
+            "title" => ascending
+                ? orderedQuery.ThenBy(recipe => recipe.Title.ToLower()).ThenBy(recipe => recipe.Id)
+                : orderedQuery.ThenByDescending(recipe => recipe.Title.ToLower())
+                    .ThenByDescending(recipe => recipe.Id),
+            "updatedat" => ascending
+                ? orderedQuery.ThenBy(recipe => recipe.UpdatedAt).ThenBy(recipe => recipe.Id)
+                : orderedQuery.ThenByDescending(recipe => recipe.UpdatedAt).ThenByDescending(recipe => recipe.Id),
+            _ => ascending
+                ? orderedQuery.ThenBy(recipe => recipe.CreatedAt).ThenBy(recipe => recipe.Id)
+                : orderedQuery.ThenByDescending(recipe => recipe.CreatedAt).ThenByDescending(recipe => recipe.Id)
+        };
     }
 
     [Authorize]
