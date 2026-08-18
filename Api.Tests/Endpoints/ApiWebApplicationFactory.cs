@@ -204,6 +204,13 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
             files[key] = memory.ToArray();
         }
 
+        public Task<bool> CopyFileAsync(string sourceKey, string destinationKey) {
+            if (!files.TryGetValue(sourceKey, out var payload)) return Task.FromResult(false);
+
+            files[destinationKey] = payload;
+            return Task.FromResult(true);
+        }
+
         public Task<Stream> DownloadFileAsync(string s3Key) {
             if (!files.TryGetValue(s3Key, out var payload))
                 throw new InvalidOperationException($"Test file '{s3Key}' was not found.");

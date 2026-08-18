@@ -60,6 +60,49 @@ public sealed class RecipeImageStore(
     }
 
     /// <summary>
+    ///     Copies an existing image and its renditions to fresh keys, returning the new full-size
+    ///     key, or null when the source image is gone. Used when a recipe is duplicated into another
+    ///     workspace, where the bytes are already optimized and only need a second owner.
+    /// </summary>
+    /// <remarks>
+    ///     The renditions are copied rather than left to be regenerated on demand. Without this an
+    ///     imported recipe starts with none, so the first viewer of each width pays a download,
+    ///     resize and write inside their own request — for a collection import that is two resizes
+    ///     per recipe, charged to whoever happens to open them first. Copies run inside the storage
+    ///     service, so none of it travels through the API.
+    ///     A rendition that fails to copy is not fatal: images predating renditions have none, and
+    ///     <see cref="OpenAsync" /> still backfills a miss.
+    /// </remarks>
+    public async Task<string?> CopyAsync(string sourceFullSizeKey, CancellationToken cancellationToken = default) {
+        var destinationKey = BuildCopyKey(sourceFullSizeKey);
+
+        if (!await s3StorageService.CopyFileAsync(sourceFullSizeKey, destinationKey)) {
+            using var missingScope = logger.BeginPropertyScope(("recipe.image.key", sourceFullSizeKey));
+            logger.LogWarning("Could not copy a recipe image because the source object is missing");
+            return null;
+        }
+
+        foreach (var width in RecipeImageVariants.Widths) {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var sourceRenditionKey = RecipeImageVariants.KeyForWidth(sourceFullSizeKey, width);
+            var destinationRenditionKey = RecipeImageVariants.KeyForWidth(destinationKey, width);
+
+            try {
+                await s3StorageService.CopyFileAsync(sourceRenditionKey, destinationRenditionKey);
+            } catch (Exception exception) {
+                using var scope = logger.BeginPropertyScope(
+                    ("recipe.image.key", sourceRenditionKey),
+                    ("recipe.image.width", width)
+                );
+                logger.LogWarning(exception, "Could not copy a recipe image rendition");
+            }
+        }
+
+        return destinationKey;
+    }
+
+    /// <summary>
     ///     Opens the rendition covering <paramref name="requestedWidth" />, falling back to the
     ///     full-size object.
     /// </summary>
@@ -111,6 +154,18 @@ public sealed class RecipeImageStore(
         }
 
         await s3StorageService.DeleteFileAsync(fullSizeObjectKey);
+    }
+
+    /// <summary>
+    ///     A fresh key for a copy, keeping the original file name — and so its extension, which is
+    ///     what <see cref="RecipeImageVariants.KeyForWidth" /> derives rendition keys from — behind
+    ///     a new unique prefix, matching the shape <see cref="IS3StorageService.UploadFileAsync" />
+    ///     generates.
+    /// </summary>
+    private static string BuildCopyKey(string sourceFullSizeKey) {
+        var separatorIndex = sourceFullSizeKey.IndexOf('_');
+        var fileName = separatorIndex >= 0 ? sourceFullSizeKey[(separatorIndex + 1)..] : sourceFullSizeKey;
+        return $"{Guid.NewGuid()}_{fileName}";
     }
 
     private async Task<RecipeImageContent> GenerateRenditionAsync(

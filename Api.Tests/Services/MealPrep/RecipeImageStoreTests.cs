@@ -154,6 +154,67 @@ public class RecipeImageStoreTests
         Assert.Empty(storage.Keys);
     }
 
+    [Fact]
+    public async Task CopyAsync_ShouldCopyTheFullSizeImageAndEveryRendition() {
+        var storage = new FakeS3StorageService();
+        var store = BuildStore(storage);
+
+        await using var source = CreatePng(1200, 900);
+        var sourceKey = await store.StoreAsync(source, "dinner.png");
+
+        var copyKey = await store.CopyAsync(sourceKey);
+
+        Assert.NotNull(copyKey);
+        Assert.NotEqual(sourceKey, copyKey);
+        Assert.Contains(copyKey, storage.Keys);
+        foreach (var width in RecipeImageVariants.Widths) {
+            Assert.Contains(RecipeImageVariants.KeyForWidth(copyKey, width), storage.Keys);
+        }
+    }
+
+    [Fact]
+    public async Task CopyAsync_ShouldNotReEncodeTheImage() {
+        var storage = new FakeS3StorageService();
+        var store = BuildStore(storage);
+
+        await using var source = CreatePng(1200, 900);
+        var sourceKey = await store.StoreAsync(source, "dinner.png");
+        var uploadsAfterStore = storage.UploadCount;
+
+        var copyKey = await store.CopyAsync(sourceKey);
+
+        Assert.NotNull(copyKey);
+        Assert.Equal(uploadsAfterStore, storage.UploadCount);
+        Assert.Equal(storage.Read(sourceKey), storage.Read(copyKey));
+    }
+
+    [Fact]
+    public async Task CopyAsync_ShouldStillCopyAnImageThatHasNoRenditions() {
+        var storage = new FakeS3StorageService();
+        var store = BuildStore(storage);
+
+        await using var source = CreatePng(1200, 900);
+        var sourceKey = await store.StoreAsync(source, "dinner.png");
+        foreach (var width in RecipeImageVariants.Widths) {
+            await storage.DeleteFileAsync(RecipeImageVariants.KeyForWidth(sourceKey, width));
+        }
+
+        var copyKey = await store.CopyAsync(sourceKey);
+
+        Assert.NotNull(copyKey);
+        Assert.Contains(copyKey, storage.Keys);
+    }
+
+    [Fact]
+    public async Task CopyAsync_ShouldReturnNullWhenTheSourceImageIsGone() {
+        var storage = new FakeS3StorageService();
+        var store = BuildStore(storage);
+
+        var copyKey = await store.CopyAsync("11111111111111111111111111111111_missing.webp");
+
+        Assert.Null(copyKey);
+    }
+
     private static RecipeImageStore BuildStore(IS3StorageService storage) {
         return new RecipeImageStore(
             storage,
@@ -201,6 +262,16 @@ public class RecipeImageStoreTests
             await fileStream.CopyToAsync(memory);
             files[key] = memory.ToArray();
             UploadCount++;
+        }
+
+        public int CopyCount { get; private set; }
+
+        public Task<bool> CopyFileAsync(string sourceKey, string destinationKey) {
+            if (!files.TryGetValue(sourceKey, out var payload)) return Task.FromResult(false);
+
+            files[destinationKey] = payload;
+            CopyCount++;
+            return Task.FromResult(true);
         }
 
         public Task<Stream> DownloadFileAsync(string s3Key) {
