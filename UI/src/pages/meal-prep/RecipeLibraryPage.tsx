@@ -220,7 +220,13 @@ export default function RecipeLibraryPage() {
                             Sort by
                         </label>
                         <Select value={sortId} onValueChange={value => setSortId(value as SortId)}>
-                            <SelectTrigger id='recipe-library-sort' className='w-full'>
+                            {/* The shared trigger line-clamps its value, which crops the descenders
+                                off labels like "Recently updated". The labels here are short and
+                                fixed, so the clamp buys nothing. */}
+                            <SelectTrigger
+                                id='recipe-library-sort'
+                                className='w-full [&>span]:line-clamp-none [&>span]:overflow-visible'
+                            >
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
