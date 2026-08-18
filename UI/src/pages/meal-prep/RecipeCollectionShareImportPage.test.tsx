@@ -17,8 +17,9 @@ vi.mock('@/lib/api', () => ({
 }));
 
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => useAuth() }));
+const workspace = { workspaceId: 'workspace-1', name: 'Home' };
 vi.mock('@/contexts/WorkspaceContext', () => ({
-    useWorkspace: () => ({ workspaces: [], currentWorkspace: undefined }),
+    useWorkspace: () => ({ workspaces: [workspace], currentWorkspace: workspace }),
 }));
 vi.mock('@/lib/analytics', () => ({
     analyticsEvents: { shareLinkAuthPrompted: 'share_link_auth_prompted' },
@@ -136,5 +137,30 @@ describe('RecipeCollectionShareImportPage', () => {
 
         expect(await screen.findByRole('button', { name: 'Import collection' })).toBeDefined();
         expect(screen.queryByRole('link', { name: 'Create free account' })).toBeNull();
+    });
+
+    it('keeps the app navigation available to a signed-in visitor', async () => {
+        useAuth.mockReturnValue({ user: { userId: 'user-1' }, isLoading: false });
+
+        renderPage();
+
+        // One link in the desktop header, one in the mobile tab bar; CSS decides which is visible.
+        const recipesLinks = await screen.findAllByRole('link', { name: 'Recipes' });
+
+        expect(recipesLinks).toHaveLength(2);
+        for (const link of recipesLinks) {
+            expect(link.getAttribute('href')).toBe(`/workspaces/${workspace.workspaceId}/`);
+        }
+        expect(screen.getAllByRole('link', { name: 'Shopping' })).toHaveLength(2);
+    });
+
+    it('does not show the app navigation to a signed-out visitor', async () => {
+        useAuth.mockReturnValue({ user: null, isLoading: false });
+
+        renderPage();
+
+        await screen.findByText('Sunday Roast');
+
+        expect(screen.queryAllByRole('link', { name: 'Recipes' })).toHaveLength(0);
     });
 });

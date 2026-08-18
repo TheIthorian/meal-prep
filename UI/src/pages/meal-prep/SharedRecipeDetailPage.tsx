@@ -9,11 +9,15 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { RecipeIngredientListRow } from '@/components/recipes/RecipeIngredientListRow';
 import { InstructionWithInlineAmounts } from '@/components/recipes/InstructionWithInlineAmounts';
 import { ShareSignupPrompt } from '@/components/share/ShareSignupPrompt';
+import { MealPrepBottomNav } from '@/components/meal-prep/MealPrepBottomNav';
+import { MealPrepTopNav } from '@/components/meal-prep/MealPrepTopNav';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { safeHttpUrlHref } from '@/lib/meal-prep';
 
 export default function SharedRecipeDetailPage() {
     const { shareToken = '', recipeId = '' } = useParams<{ shareToken: string; recipeId: string }>();
     const { user, isLoading: isAuthLoading } = useAuth();
+    const { currentWorkspace } = useWorkspace();
 
     const collectionPath = `/share/recipe-collections/${shareToken}`;
     const recipePath = `${collectionPath}/recipes/${recipeId}`;
@@ -45,127 +49,138 @@ export default function SharedRecipeDetailPage() {
     const sourceHref = safeHttpUrlHref(recipe.sourceUrl);
 
     return (
-        // pb-28 on small screens keeps the last of the recipe clear of the fixed prompt bar.
-        <div className='mx-auto max-w-5xl space-y-4 px-4 pb-28 pt-10 md:px-8 lg:pb-10'>
-            {!isAuthLoading && !isSignedIn && (
-                <ShareSignupPrompt
-                    returnUrl={recipePath}
-                    headline='Save this recipe to your library.'
-                    detail='Plan your week and turn it into a shopping list.'
-                />
-            )}
+        <>
+            {/* A signed-in visitor following a share link is outside the workspace layout, so the
+                header and tab bar are rendered here for them to get back into the app. */}
+            {isSignedIn && currentWorkspace && <MealPrepTopNav workspaceId={currentWorkspace.workspaceId} />}
 
-            <Button asChild variant='ghost' size='sm' className='-ml-2'>
-                <Link to={collectionPath}>
-                    <ArrowLeft className='mr-1 h-4 w-4' aria-hidden />
-                    Back to collection
-                </Link>
-            </Button>
-
-            <article className='overflow-hidden rounded-xl border border-border bg-card'>
-                {recipe.hasImage && (
-                    <img
-                        src={recipeCollectionsApi.sharedRecipeImageUrl(shareToken, recipe.id, 800)}
-                        alt=''
-                        className='h-56 w-full object-cover md:h-72'
+            {/* pb-28 on small screens keeps the last of the recipe clear of the fixed prompt bar
+            (signed out) or the mobile tab bar (signed in). */}
+            <div className='mx-auto max-w-5xl space-y-4 px-4 pb-28 pt-10 md:px-8 lg:pb-10'>
+                {!isAuthLoading && !isSignedIn && (
+                    <ShareSignupPrompt
+                        returnUrl={recipePath}
+                        headline='Save this recipe to your library.'
+                        detail='Plan your week and turn it into a shopping list.'
                     />
                 )}
 
-                <div className='p-6'>
-                    <h1 className='font-heading text-2xl text-foreground'>{recipe.title}</h1>
-                    {recipe.description && <p className='mt-2 text-sm text-muted-foreground'>{recipe.description}</p>}
+                <Button asChild variant='ghost' size='sm' className='-ml-2'>
+                    <Link to={collectionPath}>
+                        <ArrowLeft className='mr-1 h-4 w-4' aria-hidden />
+                        Back to collection
+                    </Link>
+                </Button>
 
-                    <div className='mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground'>
-                        <span className='flex items-center gap-1.5'>
-                            <Users className='h-4 w-4' aria-hidden />
-                            Serves {recipe.servings}
-                        </span>
-                        {totalMinutes > 0 && (
+                <article className='overflow-hidden rounded-xl border border-border bg-card'>
+                    {recipe.hasImage && (
+                        <img
+                            src={recipeCollectionsApi.sharedRecipeImageUrl(shareToken, recipe.id, 800)}
+                            alt=''
+                            className='h-56 w-full object-cover md:h-72'
+                        />
+                    )}
+
+                    <div className='p-6'>
+                        <h1 className='font-heading text-2xl text-foreground'>{recipe.title}</h1>
+                        {recipe.description && (
+                            <p className='mt-2 text-sm text-muted-foreground'>{recipe.description}</p>
+                        )}
+
+                        <div className='mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground'>
                             <span className='flex items-center gap-1.5'>
-                                <Clock className='h-4 w-4' aria-hidden />
-                                {totalMinutes} min
+                                <Users className='h-4 w-4' aria-hidden />
+                                Serves {recipe.servings}
                             </span>
-                        )}
-                    </div>
-
-                    {recipe.tags.length > 0 && (
-                        <ul className='mt-4 flex flex-wrap gap-2'>
-                            {recipe.tags.map(tag => (
-                                <li
-                                    key={tag}
-                                    className='rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground'
-                                >
-                                    {tag}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-
-                    {/* Ingredients sit beside the method once there is room; the method column keeps a
-                        readable measure rather than stretching to the full page width. */}
-                    <div className='mt-6 gap-8 lg:grid lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:items-start'>
-                        {/* The ingredients rail sticks below the prompt bar as the method scrolls past. */}
-                        {recipe.ingredients.length > 0 && (
-                            <section className='lg:sticky lg:top-24'>
-                                <h2 className='font-heading text-lg text-foreground'>Ingredients</h2>
-                                <ul className='mt-3 space-y-2'>
-                                    {recipe.ingredients.map(ingredient => (
-                                        <li key={ingredient.id} className='text-sm text-foreground'>
-                                            <RecipeIngredientListRow ingredient={ingredient} />
-                                        </li>
-                                    ))}
-                                </ul>
-                            </section>
-                        )}
-
-                        {recipe.steps.length > 0 && (
-                            <section className='mt-6 lg:mt-0'>
-                                <h2 className='font-heading text-lg text-foreground'>Method</h2>
-                                <ol className='mt-3 space-y-4'>
-                                    {recipe.steps.map((step, index) => (
-                                        <li key={step.id} className='flex gap-3 text-sm text-foreground'>
-                                            <span className='mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground'>
-                                                {index + 1}
-                                            </span>
-                                            <p>
-                                                <InstructionWithInlineAmounts
-                                                    instruction={step.instruction}
-                                                    scaledIngredients={recipe.ingredients}
-                                                />
-                                            </p>
-                                        </li>
-                                    ))}
-                                </ol>
-                            </section>
-                        )}
-                    </div>
-
-                    {recipe.notes && (
-                        <section className='mt-6'>
-                            <h2 className='font-heading text-lg text-foreground'>Notes</h2>
-                            <p className='mt-2 whitespace-pre-line text-sm text-muted-foreground'>{recipe.notes}</p>
-                        </section>
-                    )}
-
-                    {recipe.sourceUrl && (
-                        <p className='mt-6 text-sm text-muted-foreground break-all'>
-                            Source:{' '}
-                            {sourceHref ? (
-                                <a
-                                    href={sourceHref}
-                                    target='_blank'
-                                    rel='noreferrer noopener'
-                                    className='underline underline-offset-4'
-                                >
-                                    {recipe.sourceUrl}
-                                </a>
-                            ) : (
-                                recipe.sourceUrl
+                            {totalMinutes > 0 && (
+                                <span className='flex items-center gap-1.5'>
+                                    <Clock className='h-4 w-4' aria-hidden />
+                                    {totalMinutes} min
+                                </span>
                             )}
-                        </p>
-                    )}
-                </div>
-            </article>
-        </div>
+                        </div>
+
+                        {recipe.tags.length > 0 && (
+                            <ul className='mt-4 flex flex-wrap gap-2'>
+                                {recipe.tags.map(tag => (
+                                    <li
+                                        key={tag}
+                                        className='rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground'
+                                    >
+                                        {tag}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+
+                        {/* Ingredients sit beside the method once there is room; the method column keeps a
+                        readable measure rather than stretching to the full page width. */}
+                        <div className='mt-6 gap-8 lg:grid lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:items-start'>
+                            {/* The ingredients rail sticks below the prompt bar as the method scrolls past. */}
+                            {recipe.ingredients.length > 0 && (
+                                <section className='lg:sticky lg:top-24'>
+                                    <h2 className='font-heading text-lg text-foreground'>Ingredients</h2>
+                                    <ul className='mt-3 space-y-2'>
+                                        {recipe.ingredients.map(ingredient => (
+                                            <li key={ingredient.id} className='text-sm text-foreground'>
+                                                <RecipeIngredientListRow ingredient={ingredient} />
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </section>
+                            )}
+
+                            {recipe.steps.length > 0 && (
+                                <section className='mt-6 lg:mt-0'>
+                                    <h2 className='font-heading text-lg text-foreground'>Method</h2>
+                                    <ol className='mt-3 space-y-4'>
+                                        {recipe.steps.map((step, index) => (
+                                            <li key={step.id} className='flex gap-3 text-sm text-foreground'>
+                                                <span className='mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground'>
+                                                    {index + 1}
+                                                </span>
+                                                <p>
+                                                    <InstructionWithInlineAmounts
+                                                        instruction={step.instruction}
+                                                        scaledIngredients={recipe.ingredients}
+                                                    />
+                                                </p>
+                                            </li>
+                                        ))}
+                                    </ol>
+                                </section>
+                            )}
+                        </div>
+
+                        {recipe.notes && (
+                            <section className='mt-6'>
+                                <h2 className='font-heading text-lg text-foreground'>Notes</h2>
+                                <p className='mt-2 whitespace-pre-line text-sm text-muted-foreground'>{recipe.notes}</p>
+                            </section>
+                        )}
+
+                        {recipe.sourceUrl && (
+                            <p className='mt-6 text-sm text-muted-foreground break-all'>
+                                Source:{' '}
+                                {sourceHref ? (
+                                    <a
+                                        href={sourceHref}
+                                        target='_blank'
+                                        rel='noreferrer noopener'
+                                        className='underline underline-offset-4'
+                                    >
+                                        {recipe.sourceUrl}
+                                    </a>
+                                ) : (
+                                    recipe.sourceUrl
+                                )}
+                            </p>
+                        )}
+                    </div>
+                </article>
+            </div>
+
+            {isSignedIn && currentWorkspace && <MealPrepBottomNav workspaceId={currentWorkspace.workspaceId} />}
+        </>
     );
 }

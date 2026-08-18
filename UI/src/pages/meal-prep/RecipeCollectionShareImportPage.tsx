@@ -12,6 +12,8 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { toast } from '@/hooks/use-toast';
 import { analyticsEvents, useAnalytics } from '@/lib/analytics';
 import { ShareSignupPrompt } from '@/components/share/ShareSignupPrompt';
+import { MealPrepBottomNav } from '@/components/meal-prep/MealPrepBottomNav';
+import { MealPrepTopNav } from '@/components/meal-prep/MealPrepTopNav';
 
 export default function RecipeCollectionShareImportPage() {
     const { shareToken = '' } = useParams<{ shareToken: string }>();
@@ -79,109 +81,122 @@ export default function RecipeCollectionShareImportPage() {
     }
 
     return (
-        // pb-28 on small screens keeps the last recipe clear of the fixed prompt bar.
-        <div className='mx-auto max-w-6xl space-y-4 px-4 pb-28 pt-10 md:px-8 lg:pb-10'>
-            {!isAuthLoading && !isSignedIn && (
-                <ShareSignupPrompt
-                    returnUrl={sharePath}
-                    headline={
-                        preview.recipeCount === 1
-                            ? 'Save this recipe to your library.'
-                            : `Save all ${preview.recipeCount} recipes to your library.`
-                    }
-                    detail='Plan your week and turn them into a shopping list.'
-                />
-            )}
+        <>
+            {/* A signed-in visitor following a share link is outside the workspace layout, so the
+                header and tab bar are rendered here for them to get back into the app. */}
+            {isSignedIn && currentWorkspace && <MealPrepTopNav workspaceId={currentWorkspace.workspaceId} />}
 
-            <div className='rounded-xl border border-border bg-card p-6'>
-                <h1 className='font-heading text-2xl text-foreground'>
-                    {isSignedIn ? 'Import shared collection' : 'Shared recipe collection'}
-                </h1>
-                <p className='mt-2 text-sm text-muted-foreground'>
-                    <span className='font-medium text-foreground'>{preview.collectionName}</span> from{' '}
-                    {preview.ownerWorkspaceName}
-                </p>
-                {preview.description && <p className='mt-1 text-sm text-muted-foreground'>{preview.description}</p>}
-                <p className='mt-1 text-sm text-muted-foreground'>{preview.recipeCount} recipes</p>
+            {/* pb-28 on small screens keeps the last recipe clear of the fixed prompt bar (signed out)
+            or the mobile tab bar (signed in). */}
+            <div className='mx-auto max-w-6xl space-y-4 px-4 pb-28 pt-10 md:px-8 lg:pb-10'>
+                {!isAuthLoading && !isSignedIn && (
+                    <ShareSignupPrompt
+                        returnUrl={sharePath}
+                        headline={
+                            preview.recipeCount === 1
+                                ? 'Save this recipe to your library.'
+                                : `Save all ${preview.recipeCount} recipes to your library.`
+                        }
+                        detail='Plan your week and turn them into a shopping list.'
+                    />
+                )}
 
-                {isSignedIn && (
-                    <>
-                        {/* The import controls stay at a form-like width even when the recipe grid is wide. */}
-                        <div className='mt-5 max-w-md space-y-3'>
-                            <label className='text-sm font-medium text-foreground'>Import into workspace</label>
-                            <Select value={targetWorkspaceId} onValueChange={setTargetWorkspaceId}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder='Choose workspace…' />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {selectableWorkspaces.map(workspace => (
-                                        <SelectItem key={workspace.workspaceId} value={workspace.workspaceId}>
-                                            {workspace.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                <div className='rounded-xl border border-border bg-card p-6'>
+                    <h1 className='font-heading text-2xl text-foreground'>
+                        {isSignedIn ? 'Import shared collection' : 'Shared recipe collection'}
+                    </h1>
+                    <p className='mt-2 text-sm text-muted-foreground'>
+                        <span className='font-medium text-foreground'>{preview.collectionName}</span> from{' '}
+                        {preview.ownerWorkspaceName}
+                    </p>
+                    {preview.description && <p className='mt-1 text-sm text-muted-foreground'>{preview.description}</p>}
+                    <p className='mt-1 text-sm text-muted-foreground'>{preview.recipeCount} recipes</p>
 
-                        <div className='mt-6 max-w-md'>
-                            <Button
-                                type='button'
-                                className='w-full'
-                                disabled={!targetWorkspaceId || importMutation.isPending}
-                                onClick={() => void importMutation.mutateAsync()}
-                            >
-                                Import collection
-                            </Button>
-                        </div>
-                    </>
+                    {isSignedIn && (
+                        <>
+                            {/* The import controls stay at a form-like width even when the recipe grid is wide. */}
+                            <div className='mt-5 max-w-md space-y-3'>
+                                <label className='text-sm font-medium text-foreground'>Import into workspace</label>
+                                <Select value={targetWorkspaceId} onValueChange={setTargetWorkspaceId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder='Choose workspace…' />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {selectableWorkspaces.map(workspace => (
+                                            <SelectItem key={workspace.workspaceId} value={workspace.workspaceId}>
+                                                {workspace.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className='mt-6 max-w-md'>
+                                <Button
+                                    type='button'
+                                    className='w-full'
+                                    disabled={!targetWorkspaceId || importMutation.isPending}
+                                    onClick={() => void importMutation.mutateAsync()}
+                                >
+                                    Import collection
+                                </Button>
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                {preview.recipes.length > 0 && (
+                    <ul className='grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3'>
+                        {preview.recipes.map(recipe => {
+                            const totalMinutes = (recipe.prepMinutes ?? 0) + (recipe.cookMinutes ?? 0);
+
+                            return (
+                                // min-w-0 on the grid item: a grid track's automatic minimum is its content, so
+                                // without it a long title widens the column instead of truncating.
+                                <li key={recipe.id} className='min-w-0'>
+                                    <Link
+                                        to={`${sharePath}/recipes/${recipe.id}`}
+                                        className='flex h-full items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:bg-accent'
+                                    >
+                                        {recipe.hasImage ? (
+                                            <img
+                                                src={recipeCollectionsApi.sharedRecipeImageUrl(
+                                                    shareToken,
+                                                    recipe.id,
+                                                    400,
+                                                )}
+                                                alt=''
+                                                className='h-14 w-14 shrink-0 rounded-md object-cover'
+                                            />
+                                        ) : (
+                                            <div className='flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-muted'>
+                                                <ChefHat className='h-5 w-5 text-muted-foreground' aria-hidden />
+                                            </div>
+                                        )}
+                                        <span className='min-w-0 flex-1'>
+                                            <span className='block truncate text-sm font-medium text-foreground'>
+                                                {recipe.title}
+                                            </span>
+                                            {recipe.description && (
+                                                <span className='block truncate text-xs text-muted-foreground'>
+                                                    {recipe.description}
+                                                </span>
+                                            )}
+                                            {totalMinutes > 0 && (
+                                                <span className='block text-xs text-muted-foreground'>
+                                                    {totalMinutes} min
+                                                </span>
+                                            )}
+                                        </span>
+                                    </Link>
+                                </li>
+                            );
+                        })}
+                    </ul>
                 )}
             </div>
 
-            {preview.recipes.length > 0 && (
-                <ul className='grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3'>
-                    {preview.recipes.map(recipe => {
-                        const totalMinutes = (recipe.prepMinutes ?? 0) + (recipe.cookMinutes ?? 0);
-
-                        return (
-                            // min-w-0 on the grid item: a grid track's automatic minimum is its content, so
-                            // without it a long title widens the column instead of truncating.
-                            <li key={recipe.id} className='min-w-0'>
-                                <Link
-                                    to={`${sharePath}/recipes/${recipe.id}`}
-                                    className='flex h-full items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:bg-accent'
-                                >
-                                    {recipe.hasImage ? (
-                                        <img
-                                            src={recipeCollectionsApi.sharedRecipeImageUrl(shareToken, recipe.id, 400)}
-                                            alt=''
-                                            className='h-14 w-14 shrink-0 rounded-md object-cover'
-                                        />
-                                    ) : (
-                                        <div className='flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-muted'>
-                                            <ChefHat className='h-5 w-5 text-muted-foreground' aria-hidden />
-                                        </div>
-                                    )}
-                                    <span className='min-w-0 flex-1'>
-                                        <span className='block truncate text-sm font-medium text-foreground'>
-                                            {recipe.title}
-                                        </span>
-                                        {recipe.description && (
-                                            <span className='block truncate text-xs text-muted-foreground'>
-                                                {recipe.description}
-                                            </span>
-                                        )}
-                                        {totalMinutes > 0 && (
-                                            <span className='block text-xs text-muted-foreground'>
-                                                {totalMinutes} min
-                                            </span>
-                                        )}
-                                    </span>
-                                </Link>
-                            </li>
-                        );
-                    })}
-                </ul>
-            )}
-        </div>
+            {isSignedIn && currentWorkspace && <MealPrepBottomNav workspaceId={currentWorkspace.workspaceId} />}
+        </>
     );
 }
