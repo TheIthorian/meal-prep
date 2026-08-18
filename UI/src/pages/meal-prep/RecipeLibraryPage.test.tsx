@@ -1,8 +1,18 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// jsdom has no ResizeObserver; the page uses one to measure its sticky header.
+vi.stubGlobal(
+    'ResizeObserver',
+    class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+    },
+);
 
 const getAll = vi.fn();
 
@@ -65,7 +75,7 @@ describe('RecipeLibraryPage sorting', () => {
         );
     });
 
-    it('restores a previously chosen sort and requests it', async () => {
+    it('restores a previously chosen sort field and requests it', async () => {
         window.sessionStorage.setItem(`recipe-library-sort:${workspaceId}`, 'title');
 
         renderPage();
@@ -75,11 +85,40 @@ describe('RecipeLibraryPage sorting', () => {
             workspaceId,
             expect.objectContaining({ orderBy: 'title', direction: 'asc' }),
         );
-        expect(screen.getByLabelText('Sort by').textContent).toContain('Name (A-Z)');
+        expect(screen.getByLabelText('Sort by').textContent).toContain('Name');
     });
 
-    it('falls back to the default sort when the stored value is not a known sort', async () => {
+    it('restores a previously chosen direction, so a reversed list stays reversed', async () => {
+        window.sessionStorage.setItem(`recipe-library-sort:${workspaceId}`, 'createdAt');
+        window.sessionStorage.setItem(`recipe-library-sort-direction:${workspaceId}`, 'asc');
+
+        renderPage();
+
+        await waitFor(() => expect(getAll).toHaveBeenCalled());
+        expect(getAll).toHaveBeenCalledWith(
+            workspaceId,
+            expect.objectContaining({ orderBy: 'createdAt', direction: 'asc' }),
+        );
+    });
+
+    it('reverses the list when the direction toggle is pressed, and remembers it', async () => {
+        renderPage();
+
+        await waitFor(() => expect(getAll).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole('button', { name: /Sort direction/ }));
+
+        await waitFor(() =>
+            expect(getAll).toHaveBeenCalledWith(
+                workspaceId,
+                expect.objectContaining({ orderBy: 'createdAt', direction: 'asc' }),
+            ),
+        );
+        expect(window.sessionStorage.getItem(`recipe-library-sort-direction:${workspaceId}`)).toBe('asc');
+    });
+
+    it('falls back to the default sort when the stored values are not known', async () => {
         window.sessionStorage.setItem(`recipe-library-sort:${workspaceId}`, 'nonsense');
+        window.sessionStorage.setItem(`recipe-library-sort-direction:${workspaceId}`, 'sideways');
 
         renderPage();
 

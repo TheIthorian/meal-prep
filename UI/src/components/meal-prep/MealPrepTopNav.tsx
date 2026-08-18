@@ -12,8 +12,11 @@ interface MealPrepTopNavProps {
  * share pages render outside the workspace layout but still show it to a signed-in visitor.
  */
 export function MealPrepTopNav({ workspaceId }: MealPrepTopNavProps) {
+    // The height is pinned rather than left to the content because pages stick their own bars
+    // directly beneath this one and need a known offset. 4.5rem is what the padding and the
+    // switcher button already came to, so nothing moves.
     return (
-        <header className='sticky top-0 z-30 hidden min-w-0 items-center justify-between gap-4 border-b border-border bg-card/80 px-4 py-4 backdrop-blur-sm md:flex lg:px-8'>
+        <header className='sticky top-0 z-30 hidden h-[4.5rem] min-w-0 items-center justify-between gap-4 border-b border-border bg-card/80 px-4 backdrop-blur-sm md:flex lg:px-8'>
             <div className='flex min-w-0 flex-1 items-center gap-3 lg:gap-4'>
                 <div className='flex min-w-0 shrink-0 items-center gap-2'>
                     <ChefHat className='h-7 w-7 shrink-0 text-primary' aria-hidden />
