@@ -125,23 +125,28 @@ describe('SharedRecipeDetailPage', () => {
         expect(await screen.findByText('Recipe not found')).toBeDefined();
     });
 
-    it('keeps the app tab bar available to a signed-in visitor', async () => {
+    it('keeps the app navigation available to a signed-in visitor', async () => {
         useAuth.mockReturnValue({ user: { userId: 'user-1' }, isLoading: false });
 
         renderPage();
 
-        const recipesTab = await screen.findByRole('link', { name: 'Recipes' });
+        // One link in the desktop header, one in the mobile tab bar; CSS decides which is visible.
+        const recipesLinks = await screen.findAllByRole('link', { name: 'Recipes' });
 
-        expect(recipesTab.getAttribute('href')).toBe(`/workspaces/${workspace.workspaceId}/`);
+        expect(recipesLinks).toHaveLength(2);
+        for (const link of recipesLinks) {
+            expect(link.getAttribute('href')).toBe(`/workspaces/${workspace.workspaceId}/`);
+        }
+        expect(screen.getAllByRole('link', { name: 'Shopping' })).toHaveLength(2);
     });
 
-    it('does not show the app tab bar to a signed-out visitor', async () => {
+    it('does not show the app navigation to a signed-out visitor', async () => {
         useAuth.mockReturnValue({ user: null, isLoading: false });
 
         renderPage();
 
         await screen.findByText('Sunday Roast');
 
-        expect(screen.queryByRole('link', { name: 'Recipes' })).toBeNull();
+        expect(screen.queryAllByRole('link', { name: 'Recipes' })).toHaveLength(0);
     });
 });

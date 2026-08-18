@@ -10,6 +10,7 @@ import { RecipeIngredientListRow } from '@/components/recipes/RecipeIngredientLi
 import { InstructionWithInlineAmounts } from '@/components/recipes/InstructionWithInlineAmounts';
 import { ShareSignupPrompt } from '@/components/share/ShareSignupPrompt';
 import { MealPrepBottomNav } from '@/components/meal-prep/MealPrepBottomNav';
+import { MealPrepTopNav } from '@/components/meal-prep/MealPrepTopNav';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { safeHttpUrlHref } from '@/lib/meal-prep';
 
@@ -49,6 +50,10 @@ export default function SharedRecipeDetailPage() {
 
     return (
         <>
+            {/* A signed-in visitor following a share link is outside the workspace layout, so the
+                header and tab bar are rendered here for them to get back into the app. */}
+            {isSignedIn && currentWorkspace && <MealPrepTopNav workspaceId={currentWorkspace.workspaceId} />}
+
             {/* pb-28 on small screens keeps the last of the recipe clear of the fixed prompt bar
             (signed out) or the mobile tab bar (signed in). */}
             <div className='mx-auto max-w-5xl space-y-4 px-4 pb-28 pt-10 md:px-8 lg:pb-10'>
@@ -175,8 +180,6 @@ export default function SharedRecipeDetailPage() {
                 </article>
             </div>
 
-            {/* A signed-in visitor following a share link is outside the workspace layout, so the tab
-            bar has to be rendered here for them to get back into the app on mobile. */}
             {isSignedIn && currentWorkspace && <MealPrepBottomNav workspaceId={currentWorkspace.workspaceId} />}
         </>
     );
