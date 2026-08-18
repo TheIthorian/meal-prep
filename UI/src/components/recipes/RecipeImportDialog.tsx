@@ -71,7 +71,7 @@ export function RecipeImportDialog({ workspaceId, onImported, trigger }: RecipeI
                             From a website
                         </Label>
                         <p className='mt-1 text-sm text-muted-foreground'>
-                            Paste a link to a recipe page — a blog, a newspaper, a supermarket site.
+                            Paste a link to a recipe page: a blog, a newspaper, a supermarket site.
                         </p>
                     </div>
                     <Input
