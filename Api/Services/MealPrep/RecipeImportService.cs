@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -26,6 +27,13 @@ public partial class RecipeImportService(
 {
     public const string RecipeImageImportHttpClientName = "RecipeImageImport";
     private const int MaxResponseBytes = 2 * 1024 * 1024;
+
+    private const string BrowserUserAgent =
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) "
+        + "Chrome/126.0.0.0 Safari/537.36";
+
+    private const string BrowserClientHint =
+        "\"Chromium\";v=\"126\", \"Google Chrome\";v=\"126\", \"Not;A=Brand\";v=\"24\"";
 
     // Every fixed pattern below is source-generated once at build time. Previously most of
     // them were inline Regex.Match/Matches/Replace calls that leaned on the static Regex
@@ -278,7 +286,7 @@ public partial class RecipeImportService(
     /// </summary>
     private async Task<string> FetchImportPageHtmlAsync(Uri parsedUrl, CancellationToken cancellationToken) {
         using var request = new HttpRequestMessage(HttpMethod.Get, parsedUrl);
-        request.Headers.UserAgent.ParseAdd("MealPrepBot/1.0");
+        ApplyBrowserRequestHeaders(request);
 
         try {
             using var response = await httpClient.SendAsync(
@@ -309,6 +317,37 @@ public partial class RecipeImportService(
                 "The source page took too long to respond. Try again, or create the recipe manually."
             );
         }
+    }
+
+    /// <summary>
+    ///     Presents the request as a real browser navigation.
+    /// </summary>
+    /// <remarks>
+    ///     Several recipe sites sit behind bot protection that scores the whole request shape, not just
+    ///     the user agent. A partial set is still rejected: sending only Sec-Fetch-*, only sec-ch-ua, or
+    ///     only Upgrade-Insecure-Requests all get refused, as does a browser user agent on its own. The
+    ///     protocol version matters as much as the headers -- on HTTP/1.1 those hosts accept the
+    ///     connection and then never respond, which is what surfaced as an import timeout.
+    /// </remarks>
+    private static void ApplyBrowserRequestHeaders(HttpRequestMessage request) {
+        request.Version = HttpVersion.Version20;
+        request.VersionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
+
+        request.Headers.UserAgent.ParseAdd(BrowserUserAgent);
+        request.Headers.Accept.ParseAdd(
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
+        );
+        request.Headers.AcceptLanguage.ParseAdd("en-GB,en-US;q=0.9,en;q=0.8");
+        request.Headers.CacheControl = new CacheControlHeaderValue { MaxAge = TimeSpan.Zero };
+
+        request.Headers.TryAddWithoutValidation("Upgrade-Insecure-Requests", "1");
+        request.Headers.TryAddWithoutValidation("sec-ch-ua", BrowserClientHint);
+        request.Headers.TryAddWithoutValidation("sec-ch-ua-mobile", "?0");
+        request.Headers.TryAddWithoutValidation("sec-ch-ua-platform", "\"macOS\"");
+        request.Headers.TryAddWithoutValidation("Sec-Fetch-Site", "none");
+        request.Headers.TryAddWithoutValidation("Sec-Fetch-Mode", "navigate");
+        request.Headers.TryAddWithoutValidation("Sec-Fetch-User", "?1");
+        request.Headers.TryAddWithoutValidation("Sec-Fetch-Dest", "document");
     }
 
     /// <summary>
