@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useNavigationType, useLocation } from 'react-router-dom';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Search, Plus, ArrowDown, ArrowUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { recipesApi } from '@/lib/api';
@@ -202,10 +202,24 @@ export default function RecipeLibraryPage() {
     const recipes = useMemo(() => data?.pages.flatMap(page => page?.data ?? []) ?? [], [data?.pages]);
     const totalCount = data?.pages[0]?.totalCount ?? recipes.length;
 
-    const allTags = useMemo(
-        () => Array.from(new Set(recipes.flatMap(r => r.tags))).sort((a, b) => a.localeCompare(b)),
-        [recipes],
-    );
+    // The tag list comes from the workspace rather than the recipes on screen: deriving it from
+    // the loaded pages hid every tag that only appeared on a later page of an infinite scroll.
+    const { data: tagUsage } = useQuery({
+        queryKey: ['recipe-tag-usage', workspaceId],
+        queryFn: () => recipesApi.getRecipeTagUsage(workspaceId),
+        enabled: Boolean(workspaceId),
+    });
+
+    const allTags = useMemo(() => {
+        const workspaceTags = tagUsage?.items.map(item => item.tag) ?? [];
+        // Until the usage query lands, fall back to the loaded recipes so the filters are not
+        // blank on first paint.
+        const tags = workspaceTags.length > 0 ? workspaceTags : recipes.flatMap(r => r.tags);
+        // A restored filter must stay visible even if its tag has since been removed, or there
+        // would be no chip to switch it off with.
+        if (activeTag) tags.push(activeTag);
+        return Array.from(new Set(tags)).sort((a, b) => a.localeCompare(b));
+    }, [tagUsage, recipes, activeTag]);
 
     const filtered = useMemo(() => {
         if (!activeTag) return recipes;
