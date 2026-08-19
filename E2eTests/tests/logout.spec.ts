@@ -22,17 +22,16 @@ async function registerAndSignIn(page: Page) {
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page.getByRole('button', { name: 'Sign In' }).click();
 
-    await expect(page).toHaveURL(/(\/settings$)|(\/workspaces\/[^/]+$)/, { timeout: 45_000 });
+    await expect(page).toHaveURL(/(\/settings$)|(\/workspaces\/[^/]+\/?$)/, { timeout: 45_000 });
 }
 
-test.describe('Logout', () => {
-    test('signs out from the sidebar on desktop', async ({ page }) => {
+test.describe('Account menu', () => {
+    test('signs out from the header avatar on desktop', async ({ page }) => {
         await registerAndSignIn(page);
 
-        // Visible in the sidebar without opening any menu.
-        const logout = page.locator('[data-sidebar="sidebar"]').getByRole('button', { name: 'Log out' });
-        await expect(logout).toBeVisible();
-        await logout.click();
+        await page.locator('header').getByRole('button', { name: 'Open account menu' }).click();
+        await expect(page.getByRole('menuitem', { name: 'Settings' })).toBeVisible();
+        await page.getByRole('menuitem', { name: 'Log out' }).click();
 
         await expect(page).toHaveURL(/\/login$/, { timeout: 45_000 });
 
@@ -41,14 +40,22 @@ test.describe('Logout', () => {
         await expect(page).toHaveURL(/\/login/, { timeout: 45_000 });
     });
 
-    test('signs out from the header on mobile', async ({ page }) => {
+    test('reaches settings from the header avatar on desktop', async ({ page }) => {
+        await registerAndSignIn(page);
+
+        await page.locator('header').getByRole('button', { name: 'Open account menu' }).click();
+        await page.getByRole('menuitem', { name: 'Settings' }).click();
+
+        await expect(page).toHaveURL(/\/settings$/, { timeout: 45_000 });
+    });
+
+    test('signs out from the tab bar avatar on mobile', async ({ page }) => {
         await page.setViewportSize({ width: 390, height: 844 });
         await registerAndSignIn(page);
 
-        // The sidebar is off-canvas on mobile, so the header carries the action.
-        const logout = page.locator('header').getByRole('button', { name: 'Log out' });
-        await expect(logout).toBeVisible();
-        await logout.click();
+        // The header is desktop only, so the mobile tab bar carries the avatar.
+        await page.locator('nav.fixed').getByRole('button', { name: 'Open account menu' }).click();
+        await page.getByRole('menuitem', { name: 'Log out' }).click();
 
         await expect(page).toHaveURL(/\/login$/, { timeout: 45_000 });
     });

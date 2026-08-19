@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { ChefHat } from 'lucide-react';
 import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { MealPrepUserMenu } from '@/components/meal-prep/MealPrepUserMenu';
 import { mealPrepNavItems } from '@/lib/meal-prep-nav';
 
 interface MealPrepTopNavProps {
@@ -49,6 +50,9 @@ export function MealPrepTopNav({ workspaceId }: MealPrepTopNavProps) {
                         </TooltipContent>
                     </Tooltip>
                 ))}
+
+                {/* Settings and logout live behind the avatar, the way GitHub does it. */}
+                <MealPrepUserMenu workspaceId={workspaceId} align='end' side='bottom' />
             </nav>
         </header>
     );

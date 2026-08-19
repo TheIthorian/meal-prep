@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { MealPrepUserMenu } from '@/components/meal-prep/MealPrepUserMenu';
 import { mealPrepNavItems } from '@/lib/meal-prep-nav';
 
 interface MealPrepBottomNavProps {
@@ -31,6 +32,11 @@ export function MealPrepBottomNav({ workspaceId }: MealPrepBottomNavProps) {
                         </span>
                     </NavLink>
                 ))}
+
+                {/* Settings and logout sit behind the avatar here too, opening upwards. */}
+                <div className='flex min-w-[3.25rem] shrink-0 items-center justify-center px-2 py-1.5'>
+                    <MealPrepUserMenu workspaceId={workspaceId} align='end' side='top' />
+                </div>
             </div>
         </nav>
     );
