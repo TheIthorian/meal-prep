@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Carrot, ExternalLink } from 'lucide-react';
-import { recipesApi } from '@/lib/api';
+import { recipeCollectionsApi, recipeSharesApi, recipesApi } from '@/lib/api';
 import { splitInstructionIntoSentences } from '@/lib/instruction-sentences';
 import { safeHttpUrlHref, scaleRecipeIngredients } from '@/lib/meal-prep';
 import { cn } from '@/lib/utils';
@@ -32,7 +32,18 @@ function collectCookingSentenceIds(steps: { id: string; instruction: string }[])
 }
 
 export default function CookingModePage() {
-    const { workspaceId = '', recipeId = '' } = useParams<{ workspaceId: string; recipeId: string }>();
+    // Three ways in: a recipe of the viewer's own, a recipe shared on its own link, and a recipe inside
+    // a shared collection. The last two are read-only, so the exit link goes back to the share page.
+    const {
+        workspaceId = '',
+        recipeId = '',
+        shareToken = '',
+    } = useParams<{ workspaceId: string; recipeId: string; shareToken: string }>();
+    const isCollectionShare = Boolean(shareToken && recipeId);
+    const isShared = Boolean(shareToken);
+    // Cooking progress is stored per recipe; a share link identifies the recipe on its own.
+    const progressScope = isShared ? `share-${shareToken}` : workspaceId;
+    const progressKey = recipeId || shareToken;
     const { setCurrentWorkspaceId } = useWorkspace();
     const [showIngredients, setShowIngredients] = useState(false);
     const [targetServings, setTargetServings] = useState(1);
@@ -51,9 +62,17 @@ export default function CookingModePage() {
     }, [setCurrentWorkspaceId, workspaceId]);
 
     const { data: recipe, isLoading } = useQuery({
-        queryKey: ['recipe', workspaceId, recipeId],
-        queryFn: () => recipesApi.getById(workspaceId, recipeId),
-        enabled: Boolean(workspaceId && recipeId),
+        queryKey: isCollectionShare
+            ? ['shared-recipe', shareToken, recipeId]
+            : isShared
+              ? ['shared-recipe-link-recipe', shareToken]
+              : ['recipe', workspaceId, recipeId],
+        queryFn: isCollectionShare
+            ? () => recipeCollectionsApi.getSharedRecipe(shareToken, recipeId)
+            : isShared
+              ? async () => (await recipeSharesApi.getSharedRecipe(shareToken)).recipe
+              : () => recipesApi.getById(workspaceId, recipeId),
+        enabled: Boolean(isShared ? shareToken : workspaceId && recipeId),
     });
 
     recipeStepsRef.current = recipe?.steps;
@@ -79,9 +98,9 @@ export default function CookingModePage() {
     useLayoutEffect(() => {
         const root = scrollContainerRef.current;
         const steps = recipeStepsRef.current;
-        if (!root || !workspaceId || !recipeId || !stepSentenceSignature || !steps?.length) return;
+        if (!root || !progressScope || !progressKey || !stepSentenceSignature || !steps?.length) return;
 
-        const key = cookingSentenceStorageKey(workspaceId, recipeId);
+        const key = cookingSentenceStorageKey(progressScope, progressKey);
         const validIds = collectCookingSentenceIds(steps);
         const saved = sessionStorage.getItem(key);
 
@@ -101,17 +120,17 @@ export default function CookingModePage() {
                 sessionStorage.removeItem(key);
             }
         }
-    }, [recipeId, workspaceId, stepSentenceSignature]);
+    }, [progressKey, progressScope, stepSentenceSignature]);
 
     useEffect(() => {
-        if (!workspaceId || !recipeId) return;
-        const key = cookingSentenceStorageKey(workspaceId, recipeId);
+        if (!progressScope || !progressKey) return;
+        const key = cookingSentenceStorageKey(progressScope, progressKey);
         if (activeSentenceId) {
             sessionStorage.setItem(key, activeSentenceId);
         } else {
             sessionStorage.removeItem(key);
         }
-    }, [activeSentenceId, workspaceId, recipeId]);
+    }, [activeSentenceId, progressScope, progressKey]);
 
     if (isLoading || !recipe) {
         return (
@@ -123,7 +142,11 @@ export default function CookingModePage() {
 
     const totalSteps = recipe.steps.length;
 
-    const detailPath = `/workspaces/${workspaceId}/recipe/${recipe.id}`;
+    const detailPath = isCollectionShare
+        ? `/share/recipe-collections/${shareToken}/recipes/${recipeId}`
+        : isShared
+          ? `/share/recipes/${shareToken}`
+          : `/workspaces/${workspaceId}/recipe/${recipe.id}`;
     const sourceHref = safeHttpUrlHref(recipe.sourceUrl);
 
     return (

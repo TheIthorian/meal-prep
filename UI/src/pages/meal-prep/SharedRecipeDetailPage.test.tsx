@@ -2,14 +2,17 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getSharedRecipe = vi.fn();
+const getShareLinkPreview = vi.fn();
 const useAuth = vi.fn();
 
 vi.mock('@/lib/api', () => ({
     recipeCollectionsApi: {
         getSharedRecipe: (shareToken: string, recipeId: string) => getSharedRecipe(shareToken, recipeId),
+        getShareLinkPreview: (shareToken: string) => getShareLinkPreview(shareToken),
         sharedRecipeImageUrl: (token: string, recipeId: string, width?: number) =>
             `/api/v1/recipe-collection-share/${token}/recipes/${recipeId}/image${width ? `?w=${width}` : ''}`,
     },
@@ -33,14 +36,16 @@ function renderPage() {
 
     return render(
         <QueryClientProvider client={queryClient}>
-            <MemoryRouter initialEntries={[recipePath]}>
-                <Routes>
-                    <Route
-                        path='/share/recipe-collections/:shareToken/recipes/:recipeId'
-                        element={<SharedRecipeDetailPage />}
-                    />
-                </Routes>
-            </MemoryRouter>
+            <TooltipProvider>
+                <MemoryRouter initialEntries={[recipePath]}>
+                    <Routes>
+                        <Route
+                            path='/share/recipe-collections/:shareToken/recipes/:recipeId'
+                            element={<SharedRecipeDetailPage />}
+                        />
+                    </Routes>
+                </MemoryRouter>
+            </TooltipProvider>
         </QueryClientProvider>,
     );
 }
@@ -52,6 +57,13 @@ describe('SharedRecipeDetailPage', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        getShareLinkPreview.mockResolvedValue({
+            collectionName: 'Weeknight Dinners',
+            description: null,
+            ownerWorkspaceName: 'Sharer Workspace',
+            recipeCount: 1,
+            recipes: [],
+        });
         getSharedRecipe.mockResolvedValue({
             id: recipeId,
             title: 'Sunday Roast',
@@ -116,6 +128,35 @@ describe('SharedRecipeDetailPage', () => {
         expect(screen.queryByRole('link', { name: 'Create free account' })).toBeNull();
     });
 
+    it('says the recipe is read-only and names who shared it', async () => {
+        useAuth.mockReturnValue({ user: null, isLoading: false });
+
+        renderPage();
+
+        expect(await screen.findByText('Sharer Workspace')).toBeDefined();
+        expect(screen.getByText(/but not edit it/)).toBeDefined();
+    });
+
+    it('sends a signed-out visitor to sign in before cooking mode', async () => {
+        useAuth.mockReturnValue({ user: null, isLoading: false });
+
+        renderPage();
+
+        const cookLink = await screen.findByRole('link', { name: /Start cooking/ });
+
+        expect(cookLink.getAttribute('href')).toBe(`/login?returnUrl=${encodeURIComponent(recipePath)}`);
+    });
+
+    it('links a signed-in visitor straight into cooking mode', async () => {
+        useAuth.mockReturnValue({ user: { userId: 'user-1' }, isLoading: false });
+
+        renderPage();
+
+        const cookLink = await screen.findByRole('link', { name: /Start cooking/ });
+
+        expect(cookLink.getAttribute('href')).toBe(`${recipePath}/cooking`);
+    });
+
     it('shows a not-found state when the recipe is not reachable through the token', async () => {
         useAuth.mockReturnValue({ user: null, isLoading: false });
         getSharedRecipe.mockRejectedValue(new Error('404'));
@@ -131,13 +172,15 @@ describe('SharedRecipeDetailPage', () => {
         renderPage();
 
         // One link in the desktop header, one in the mobile tab bar; CSS decides which is visible.
-        const recipesLinks = await screen.findAllByRole('link', { name: 'Recipes' });
+        // Matched loosely: the header link carries the label twice — once visible from lg up, once
+        // screen-reader-only below it — and jsdom applies no CSS, so both are in the name here.
+        const recipesLinks = await screen.findAllByRole('link', { name: /Recipes/ });
 
         expect(recipesLinks).toHaveLength(2);
         for (const link of recipesLinks) {
             expect(link.getAttribute('href')).toBe(`/workspaces/${workspace.workspaceId}/`);
         }
-        expect(screen.getAllByRole('link', { name: 'Shopping' })).toHaveLength(2);
+        expect(screen.getAllByRole('link', { name: /Shopping/ })).toHaveLength(2);
     });
 
     it('does not show the app navigation to a signed-out visitor', async () => {
@@ -147,6 +190,6 @@ describe('SharedRecipeDetailPage', () => {
 
         await screen.findByText('Sunday Roast');
 
-        expect(screen.queryAllByRole('link', { name: 'Recipes' })).toHaveLength(0);
+        expect(screen.queryAllByRole('link', { name: /Recipes/ })).toHaveLength(0);
     });
 });

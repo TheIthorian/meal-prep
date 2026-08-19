@@ -229,6 +229,21 @@ export interface SharedRecipeDetail extends SharedRecipeSummary {
     nutrition?: RecipeNutrition | null;
 }
 
+export interface RecipeShareLink {
+    shareToken: string;
+    sharePath: string;
+    createdAtUtc: string;
+}
+
+/**
+ * A single recipe shared by link, with the name of the workspace that shared it. The recipient reads it
+ * only: editing means saving a copy of their own.
+ */
+export interface SharedRecipePreview {
+    ownerWorkspaceName: string;
+    recipe: SharedRecipeDetail;
+}
+
 export interface RecipeImportPreview {
     title: string;
     description?: string | null;
