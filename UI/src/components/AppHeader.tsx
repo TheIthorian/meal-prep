@@ -1,32 +1,12 @@
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { User, LogOut } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { analyticsEvents, useAnalytics, withWorkspaceProperties } from '@/lib/analytics';
+import { LogOut } from 'lucide-react';
+import { useLogout } from '@/hooks/use-logout';
 import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function AppHeader() {
-    const { user, logout } = useAuth();
-    const { currentWorkspace } = useWorkspace();
-    const navigate = useNavigate();
-    const { capture } = useAnalytics();
-
-    const handleLogout = async () => {
-        capture(analyticsEvents.userLoggedOut, withWorkspaceProperties(currentWorkspace));
-        await logout();
-        navigate('/login');
-    };
+    const { isMobile } = useSidebar();
+    const logout = useLogout();
 
     return (
         <header className='flex h-14 min-w-0 items-center justify-between gap-2 border-b border-border bg-card px-3 sm:px-4'>
@@ -35,36 +15,13 @@ export function AppHeader() {
                 <WorkspaceSwitcher />
             </div>
 
-            <DropdownMenu>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant='ghost' size='icon' className='shrink-0' aria-label='Open user menu'>
-                                <User className='h-5 w-5' />
-                            </Button>
-                        </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side='bottom'>User menu</TooltipContent>
-                </Tooltip>
-                <DropdownMenuContent align='end'>
-                    <DropdownMenuLabel>{user?.displayName || user?.email}</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                        onClick={() =>
-                            navigate(
-                                currentWorkspace ? `/workspaces/${currentWorkspace.workspaceId}/settings` : '/settings',
-                            )
-                        }
-                    >
-                        <User className='mr-2 h-4 w-4' />
-                        Settings
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleLogout}>
-                        <LogOut className='mr-2 h-4 w-4' />
-                        Logout
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+            {/* On mobile the sidebar is off-canvas, so logout also lives in the header there. */}
+            {isMobile && (
+                <Button variant='ghost' size='sm' className='shrink-0' onClick={logout}>
+                    <LogOut className='mr-2 h-4 w-4' />
+                    Log out
+                </Button>
+            )}
         </header>
     );
 }
