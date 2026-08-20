@@ -28,14 +28,6 @@ export default function SharedRecipeDetailPage() {
         enabled: Boolean(shareToken && recipeId),
     });
 
-    // The collection preview names the workspace that shared it; it is already in the cache from the
-    // collection page a visitor arrives through, and is refetched cheaply when they deep-link here.
-    const { data: collectionPreview } = useQuery({
-        queryKey: ['recipe-collection-share-preview', shareToken],
-        queryFn: () => recipeCollectionsApi.getShareLinkPreview(shareToken),
-        enabled: Boolean(shareToken),
-    });
-
     if (isLoading) {
         return (
             <div className='mx-auto max-w-2xl px-4 py-10 md:px-8'>
@@ -84,16 +76,13 @@ export default function SharedRecipeDetailPage() {
                             : null
                     }
                     header={
-                        collectionPreview ? (
-                            // Saving a single recipe out of a shared collection is the collection page's job:
-                            // it imports the whole collection, so this page offers reading and cooking only.
-                            <SharedRecipeNotice
-                                ownerWorkspaceName={collectionPreview.ownerWorkspaceName}
-                                cookingPath={`${recipePath}/cooking`}
-                                returnUrl={recipePath}
-                                isSignedIn={isSignedIn}
-                            />
-                        ) : null
+                        // Saving a single recipe out of a shared collection is the collection page's job:
+                        // it imports the whole collection, so this page offers reading and cooking only.
+                        <SharedRecipeNotice
+                            cookingPath={`${recipePath}/cooking`}
+                            returnUrl={recipePath}
+                            isSignedIn={isSignedIn}
+                        />
                     }
                 />
             </div>

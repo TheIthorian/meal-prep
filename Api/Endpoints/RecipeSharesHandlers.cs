@@ -44,14 +44,25 @@ internal static class RecipeSharesHandlers
         if (link is null) {
             link = RecipeShareLink.CreateNew(recipeId, workspaceUser.UserId, Guid.NewGuid().ToString("N"));
             await db.RecipeShareLinks.AddAsync(link, cancellationToken);
-            await db.SaveChangesAsync(cancellationToken);
+
+            try {
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException) {
+                // Another request for the same recipe won the race against the unique index on RecipeId.
+                // Its token is the one in circulation, so hand that back instead of failing the click.
+                db.Entry(link).State = EntityState.Detached;
+                link = await db.RecipeShareLinks
+                    .Where(value => value.RecipeId == recipeId)
+                    .FirstAsync(cancellationToken);
+            }
         }
 
         return TypedResults.Json(
             new RecipeShareLinkResponse(
                 link.Token,
                 $"/share/recipes/{link.Token}",
-                DateTime.UtcNow
+                link.CreatedAt
             )
         );
     }
@@ -59,10 +70,10 @@ internal static class RecipeSharesHandlers
     /// <remarks>
     ///     Anonymous by design: the share token is the credential, so a signed-out visitor who opens a magic link
     ///     can read the recipe and be invited to sign up. Only the recipe itself is exposed, never the workspace
-    ///     it lives in, the viewer's favourites or its collection membership.
+    ///     that shared it, the viewer's favourites or its collection membership.
     /// </remarks>
     [AllowAnonymous]
-    public static async Task<JsonHttpResult<SharedRecipePreviewResponse>> GetSharedRecipe(
+    public static async Task<JsonHttpResult<SharedRecipeDetailResponse>> GetSharedRecipe(
         ApiDbContext db,
         string shareToken,
         CancellationToken cancellationToken
@@ -73,17 +84,11 @@ internal static class RecipeSharesHandlers
             query => query
                 .Include(value => value.Recipe).ThenInclude(recipe => recipe.Ingredients)
                 .Include(value => value.Recipe).ThenInclude(recipe => recipe.Steps)
-                .Include(value => value.Recipe).ThenInclude(recipe => recipe.Nutrition)
-                .Include(value => value.Recipe).ThenInclude(recipe => recipe.Workspace),
+                .Include(value => value.Recipe).ThenInclude(recipe => recipe.Nutrition),
             cancellationToken
         );
 
-        return TypedResults.Json(
-            new SharedRecipePreviewResponse(
-                link.Recipe.Workspace.Name,
-                link.Recipe.ToSharedRecipeDetailResponse()
-            )
-        );
+        return TypedResults.Json(link.Recipe.ToSharedRecipeDetailResponse());
     }
 
     /// <inheritdoc cref="GetSharedRecipe" />

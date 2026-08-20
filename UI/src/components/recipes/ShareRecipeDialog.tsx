@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Check, X } from 'lucide-react';
 import { recipeSharesApi } from '@/lib/api';
@@ -35,6 +35,12 @@ const privateFields = ['Your meal plan and shopping lists', 'Your collections an
 
 export function ShareRecipeDialog({ open, onOpenChange, workspaceId, recipeId, recipeTitle }: ShareRecipeDialogProps) {
     const [shareUrl, setShareUrl] = useState<string | null>(null);
+
+    // The recipe page navigates between recipes without unmounting, so a link generated for one recipe
+    // would otherwise still be sitting in the dialog when it is opened on the next one.
+    useEffect(() => {
+        setShareUrl(null);
+    }, [recipeId]);
 
     const createShareLink = useMutation({
         mutationFn: () => recipeSharesApi.createShareLink(workspaceId, recipeId),

@@ -70,7 +70,7 @@ export default function CookingModePage() {
         queryFn: isCollectionShare
             ? () => recipeCollectionsApi.getSharedRecipe(shareToken, recipeId)
             : isShared
-              ? async () => (await recipeSharesApi.getSharedRecipe(shareToken)).recipe
+              ? () => recipeSharesApi.getSharedRecipe(shareToken)
               : () => recipesApi.getById(workspaceId, recipeId),
         enabled: Boolean(isShared ? shareToken : workspaceId && recipeId),
     });

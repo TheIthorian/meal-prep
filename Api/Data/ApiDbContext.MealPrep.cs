@@ -85,6 +85,11 @@ public partial class ApiDbContext
         modelBuilder.Entity<RecipeShareLink>()
             .HasIndex(link => link.Token)
             .IsUnique();
+        // One live link per recipe: re-sharing hands back the token already in circulation, and the
+        // index is what holds that when two share clicks race each other.
+        modelBuilder.Entity<RecipeShareLink>()
+            .HasIndex(link => link.RecipeId)
+            .IsUnique();
 
         modelBuilder.Entity<RecipeFavorite>().HasKey(favorite => new { favorite.UserId, favorite.RecipeId });
         modelBuilder.Entity<RecipeFavorite>()

@@ -296,7 +296,7 @@ public static class EndpointRouteBuilderExtensions
                     RecipeSharesHandlers.GetSharedRecipe
                 )
                 .AllowAnonymous()
-                .Produces<SharedRecipePreviewResponse>()
+                .Produces<SharedRecipeDetailResponse>()
                 .Produces(StatusCodes.Status404NotFound)
                 .WithName("GetSharedRecipe");
 

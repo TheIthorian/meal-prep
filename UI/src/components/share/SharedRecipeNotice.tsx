@@ -4,8 +4,6 @@ import { Button } from '@/components/ui/button';
 import { buildAuthPath } from '@/lib/return-url';
 
 interface SharedRecipeNoticeProps {
-    /** The workspace that shared the recipe, named so the reader knows whose copy this is. */
-    ownerWorkspaceName: string;
     /** Where cooking mode lives for this share link. */
     cookingPath: string;
     /** Where a signed-out visitor comes back to after signing in. */
@@ -17,10 +15,10 @@ interface SharedRecipeNoticeProps {
 
 /**
  * Says plainly what a share link is: a read-only copy of someone else's recipe, which the reader can
- * cook from or take their own copy of, but cannot change.
+ * cook from or take their own copy of, but cannot change. It names no one: a share link deliberately
+ * carries nothing that identifies the workspace it came from.
  */
 export function SharedRecipeNotice({
-    ownerWorkspaceName,
     cookingPath,
     returnUrl,
     isSignedIn,
@@ -31,8 +29,7 @@ export function SharedRecipeNotice({
             <p className='flex items-start gap-2 text-sm text-muted-foreground'>
                 <Eye className='mt-0.5 h-4 w-4 shrink-0' aria-hidden />
                 <span>
-                    Shared with you by <span className='font-medium text-foreground'>{ownerWorkspaceName}</span>. You can
-                    read and cook this recipe, but not edit it. Save a copy to make it yours.
+                    Shared with you. You can read and cook this recipe, but not edit it. Save a copy to make it yours.
                 </span>
             </p>
 

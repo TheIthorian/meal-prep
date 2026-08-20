@@ -60,34 +60,31 @@ describe('SharedRecipePage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         getSharedRecipe.mockResolvedValue({
-            ownerWorkspaceName: 'Sharer Workspace',
-            recipe: {
-                id: 'recipe-1',
-                title: 'Sunday Roast',
-                description: 'A slow roasted centrepiece',
-                servings: 4,
-                sourceUrl: 'https://example.test/roast',
-                notes: 'Rest before carving',
-                prepMinutes: 25,
-                cookMinutes: 90,
-                tags: ['dinner'],
-                hasImage: true,
-                ingredients: [
-                    {
-                        id: 'ingredient-1',
-                        sortOrder: 0,
-                        name: 'Beef brisket',
-                        normalizedIngredientName: 'beef brisket',
-                        amount: 1.5,
-                        unit: 'kg',
-                        preparationNote: null,
-                        section: null,
-                        displayText: '1.5kg beef brisket',
-                    },
-                ],
-                steps: [{ id: 'step-1', sortOrder: 0, instruction: 'Season the beef', timerSeconds: null }],
-                nutrition: null,
-            },
+            id: 'recipe-1',
+            title: 'Sunday Roast',
+            description: 'A slow roasted centrepiece',
+            servings: 4,
+            sourceUrl: 'https://example.test/roast',
+            notes: 'Rest before carving',
+            prepMinutes: 25,
+            cookMinutes: 90,
+            tags: ['dinner'],
+            hasImage: true,
+            ingredients: [
+                {
+                    id: 'ingredient-1',
+                    sortOrder: 0,
+                    name: 'Beef brisket',
+                    normalizedIngredientName: 'beef brisket',
+                    amount: 1.5,
+                    unit: 'kg',
+                    preparationNote: null,
+                    section: null,
+                    displayText: '1.5kg beef brisket',
+                },
+            ],
+            steps: [{ id: 'step-1', sortOrder: 0, instruction: 'Season the beef', timerSeconds: null }],
+            nutrition: null,
         });
     });
 
@@ -102,13 +99,13 @@ describe('SharedRecipePage', () => {
         expect(screen.getByText('Rest before carving')).toBeDefined();
     });
 
-    it('says the recipe is read-only and names who shared it', async () => {
+    it('says the recipe is read-only without naming the workspace that shared it', async () => {
         useAuth.mockReturnValue({ user: null, isLoading: false });
 
         renderPage();
 
-        expect(await screen.findByText('Sharer Workspace')).toBeDefined();
-        expect(screen.getByText(/but not edit it/)).toBeDefined();
+        expect(await screen.findByText(/but not edit it/)).toBeDefined();
+        expect(screen.queryByText(/Sharer Workspace/)).toBeNull();
     });
 
     it('shows the signup prompt with a return url back to this recipe', async () => {

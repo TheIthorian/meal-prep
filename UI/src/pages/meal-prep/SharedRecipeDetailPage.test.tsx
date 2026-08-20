@@ -128,13 +128,22 @@ describe('SharedRecipeDetailPage', () => {
         expect(screen.queryByRole('link', { name: 'Create free account' })).toBeNull();
     });
 
-    it('says the recipe is read-only and names who shared it', async () => {
+    it('says the recipe is read-only', async () => {
         useAuth.mockReturnValue({ user: null, isLoading: false });
 
         renderPage();
 
-        expect(await screen.findByText('Sharer Workspace')).toBeDefined();
-        expect(screen.getByText(/but not edit it/)).toBeDefined();
+        expect(await screen.findByText(/but not edit it/)).toBeDefined();
+    });
+
+    it('still shows the read-only notice when the collection preview call fails', async () => {
+        useAuth.mockReturnValue({ user: null, isLoading: false });
+        getShareLinkPreview.mockRejectedValue(new Error('404'));
+
+        renderPage();
+
+        expect(await screen.findByText(/but not edit it/)).toBeDefined();
+        expect(screen.getByRole('link', { name: /Start cooking/ })).toBeDefined();
     });
 
     it('sends a signed-out visitor to sign in before cooking mode', async () => {

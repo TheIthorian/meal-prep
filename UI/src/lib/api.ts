@@ -28,7 +28,6 @@ import {
     RecipeCollectionShareLinkPreview,
     SharedRecipeDetail,
     RecipeShareLink,
-    SharedRecipePreview,
 } from '@/models/meal-prep';
 import type { PaginatedResponse } from '@/models/pagination';
 import type { McpAccessTokenCreated, McpAccessTokenListItem } from '@/models/mcp';
@@ -124,8 +123,7 @@ export const recipesApi = {
 export const recipeSharesApi = {
     createShareLink: (workspaceId: string, recipeId: string) =>
         httpClient.post<RecipeShareLink>(`/api/v1/workspaces/${workspaceId}/recipes/${recipeId}/share`, {}),
-    getSharedRecipe: (shareToken: string) =>
-        httpClient.get<SharedRecipePreview>(`/api/v1/recipe-share/${shareToken}`),
+    getSharedRecipe: (shareToken: string) => httpClient.get<SharedRecipeDetail>(`/api/v1/recipe-share/${shareToken}`),
     sharedRecipeImageUrl: (shareToken: string, width?: number) =>
         `/api/v1/recipe-share/${shareToken}/image${width ? `?w=${width}` : ''}`,
     saveToWorkspace: (workspaceId: string, shareToken: string) =>

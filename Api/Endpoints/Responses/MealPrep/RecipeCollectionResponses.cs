@@ -83,9 +83,3 @@ public record SharedRecipeDetailResponse(
 );
 
 public record RecipeShareLinkResponse(string ShareToken, string SharePath, DateTime CreatedAtUtc);
-
-/// <summary>
-///     A single shared recipe as its recipient sees it: the recipe itself plus the name of the workspace that
-///     shared it, and nothing that identifies that workspace.
-/// </summary>
-public record SharedRecipePreviewResponse(string OwnerWorkspaceName, SharedRecipeDetailResponse Recipe);

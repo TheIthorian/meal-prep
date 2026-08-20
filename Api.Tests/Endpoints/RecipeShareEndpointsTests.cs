@@ -59,6 +59,11 @@ public sealed class RecipeShareEndpointsTests : IClassFixture<ApiWebApplicationF
 
         var repeated = await second.Content.ReadFromJsonAsync<ShareLinkDto>();
         Assert.Equal(link.ShareToken, repeated!.ShareToken);
+
+        // The reuse path reports when the link was actually created, not when it was last asked for.
+        // Compared with a tolerance: the first response carries the in-memory timestamp, the second the
+        // one Postgres stored, which is rounded to microseconds.
+        Assert.Equal(link.CreatedAtUtc, repeated.CreatedAtUtc, TimeSpan.FromMilliseconds(1));
     }
 
     [Fact]
@@ -78,7 +83,7 @@ public sealed class RecipeShareEndpointsTests : IClassFixture<ApiWebApplicationF
     }
 
     [Fact]
-    public async Task GetSharedRecipe_WithoutSession_ReturnsRecipeAndSharingWorkspaceName() {
+    public async Task GetSharedRecipe_WithoutSession_ReturnsRecipeWithoutNamingTheSharingWorkspace() {
         var (_, workspaceId) = await factory.SeedUserWithWorkspaceAsync("Sharer Workspace");
         var (_, shareToken) = await SeedRecipeWithShareLinkAsync(workspaceId);
 
@@ -88,16 +93,18 @@ public sealed class RecipeShareEndpointsTests : IClassFixture<ApiWebApplicationF
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var preview = await response.Content.ReadFromJsonAsync<SharedRecipePreviewDto>();
-        Assert.NotNull(preview);
-        Assert.Equal("Sharer Workspace", preview!.OwnerWorkspaceName);
-        Assert.Equal("Sunday Roast", preview.Recipe.Title);
-        Assert.Equal("A slow roasted centrepiece", preview.Recipe.Description);
-        Assert.Equal(4m, preview.Recipe.Servings);
-        Assert.Equal(["dinner"], preview.Recipe.Tags);
-        Assert.True(preview.Recipe.HasImage);
-        Assert.Equal(["Beef brisket"], preview.Recipe.Ingredients.Select(ingredient => ingredient.Name));
-        Assert.Equal(["Season the beef"], preview.Recipe.Steps.Select(step => step.Instruction));
+        var detail = await response.Content.ReadFromJsonAsync<SharedRecipeDetailDto>();
+        Assert.NotNull(detail);
+        Assert.Equal("Sunday Roast", detail!.Title);
+        Assert.Equal("A slow roasted centrepiece", detail.Description);
+        Assert.Equal(4m, detail.Servings);
+        Assert.Equal(["dinner"], detail.Tags);
+        Assert.True(detail.HasImage);
+        Assert.Equal(["Beef brisket"], detail.Ingredients.Select(ingredient => ingredient.Name));
+        Assert.Equal(["Season the beef"], detail.Steps.Select(step => step.Instruction));
+
+        var payload = await response.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("Sharer Workspace", payload, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -283,12 +290,7 @@ public sealed class RecipeShareEndpointsTests : IClassFixture<ApiWebApplicationF
     {
         public string ShareToken { get; set; } = string.Empty;
         public string SharePath { get; set; } = string.Empty;
-    }
-
-    private sealed class SharedRecipePreviewDto
-    {
-        public string OwnerWorkspaceName { get; set; } = string.Empty;
-        public SharedRecipeDetailDto Recipe { get; set; } = new();
+        public DateTime CreatedAtUtc { get; set; }
     }
 
     private sealed class SharedRecipeDetailDto

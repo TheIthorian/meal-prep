@@ -26,7 +26,7 @@ export default function SharedRecipePage() {
     const sharePath = `/share/recipes/${shareToken}`;
     const isSignedIn = Boolean(user);
 
-    const { data: preview, isLoading } = useQuery({
+    const { data: recipe, isLoading } = useQuery({
         queryKey: ['shared-recipe-link', shareToken],
         queryFn: () => recipeSharesApi.getSharedRecipe(shareToken),
         enabled: Boolean(shareToken),
@@ -57,15 +57,13 @@ export default function SharedRecipePage() {
         );
     }
 
-    if (!preview) {
+    if (!recipe) {
         return (
             <div className='mx-auto max-w-2xl px-4 py-10 md:px-8'>
                 <EmptyState title='Recipe not found' description='The link may be invalid or expired.' />
             </div>
         );
     }
-
-    const { recipe } = preview;
 
     return (
         <>
@@ -89,7 +87,6 @@ export default function SharedRecipePage() {
                     imageUrl={recipe.hasImage ? recipeSharesApi.sharedRecipeImageUrl(shareToken, 800) : null}
                     header={
                         <SharedRecipeNotice
-                            ownerWorkspaceName={preview.ownerWorkspaceName}
                             cookingPath={`${sharePath}/cooking`}
                             returnUrl={sharePath}
                             isSignedIn={isSignedIn}
