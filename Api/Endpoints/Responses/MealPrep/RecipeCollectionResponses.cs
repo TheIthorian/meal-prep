@@ -81,3 +81,5 @@ public record SharedRecipeDetailResponse(
     RecipeStepResponse[] Steps,
     RecipeNutritionResponse? Nutrition
 );
+
+public record RecipeShareLinkResponse(string ShareToken, string SharePath, DateTime CreatedAtUtc);

@@ -229,6 +229,12 @@ export interface SharedRecipeDetail extends SharedRecipeSummary {
     nutrition?: RecipeNutrition | null;
 }
 
+export interface RecipeShareLink {
+    shareToken: string;
+    sharePath: string;
+    createdAtUtc: string;
+}
+
 export interface RecipeImportPreview {
     title: string;
     description?: string | null;

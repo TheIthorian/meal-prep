@@ -6,7 +6,7 @@
  * it is a local path matching the allowlist below. Absolute, protocol-relative and encoded escapes
  * are rejected to rule out open redirects.
  */
-const allowedPathPrefixes = ['/share/recipe-collections/', '/workspaces/'] as const;
+const allowedPathPrefixes = ['/share/recipe-collections/', '/share/recipes/', '/workspaces/'] as const;
 const allowedExactPaths = ['/', '/settings', '/help'] as const;
 // eslint-disable-next-line no-control-regex
 const controlCharacters = /[\u0000-\u001f\u007f]/;

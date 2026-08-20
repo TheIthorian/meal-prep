@@ -284,6 +284,38 @@ public static class EndpointRouteBuilderExtensions
                 .Produces<RecipeCollectionDetailResponse>()
                 .WithName("ImportRecipeCollectionFromShareLink");
 
+            apiGroup.MapPost(
+                    "/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}/share",
+                    RecipeSharesHandlers.PostCreateShareLink
+                )
+                .Produces<RecipeShareLinkResponse>()
+                .WithName("CreateRecipeShareLink");
+
+            apiGroup.MapGet(
+                    "/recipe-share/{shareToken}",
+                    RecipeSharesHandlers.GetSharedRecipe
+                )
+                .AllowAnonymous()
+                .Produces<SharedRecipeDetailResponse>()
+                .Produces(StatusCodes.Status404NotFound)
+                .WithName("GetSharedRecipe");
+
+            apiGroup.MapGet(
+                    "/recipe-share/{shareToken}/image",
+                    RecipeSharesHandlers.GetSharedRecipeImage
+                )
+                .AllowAnonymous()
+                .Produces(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status404NotFound)
+                .WithName("GetSharedRecipeShareImage");
+
+            apiGroup.MapPost(
+                    "/workspaces/{workspaceId:guid}/recipe-share-save/{shareToken}",
+                    RecipeSharesHandlers.PostSaveSharedRecipe
+                )
+                .Produces<RecipeResponse>()
+                .WithName("SaveSharedRecipeToWorkspace");
+
             apiGroup.MapGet(
                     "/workspaces/{workspaceId:guid}/recipes/{recipeId:guid}/image",
                     RecipesHandlers.GetRecipeImage
