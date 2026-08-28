@@ -1,6 +1,8 @@
+using System.Collections.Concurrent;
 using Api.Data;
 using Api.Models;
 using Api.Services;
+using Api.Services.UserSync;
 using Api.Tests.Infrastructure;
 using Api.Tests.Integration;
 using Microsoft.AspNetCore.Authentication;
@@ -102,6 +104,12 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
                 services.RemoveAll<IS3StorageService>();
                 services.AddSingleton<IS3StorageService, InMemoryS3StorageService>();
 
+                // Replaced here rather than by a per-test `WithWebHostBuilder`, which would build a
+                // SECOND host and re-run EF migrations against an already-migrated database
+                // ("42P07: relation AspNetRoles already exists"). One host, one migration pass.
+                services.RemoveAll<IUserSyncClient>();
+                services.AddSingleton<IUserSyncClient>(RecordingUserSyncClient);
+
                 services.AddAuthentication()
                     .AddPolicyScheme(
                         TestOrIdentityScheme,
@@ -182,6 +190,37 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
         await db.SaveChangesAsync();
 
         return (user.Id, workspace.Id, email);
+    }
+
+    /// <summary>
+    ///     Records what the user-sync filter would have pushed to the Node app, instead of pushing it.
+    ///     Shared across the whole test class, so callers must <see cref="RecordingUserSyncClientDouble.Clear" />
+    ///     between tests that assert on it.
+    /// </summary>
+    public RecordingUserSyncClientDouble RecordingUserSyncClient { get; } = new();
+
+    public sealed record UserSyncCall(Guid UserId, string Email, string DisplayName, string Password);
+
+    public sealed class RecordingUserSyncClientDouble : IUserSyncClient
+    {
+        private readonly ConcurrentBag<UserSyncCall> calls = [];
+
+        public IReadOnlyCollection<UserSyncCall> Calls => calls.ToArray();
+
+        public void Clear() {
+            calls.Clear();
+        }
+
+        public Task SyncAsync(
+            Guid userId,
+            string email,
+            string displayName,
+            string password,
+            CancellationToken ct = default
+        ) {
+            calls.Add(new UserSyncCall(userId, email, displayName, password));
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class InMemoryS3StorageService : IS3StorageService
