@@ -80,6 +80,25 @@ For Railway-style production setup, start from `Infra/environments/production.en
 - `OTEL_EXPORTER_API_KEY`: API key/header credential for telemetry backend.
 - `OTEL_AXIOM_DATASET`: Axiom dataset name used in OTLP headers.
 
+## Migration user-sync (dual-run window only)
+
+Pushes a user into the Node app (server B) after this API has successfully authenticated them, so
+server B holds a working Better Auth credential for them before the migration cuts over. Identity's
+password hashes cannot be imported, and a successful sign-in is the only moment the plaintext exists.
+
+The call is fail-open: server B being down, slow or unconfigured never affects a sign-in here.
+
+- `UserSync__Enabled`: Turns the sync on. **Defaults to `false`** - with it unset, this API behaves
+  exactly as it did before the sync existed, and makes no outbound call.
+- `UserSync__BaseUrl`: Origin of the Node API, e.g. `https://meal-prep-node.example`. No trailing slash.
+- `UserSync__Secret`: Shared secret sent as `x-user-sync-secret`. A **dedicated** secret, not `Jwt__Key`:
+  it is held by a second service, so a leak of it must not also forge tokens for this API. Must match
+  `USER_SYNC_SECRET` on the Node app.
+- `UserSync__TimeoutSeconds`: How long to wait for server B before giving up. Defaults to `5`. Short on
+  purpose - this call sits inside a user's sign-in request.
+
+Remove all four once server B is live and this app is retired.
+
 ## Legacy/fallback variable names
 
 These are supported by parts of the codebase for compatibility, but prefer the canonical names above:
