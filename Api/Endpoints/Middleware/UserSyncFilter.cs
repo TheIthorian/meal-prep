@@ -64,12 +64,21 @@ public class UserSyncFilter(
     }
 
     /// <summary>
-    ///     A failed sign-in must never forward the attempted password. Identity's login endpoint returns a
-    ///     problem result for a bad credential and a signed-in result for a good one, so the response's status
-    ///     code is the authoritative signal; when the result carries no status code, the response's own is used.
+    ///     A failed sign-in must never forward the attempted password.
+    ///     <para>
+    ///         The result must be UNWRAPPED before its status is read. Identity's login endpoint returns
+    ///         <c>Results&lt;Ok&lt;AccessTokenResponse&gt;, EmptyHttpResult, ProblemHttpResult&gt;</c>, a union
+    ///         wrapper that implements <see cref="INestedHttpResult" /> but NOT
+    ///         <see cref="IStatusCodeHttpResult" />. Matching on the wrapper therefore falls through to
+    ///         <c>Response.StatusCode</c>, which is still its default 200 at this point because the result has
+    ///         not been executed yet - so a rejected credential reads as a success and the wrong password gets
+    ///         forwarded. Caught by <c>FailedLogin_SyncsNothing</c>; do not "simplify" this back.
+    ///     </para>
     /// </summary>
     private static bool IsSuccess(EndpointFilterInvocationContext context, object? result) {
-        var statusCode = result switch {
+        var unwrapped = result is INestedHttpResult nested ? nested.Result : result;
+
+        var statusCode = unwrapped switch {
             IStatusCodeHttpResult { StatusCode: not null } statusResult => statusResult.StatusCode.Value,
             _ => context.HttpContext.Response.StatusCode,
         };
