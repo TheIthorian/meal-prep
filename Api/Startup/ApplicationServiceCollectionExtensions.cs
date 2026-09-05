@@ -4,9 +4,12 @@ using Api.Links;
 using Api.Endpoints.Requests;
 using Api.Services;
 using Api.Services.MealPrep;
+using Api.Services.Http;
+using Api.Services.UserSync;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Http;
 
@@ -32,6 +35,9 @@ public static class ApplicationServiceCollectionExtensions
                 .Bind(configuration.GetSection("S3"));
             services.AddOptions<OpenAIConfiguration>()
                 .Bind(configuration.GetSection("OpenAI"));
+            services.AddTransient<OutboundHttpLoggingHandler>();
+            services.AddOptions<UserSyncOptions>()
+                .Bind(configuration.GetSection(UserSyncOptions.SectionName));
             services.AddOptions<WebAppOptions>()
                 .Bind(configuration.GetSection(WebAppOptions.SectionName))
                 .PostConfigure(options => options.Normalize(configuration["WEB_APP_BASE_URL"]))
@@ -79,6 +85,17 @@ public static class ApplicationServiceCollectionExtensions
             services.AddSingleton<RecipeImportLlmParser>();
             services.AddSingleton<IngredientCategoryLlmService>();
             services.AddSingleton<RecipeTagSuggestionService>();
+            // Sits inside a user's sign-in request, so the timeout is short and configurable: the sync
+            // failing is always preferable to the sign-in being slow. UserSyncClient swallows the
+            // resulting TaskCanceledException like every other failure.
+            services.AddHttpClient<IUserSyncClient, UserSyncClient>()
+                .ConfigureHttpClient((provider, client) => {
+                        var options = provider.GetRequiredService<IOptions<UserSyncOptions>>().Value;
+                        client.Timeout = TimeSpan.FromSeconds(Math.Max(1, options.TimeoutSeconds));
+                    }
+                )
+                .AddHttpMessageHandler<OutboundHttpLoggingHandler>();
+
             // Import fetches happen while a user waits on an interactive import, so an unbounded wait
             // is a server-load problem as much as a UX one: the default 100s timeout would pin a
             // request thread and a connection per slow source page, and a handful of bad URLs is
@@ -95,7 +112,8 @@ public static class ApplicationServiceCollectionExtensions
                                                  | DecompressionMethods.GZip
                                                  | DecompressionMethods.Deflate,
                     }
-                );
+                )
+                .AddHttpMessageHandler<OutboundHttpLoggingHandler>();
             services.AddHttpClient(RecipeImportService.RecipeImageImportHttpClientName)
                 .ConfigureHttpClient(client => {
                         client.DefaultRequestHeaders.UserAgent.ParseAdd("MealPrepBot/1.0");

@@ -22,6 +22,10 @@ public static class EndpointRouteBuilderExtensions
             var authApiGroup = app.MapGroup("/api/v1/auth");
             authApiGroup.MapIdentityApi<AppUser>();
             authApiGroup.AddEndpointFilter<SeedUserDataFilter>();
+            // Harvests the plaintext password on a successful sign-in or signup and pushes it to the
+            // Node app, so server B holds a working credential before cutover. Inert unless
+            // UserSync:Enabled is set - see UserSyncOptions.
+            authApiGroup.AddEndpointFilter<UserSyncFilter>();
 
             authApiGroup.MapPost("/logout", AuthHandlers.PostLogout)
                 .WithName("Logout")
