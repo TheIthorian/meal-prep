@@ -6,6 +6,10 @@ describe('sanitizeReturnUrl', () => {
         expect(sanitizeReturnUrl('/share/recipe-collections/abc123')).toBe('/share/recipe-collections/abc123');
     });
 
+    it('keeps a single recipe share path', () => {
+        expect(sanitizeReturnUrl('/share/recipes/abc123')).toBe('/share/recipes/abc123');
+    });
+
     it('keeps the query string and hash of an allowed local path', () => {
         expect(sanitizeReturnUrl('/workspaces/123/collections?sort=name#top')).toBe(
             '/workspaces/123/collections?sort=name#top',

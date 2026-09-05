@@ -9,6 +9,7 @@ import {
     Pencil,
     ExternalLink,
     Flame,
+    Share2,
     Sparkles,
     Star,
     Trash2,
@@ -40,6 +41,7 @@ import { RecipeDetailSkeleton } from '@/components/recipes/RecipeDetailSkeleton'
 import { RecipePhotoSection } from '@/components/meal-prep/RecipePhotoSection';
 import { AddToRecipeCollectionMenu } from '@/components/meal-prep/AddToRecipeCollectionMenu';
 import { RecipeForm } from '@/components/recipes/RecipeForm';
+import { ShareRecipeDialog } from '@/components/recipes/ShareRecipeDialog';
 
 function shouldSuppressRecipeArrowNavigation(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return false;
@@ -139,6 +141,7 @@ export default function RecipeDetailPage() {
     const { currentWorkspace } = useWorkspace();
     const { capture } = useAnalytics();
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [shareDialogOpen, setShareDialogOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [draftRecipe, setDraftRecipe] = useState<Recipe | null>(null);
 
@@ -498,6 +501,21 @@ export default function RecipeDetailPage() {
                                 variant='outline'
                                 size='icon'
                                 className='h-9 w-9 shrink-0'
+                                aria-label='Share recipe'
+                                onClick={() => setShareDialogOpen(true)}
+                            >
+                                <Share2 className='h-4 w-4' />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side='bottom'>Share recipe</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                type='button'
+                                variant='outline'
+                                size='icon'
+                                className='h-9 w-9 shrink-0'
                                 aria-label='Edit recipe'
                                 onClick={startEditing}
                             >
@@ -742,6 +760,14 @@ export default function RecipeDetailPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <ShareRecipeDialog
+                open={shareDialogOpen}
+                onOpenChange={setShareDialogOpen}
+                workspaceId={workspaceId}
+                recipeId={recipe.id}
+                recipeTitle={recipe.title}
+            />
         </motion.div>
     );
 }

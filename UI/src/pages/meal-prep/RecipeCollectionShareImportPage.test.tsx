@@ -2,6 +2,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getShareLinkPreview = vi.fn();
@@ -35,11 +36,16 @@ function renderPage() {
 
     return render(
         <QueryClientProvider client={queryClient}>
-            <MemoryRouter initialEntries={[`/share/recipe-collections/${shareToken}`]}>
-                <Routes>
-                    <Route path='/share/recipe-collections/:shareToken' element={<RecipeCollectionShareImportPage />} />
-                </Routes>
-            </MemoryRouter>
+            <TooltipProvider>
+                <MemoryRouter initialEntries={[`/share/recipe-collections/${shareToken}`]}>
+                    <Routes>
+                        <Route
+                            path='/share/recipe-collections/:shareToken'
+                            element={<RecipeCollectionShareImportPage />}
+                        />
+                    </Routes>
+                </MemoryRouter>
+            </TooltipProvider>
         </QueryClientProvider>,
     );
 }
@@ -145,13 +151,15 @@ describe('RecipeCollectionShareImportPage', () => {
         renderPage();
 
         // One link in the desktop header, one in the mobile tab bar; CSS decides which is visible.
-        const recipesLinks = await screen.findAllByRole('link', { name: 'Recipes' });
+        // Matched loosely: the header link carries the label twice — once visible from lg up, once
+        // screen-reader-only below it — and jsdom applies no CSS, so both are in the name here.
+        const recipesLinks = await screen.findAllByRole('link', { name: /Recipes/ });
 
         expect(recipesLinks).toHaveLength(2);
         for (const link of recipesLinks) {
             expect(link.getAttribute('href')).toBe(`/workspaces/${workspace.workspaceId}/`);
         }
-        expect(screen.getAllByRole('link', { name: 'Shopping' })).toHaveLength(2);
+        expect(screen.getAllByRole('link', { name: /Shopping/ })).toHaveLength(2);
     });
 
     it('does not show the app navigation to a signed-out visitor', async () => {
@@ -161,6 +169,6 @@ describe('RecipeCollectionShareImportPage', () => {
 
         await screen.findByText('Sunday Roast');
 
-        expect(screen.queryAllByRole('link', { name: 'Recipes' })).toHaveLength(0);
+        expect(screen.queryAllByRole('link', { name: /Recipes/ })).toHaveLength(0);
     });
 });

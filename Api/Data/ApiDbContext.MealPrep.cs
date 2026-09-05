@@ -10,6 +10,7 @@ public partial class ApiDbContext
     public DbSet<RecipeCollectionRecipe> RecipeCollectionRecipes => Set<RecipeCollectionRecipe>();
     public DbSet<RecipeCollectionShare> RecipeCollectionShares => Set<RecipeCollectionShare>();
     public DbSet<RecipeCollectionShareLink> RecipeCollectionShareLinks => Set<RecipeCollectionShareLink>();
+    public DbSet<RecipeShareLink> RecipeShareLinks => Set<RecipeShareLink>();
     public DbSet<RecipeFavorite> RecipeFavorites => Set<RecipeFavorite>();
     public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
     public DbSet<RecipeStep> RecipeSteps => Set<RecipeStep>();
@@ -69,6 +70,25 @@ public partial class ApiDbContext
             .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<RecipeCollectionShareLink>()
             .HasIndex(link => link.Token)
+            .IsUnique();
+
+        modelBuilder.Entity<RecipeShareLink>()
+            .HasOne(link => link.Recipe)
+            .WithMany()
+            .HasForeignKey(link => link.RecipeId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RecipeShareLink>()
+            .HasOne(link => link.CreatedByUser)
+            .WithMany()
+            .HasForeignKey(link => link.CreatedByUserId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RecipeShareLink>()
+            .HasIndex(link => link.Token)
+            .IsUnique();
+        // One live link per recipe: re-sharing hands back the token already in circulation, and the
+        // index is what holds that when two share clicks race each other.
+        modelBuilder.Entity<RecipeShareLink>()
+            .HasIndex(link => link.RecipeId)
             .IsUnique();
 
         modelBuilder.Entity<RecipeFavorite>().HasKey(favorite => new { favorite.UserId, favorite.RecipeId });

@@ -30,6 +30,7 @@ const RecipeCollectionsListPage = lazy(() => import('./pages/meal-prep/RecipeCol
 const RecipeCollectionPage = lazy(() => import('./pages/meal-prep/RecipeCollectionPage'));
 const RecipeCollectionShareImportPage = lazy(() => import('./pages/meal-prep/RecipeCollectionShareImportPage'));
 const SharedRecipeDetailPage = lazy(() => import('./pages/meal-prep/SharedRecipeDetailPage'));
+const SharedRecipePage = lazy(() => import('./pages/meal-prep/SharedRecipePage'));
 const WeeklyPlannerPage = lazy(() => import('./pages/meal-prep/WeeklyPlannerPage'));
 const ShoppingListPage = lazy(() => import('./pages/meal-prep/ShoppingListPage'));
 const ShoppingModePage = lazy(() => import('./pages/meal-prep/ShoppingModePage'));
@@ -139,8 +140,27 @@ const App = () => (
                                                 path='/share/recipe-collections/:shareToken/recipes/:recipeId'
                                                 element={<SharedRecipeDetailPage />}
                                             />
+                                            <Route path='/share/recipes/:shareToken' element={<SharedRecipePage />} />
                                             <Route
                                                 path='/workspaces/:workspaceId/cooking/:recipeId'
+                                                element={
+                                                    <ProtectedRoute>
+                                                        <CookingModePage />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            {/* Cooking mode from a share link needs an account, so a signed-out
+                                                visitor is sent to sign in and returned here afterwards. */}
+                                            <Route
+                                                path='/share/recipes/:shareToken/cooking'
+                                                element={
+                                                    <ProtectedRoute>
+                                                        <CookingModePage />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path='/share/recipe-collections/:shareToken/recipes/:recipeId/cooking'
                                                 element={
                                                     <ProtectedRoute>
                                                         <CookingModePage />
